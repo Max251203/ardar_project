@@ -1,0 +1,118 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Ardar{% endblock %}</title>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --text: #111827;
+            --card: #f9f9f9;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: "Segoe UI", sans-serif;
+            background: #f9f9f9;
+            color: var(--text);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        nav {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        main {
+            flex: 1;
+            padding: 30px 20px;
+            max-width: 960px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        footer {
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 12px 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <h1>Ardar</h1>
+            <nav>
+                <a href="{% url 'home' %}">Главная</a>
+                <a href="{% url 'article_list' %}">Статьи</a>
+
+                {% if request.user.is_authenticated %}
+                {% if request.user.is_superuser or request.user.role == "admin" %}
+                <a href="{% url 'moderate_articles' %}">Модерация</a>
+                <a href="/admin/">Админка</a>
+                {% endif %}
+
+                <span>{{ request.user.email }}</span>
+                <a href="{% url 'logout_user' %}">Выйти</a>
+                {% else %}
+                <a href="{% url 'auth' %}">Вход / Регистрация</a>
+                {% endif %}
+            </nav>
+        </header>
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer>
+            © 2025 Ardar Project
+        </footer>
+    </div>
+</body>
+
+</html>

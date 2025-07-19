@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Модерация статей{% endblock %}
+
+{% block content %}
+<h2>Модерация статей</h2>
+
+{% if articles %}
+<div class="moderation-list">
+    {% for article in articles %}
+    <div class="moderation-card">
+        <h3>{{ article.title }}</h3>
+        <p><strong>Автор:</strong> {{ article.author.email }}</p>
+        <p><strong>Язык:</strong> {{ article.get_language_display }}</p>
+        <p><strong>Дата создания:</strong> {{ article.created_at|date:"d.m.Y H:i" }}</p>
+
+        {% if article.image %}
+        <img src="{{ article.image.url }}" alt="Обложка статьи" class="thumbnail">
+        {% endif %}
+
+        <div class="article-preview">
+            {{ article.text|truncatewords:50 }}
+            <a href="{% url 'article_detail' article.pk %}">Просмотреть полностью</a>
+        </div>
+
+        <div class="moderation-actions">
+            <a href="{% url 'approve_article' article.pk %}" class="btn-approve">✅ Одобрить</a>
+            <a href="{% url 'reject_article' article.pk %}" class="btn-reject"
+                onclick="return confirm('Вы уверены, что хотите отклонить эту статью?')">❌ Отклонить</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>Нет статей, ожидающих модерации.</p>
+{% endif %}
+
+<style>
+    .moderation-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .moderation-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        background: #f9f9f9;
+    }
+
+    .thumbnail {
+        max-width: 200px;
+        max-height: 150px;
+        object-fit: cover;
+        margin: 10px 0;
+        border-radius: 4px;
+    }
+
+    .article-preview {
+        margin: 15px 0;
+        padding: 10px;
+        background: #fff;
+        border-radius: 4px;
+    }
+
+    .moderation-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .btn-approve,
+    .btn-reject {
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        color: white;
+        font-weight: bold;
+    }
+
+    .btn-approve {
+        background-color: #22c55e;
+    }
+
+    .btn-reject {
+        background-color: #ef4444;
+    }
+</style>
+{% endblock %}
