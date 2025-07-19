@@ -11,6 +11,16 @@
             --primary: #2563eb;
             --text: #111827;
             --card: #f9f9f9;
+            --bg: #f3f4f6;
+            --border: #e5e7eb;
+        }
+
+        [data-theme="dark"] {
+            --primary: #3b82f6;
+            --text: #f3f4f6;
+            --card: #1f2937;
+            --bg: #111827;
+            --border: #374151;
         }
 
         * {
@@ -22,8 +32,9 @@
             height: 100%;
             margin: 0;
             font-family: "Segoe UI", sans-serif;
-            background: #f9f9f9;
+            background: var(--bg);
             color: var(--text);
+            transition: background-color 0.3s, color 0.3s;
         }
 
         body {
@@ -46,8 +57,40 @@
             justify-content: space-between;
         }
 
-        header h1 {
-            margin: 0;
+        .logo-container {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-image {
+            height: 60px;
+            /* Увеличиваем размер с 40px до 60px */
+            margin-right: 15px;
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo-title {
+            font-size: 24px;
+            /* Увеличиваем с 20px до 24px */
+            font-weight: bold;
+        }
+
+        .logo-divider {
+            width: 100%;
+            height: 2px;
+            background-color: rgba(255, 255, 255, 0.5);
+            margin: 4px 0;
+        }
+
+        .logo-subtitle {
+            font-size: 16px;
+            /* Увеличиваем с 14px до 16px */
         }
 
         nav {
@@ -69,7 +112,7 @@
         main {
             flex: 1;
             padding: 30px 20px;
-            max-width: 960px;
+            max-width: 1200px;
             width: 100%;
             margin: 0 auto;
         }
@@ -80,21 +123,37 @@
             text-align: center;
             padding: 12px 20px;
         }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
     </style>
 </head>
 
 <body>
     <div class="wrapper">
         <header>
-            <h1>Ardar</h1>
+            <a href="{% url 'home' %}" class="logo-container">
+                <img src="{% static 'img/logo.png' %}" alt="Ardar Logo" class="logo-image">
+                <div class="logo-text">
+                    <span class="logo-title">ardar.info</span>
+                    <div class="logo-divider"></div>
+                    <span class="logo-subtitle">Общественно-политический блог</span>
+                </div>
+            </a>
+
             <nav>
                 <a href="{% url 'home' %}">Главная</a>
                 <a href="{% url 'article_list' %}">Статьи</a>
 
                 {% if request.user.is_authenticated %}
                 {% if request.user.is_superuser or request.user.role == "admin" %}
-                <a href="{% url 'moderate_articles' %}">Модерация</a>
-                <a href="/admin/">Админка</a>
+                <a href="{% url 'admin_dashboard' %}">Админка</a>
                 {% endif %}
 
                 <span>{{ request.user.email }}</span>
@@ -102,6 +161,8 @@
                 {% else %}
                 <a href="{% url 'auth' %}">Вход / Регистрация</a>
                 {% endif %}
+
+                <button class="theme-toggle" id="theme-toggle">🌙</button>
             </nav>
         </header>
 
@@ -113,6 +174,26 @@
             © 2025 Ardar Project
         </footer>
     </div>
+
+    <script>
+        // Переключение темы
+        const themeToggle = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+
+        // Проверяем сохраненную тему
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        htmlElement.setAttribute('data-theme', savedTheme);
+        themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        });
+    </script>
 </body>
 
 </html>

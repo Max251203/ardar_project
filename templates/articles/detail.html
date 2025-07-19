@@ -1,34 +1,173 @@
 {% extends "base.html" %}
-{% block title %}Статья{% endblock %}
+{% block title %}{{ article.title }}{% endblock %}
+
 {% block content %}
+<div class="article-container">
+    <div class="article-header">
+        <h1 class="article-title">{{ article.title }}</h1>
 
-<h2>{{ article.title }}</h2>
+        <div class="article-meta">
+            <span><i class="fas fa-user"></i> {{ article.author.email }}</span>
+            <span><i class="fas fa-globe"></i> {{ article.get_language_display }}</span>
+            <span><i class="fas fa-calendar"></i> {{ article.created_at|date:"d.m.Y H:i" }}</span>
+        </div>
 
-<p><strong>Автор:</strong> {{ article.author.email }}</p>
-<p><strong>Язык:</strong> {{ article.get_language_display }}</p>
-<p><strong>Дата:</strong> {{ article.created_at|date:"d.m.Y H:i" }}</p>
+        {% if not article.is_approved %}
+        <div class="article-pending">
+            <p>⚠️ Эта статья ожидает модерации и видна только вам и администраторам.</p>
+        </div>
+        {% endif %}
+    </div>
 
-{% if not article.is_approved %}
-{% if request.user == article.author %}
-<div style="background: #fffbe6; padding: 10px; border-left: 4px solid #ffc107;">
-    Эта статья ожидает модерации и видна только вам.
+    {% if article.image %}
+    <div class="article-image">
+        <img src="{{ article.image.url }}" alt="{{ article.title }}">
+    </div>
+    {% endif %}
+
+    <div class="article-content">
+        {{ article.text|linebreaks }}
+    </div>
+
+    <div class="article-audio">
+        {% if article.audio %}
+        <h3>Прослушать статью</h3>
+        <audio controls class="audio-player">
+            <source src="{{ article.audio.url }}" type="audio/mpeg">
+            Ваш браузер не поддерживает аудио-элемент.
+        </audio>
+        {% else %}
+        {% if request.user == article.author or request.user.is_superuser or request.user.role == 'admin' %}
+        <div class="generate-audio">
+            <a href="{% url 'generate_audio' article.pk %}" class="btn-generate">🔊 Сгенерировать озвучку</a>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="article-actions">
+        <a href="{% url 'article_list' %}" class="btn-back">← Назад к статьям</a>
+
+        {% if request.user == article.author or request.user.is_superuser or request.user.role == 'admin' %}
+        <!-- Здесь можно добавить кнопки редактирования/удаления -->
+        {% endif %}
+    </div>
 </div>
-{% endif %}
-{% endif %}
 
-<hr>
-<div style="white-space: pre-wrap;">{{ article.text }}</div>
+<style>
+    .article-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: var(--card);
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
 
-<hr>
-{% if article.audio %}
-<h4>Прослушивание:</h4>
-<audio controls>
-    <source src="{{ article.audio.url }}" type="audio/mpeg">
-</audio>
-{% else %}
-{% if request.user == article.author %}
-<a href="{% url 'generate_audio' article.pk %}">🎧 Сгенерировать озвучку</a>
-{% endif %}
-{% endif %}
+    .article-header {
+        margin-bottom: 25px;
+    }
 
+    .article-title {
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 28px;
+        color: var(--text);
+    }
+
+    .article-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 15px;
+    }
+
+    .article-pending {
+        background-color: #fff7ed;
+        border-left: 4px solid #f59e0b;
+        padding: 10px 15px;
+        margin-bottom: 20px;
+        color: #92400e;
+    }
+
+    .article-image {
+        margin-bottom: 25px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .article-image img {
+        width: 100%;
+        max-height: 400px;
+        object-fit: cover;
+    }
+
+    .article-content {
+        font-size: 16px;
+        line-height: 1.7;
+        color: var(--text);
+        margin-bottom: 30px;
+    }
+
+    .article-audio {
+        margin-bottom: 30px;
+    }
+
+    .audio-player {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .generate-audio {
+        margin-top: 20px;
+    }
+
+    .btn-generate {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: opacity 0.2s;
+    }
+
+    .btn-generate:hover {
+        opacity: 0.9;
+    }
+
+    .article-actions {
+        margin-top: 30px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .btn-back {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #e5e7eb;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+
+    .btn-back:hover {
+        background-color: #d1d5db;
+    }
+
+    @media (max-width: 768px) {
+        .article-container {
+            padding: 20px;
+        }
+
+        .article-title {
+            font-size: 24px;
+        }
+    }
+</style>
 {% endblock %}
