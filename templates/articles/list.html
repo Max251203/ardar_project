@@ -1,47 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Статьи{% endblock %}
-
 {% block content %}
 <h2>Статьи</h2>
-
 {% if articles %}
 <div class="card-grid">
     {% for article in articles %}
-    <div class="card">
-        <div class="card-image-container">
-            {% if article.image %}
-            <img src="{{ article.image.url }}" class="card-image" alt="Обложка">
-            {% else %}
-            <div class="card-image-placeholder">
-                <span>Нет изображения</span>
-            </div>
-            {% endif %}
-        </div>
-        <div class="card-content">
-            <h3 class="card-title">{{ article.title }}</h3>
-            <div class="card-meta">
-                <span><i class="fas fa-user"></i> {{ article.author.email }}</span>
-                <span><i class="fas fa-globe"></i> {{ article.get_language_display }}</span>
-                <span><i class="fas fa-calendar"></i> {{ article.created_at|date:"d.m.Y" }}</span>
-            </div>
-            <div class="card-excerpt">
-                {{ article.text|truncatewords:20 }}
-            </div>
-            <div class="card-footer">
-                <a href="{% url 'article_detail' article.pk %}" class="read-more">Читать →</a>
-                {% if not article.is_approved and article.author == request.user %}
-                <span class="pending">🕒 Ожидает модерации</span>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+    {% include "articles/_card.html" %}
     {% endfor %}
 </div>
-
 {% else %}
 <p>Пока статей нет.</p>
 {% endif %}
-
 {% if request.user.is_authenticated %}
 {% if request.user.role == "registered" or request.user.role == "privileged" or request.user.role == "admin" or request.user.is_superuser %}
 <div class="add-article-btn">
@@ -65,13 +33,7 @@
         display: flex;
         flex-direction: column;
         height: 450px;
-        /* Фиксированная высота */
         transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
     }
 
     .card-image-container {
@@ -89,12 +51,7 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transition: transform 0.3s;
         display: block;
-    }
-
-    .card:hover .card-image {
-        transform: scale(1.05);
     }
 
     .card-image-placeholder {

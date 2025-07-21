@@ -1,0 +1,28 @@
+<div class="card">
+    <div class="card-image-container">
+        {% if article.image %}
+        <img src="{{ article.image.url }}" class="card-image" alt="Обложка">
+        {% else %}
+        <div class="card-image-placeholder">
+            <span>Нет изображения</span>
+        </div>
+        {% endif %}
+    </div>
+    <div class="card-content">
+        <h3 class="card-title">{{ article.title }}</h3>
+        <div class="card-meta">
+            <span>{{ article.author.email }}</span>
+            <span>{{ article.get_language_display }}</span>
+            <span>{{ article.created_at|date:"d.m.Y" }}</span>
+        </div>
+        <div class="card-excerpt">
+            {{ article.text|truncatewords:20 }}
+        </div>
+        <div class="card-footer">
+            <a href="{% url 'article_detail' article.pk %}" class="read-more">Читать →</a>
+            {% if not article.is_approved and article.author == request.user %}
+            <span class="pending">🕒 Ожидает модерации</span>
+            {% endif %}
+        </div>
+    </div>
+</div>

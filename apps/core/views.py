@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from apps.articles.models import Article
-
+from django.utils import translation
 
 def home(request):
     if request.user.is_authenticated:
@@ -12,7 +12,14 @@ def home(request):
         articles = Article.objects.filter(
             is_approved=True).order_by('-created_at')[:6]
 
-    return render(request, 'core/home.html', {'articles': articles})
+    lang = translation.get_language()
+    return render(request, "core/home.html", {
+        "articles": articles,
+        "is_ru": lang.startswith("ru"),
+        "is_en": lang.startswith("en"),
+        "is_hy": lang.startswith("hy"),
+    })
+    
 
 
 def access_denied(request):

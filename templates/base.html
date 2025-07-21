@@ -5,139 +5,14 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}Ardar{% endblock %}</title>
-
-    <style>
-        :root {
-            --primary: #2563eb;
-            --text: #111827;
-            --card: #f9f9f9;
-            --bg: #f3f4f6;
-            --border: #e5e7eb;
-        }
-
-        [data-theme="dark"] {
-            --primary: #3b82f6;
-            --text: #f3f4f6;
-            --card: #1f2937;
-            --bg: #111827;
-            --border: #374151;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        html,
-        body {
-            height: 100%;
-            margin: 0;
-            font-family: "Segoe UI", sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        body {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        header {
-            background: var(--primary);
-            color: white;
-            padding: 14px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .logo-container {
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-            color: white;
-        }
-
-        .logo-image {
-            height: 60px;
-            /* Увеличиваем размер с 40px до 60px */
-            margin-right: 15px;
-        }
-
-        .logo-text {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .logo-title {
-            font-size: 24px;
-            /* Увеличиваем с 20px до 24px */
-            font-weight: bold;
-        }
-
-        .logo-divider {
-            width: 100%;
-            height: 2px;
-            background-color: rgba(255, 255, 255, 0.5);
-            margin: 4px 0;
-        }
-
-        .logo-subtitle {
-            font-size: 16px;
-            /* Увеличиваем с 14px до 16px */
-        }
-
-        nav {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        nav a {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        nav a:hover {
-            text-decoration: underline;
-        }
-
-        main {
-            flex: 1;
-            padding: 30px 20px;
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        footer {
-            background: var(--primary);
-            color: white;
-            text-align: center;
-            padding: 12px 20px;
-        }
-
-        .theme-toggle {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/admin.css' %}">
 </head>
 
 <body>
-    <div class="wrapper">
-        <header>
+    <header>
+        <nav>
             <a href="{% url 'home' %}" class="logo-container">
                 <img src="{% static 'img/logo.png' %}" alt="Ardar Logo" class="logo-image">
                 <div class="logo-text">
@@ -146,52 +21,58 @@
                     <span class="logo-subtitle">Общественно-политический блог</span>
                 </div>
             </a>
-
-            <nav>
+            
+            <form method="get" action="" id="lang-form" style="display:inline;">
+                <select name="lang" onchange="this.form.submit()" style="margin-left:15px;">
+                    <option value="ru" {% if is_ru %}selected{% endif %}>Русский</option>
+                    <option value="en" {% if is_en %}selected{% endif %}>English</option>
+                    <option value="hy" {% if is_hy %}selected{% endif %}>Հայերեն</option>
+                </select>
+            </form>
+            
+            <div class="nav-links">
                 <a href="{% url 'home' %}">Главная</a>
                 <a href="{% url 'article_list' %}">Статьи</a>
 
                 {% if request.user.is_authenticated %}
-                {% if request.user.is_superuser or request.user.role == "admin" %}
-                <a href="{% url 'admin_dashboard' %}">Админка</a>
-                {% endif %}
+                    {% if request.user.is_superuser or request.user.role == 'admin' %}
+                        <a href="{% url 'admin_dashboard' %}">🎛️ Админка</a>
+                    {% endif %}
 
-                <span>{{ request.user.email }}</span>
-                <a href="{% url 'logout_user' %}">Выйти</a>
+                    <span>{{ request.user.email }}</span>
+                    <a href="{% url 'logout_user' %}">Выйти</a>
                 {% else %}
-                <a href="{% url 'auth' %}">Вход / Регистрация</a>
+                    <a href="{% url 'auth' %}">Вход / Регистрация</a>
                 {% endif %}
 
                 <button class="theme-toggle" id="theme-toggle">🌙</button>
-            </nav>
-        </header>
+            </div>
+        </nav>
+    </header>
 
-        <main>
-            {% block content %}{% endblock %}
-        </main>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
 
-        <footer>
+    <footer>
+        <div class="footer-content">
             © 2025 Ardar Project
-        </footer>
-    </div>
+        </div>
+    </footer>
 
     <script>
-        // Переключение темы
-        const themeToggle = document.getElementById('theme-toggle');
-        const htmlElement = document.documentElement;
-
-        // Проверяем сохраненную тему
+        const toggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
         const savedTheme = localStorage.getItem('theme') || 'light';
-        htmlElement.setAttribute('data-theme', savedTheme);
-        themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        html.dataset.theme = savedTheme;
+        toggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
 
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = htmlElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-
-            htmlElement.setAttribute('data-theme', newTheme);
+        toggle.addEventListener('click', () => {
+            const current = html.dataset.theme;
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            html.dataset.theme = newTheme;
             localStorage.setItem('theme', newTheme);
-            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            toggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
         });
     </script>
 </body>

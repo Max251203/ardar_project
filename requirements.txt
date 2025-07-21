@@ -28,3 +28,6 @@ gTTS
 # Для отладки и продакшена
 gunicorn
 django-debug-toolbar
+
+
+django-ckeditor>=6.0.0

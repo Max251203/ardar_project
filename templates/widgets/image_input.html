@@ -1,0 +1,11 @@
+{% if widget.is_initial %}
+    <div class="image-preview">
+        <img src="{{ widget.value.url }}" alt="{{ widget.value }}" style="max-width: 200px; margin-bottom: 10px;">
+        <div class="image-actions">
+            <label for="{{ widget.checkbox_id }}">{{ widget.clear_checkbox_label }}</label>
+            <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}" style="display:none;">
+            <button type="button" class="remove-image-button" onclick="document.getElementById('{{ widget.checkbox_id }}').checked = true; this.form.submit();">❌ Удалить изображение</button>
+        </div>
+    </div>
+{% endif %}
+<input type="{{ widget.type }}" name="{{ widget.name }}"{% if widget.value != None %} value="{{ widget.value }}"{% endif %}{% include "django/forms/widgets/attrs.html" %}>

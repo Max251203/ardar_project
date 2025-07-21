@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Управление пользователями{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h2>Управление пользователями</h2>
+        <div class="admin-nav">
+            <a href="{% url 'admin_dashboard' %}">Дашборд</a>
+            <a href="{% url 'admin_articles' %}">Статьи</a>
+            <a href="{% url 'admin_users' %}" class="active">Пользователи</a>
+        </div>
+    </div>
+
+    {% if users %}
+    <div class="users-table">
+        <div class="table-header">
+            <div class="col-email">Email</div>
+            <div class="col-name">Имя</div>
+            <div class="col-role">Роль</div>
+            <div class="col-date">Дата регистрации</div>
+            <div class="col-actions">Действия</div>
+        </div>
+
+        {% for user in users %}
+        <div class="table-row">
+            <div class="col-email">{{ user.email }}</div>
+            <div class="col-name">{{ user.name }}</div>
+            <div class="col-role">
+                {% if user.is_superuser %}
+                <span class="role-admin">Суперадмин</span>
+                {% else %}
+                <span class="role-{{ user.role }}">{{ user.get_role_display }}</span>
+                {% endif %}
+            </div>
+            <div class="col-date">{{ user.date_joined|date:"d.m.Y" }}</div>
+            <div class="col-actions">
+                {% if user != request.user %}
+                <a href="{% url 'admin_edit_user' user.id %}" class="btn-edit">Изменить роль</a>
+                <a href="{% url 'admin_delete_user' user.id %}" class="btn-delete" onclick="return confirm('Удалить пользователя?')">Удалить</a>
+                {% else %}
+                <span style="color:#6b7280;">(Вы)</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-users">
+        <p>Нет пользователей в системе.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

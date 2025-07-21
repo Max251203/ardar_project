@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Редактировать пользователя{% endblock %}
+{% block content %}
+<h2>Изменить данные пользователя</h2>
+<form method="post">{% csrf_token %}
+  <label>Email:</label><input type="email" name="email" value="{{ user.email }}"><br>
+  <label>Имя:</label><input type="text" name="name" value="{{ user.name }}"><br>
+  <button type="submit">Сохранить</button>
+  <a href="{% url 'admin_users' %}">Назад</a>
+</form>
+{% endblock %}

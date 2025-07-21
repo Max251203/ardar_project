@@ -10,11 +10,12 @@ class Article(models.Model):
     ]
 
     title = models.CharField(max_length=200)
-    image = models.ImageField(
-        upload_to='article_images/', null=True, blank=True)  # 👈 изображение
     language = models.CharField(max_length=2, choices=LANGS, default='ru')
+    image = models.ImageField(
+        upload_to='article_images/', null=True, blank=True)
     text = models.TextField()
-    audio = models.FileField(upload_to='tts/', null=True, blank=True)
+    uploaded_file = models.FileField(
+        upload_to='article_files/', null=True, blank=True)
     author = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
