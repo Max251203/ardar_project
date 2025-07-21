@@ -1,3 +1,6 @@
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import re
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from .forms import ArticleForm
@@ -76,8 +79,7 @@ def article_create(request):
 
 def extract_text_from_file(article):
     """
-    Чтение загруженного файла и запись его содержимого в поле `text`
-    (поддерживаются: .txt, .docx, .pdf)
+    Извлекает текст из файла (txt, docx) и сохраняет его в поле `text`.
     """
     if not article.uploaded_file:
         return
@@ -93,18 +95,77 @@ def extract_text_from_file(article):
         elif ext == '.docx':
             doc = Document(filepath)
             text = '\n'.join([p.text for p in doc.paragraphs])
-        elif ext == '.pdf':
-            text = textract.process(filepath).decode('utf-8')
         else:
-            print(f"[SKIP] Unsupported file type: {ext}")
+            print("[!] Нераспознаваемый тип файла:", ext)
             return
     except Exception as e:
-        print(f"[ERROR] Failed to extract text from file: {e}")
+        print(f"[!] Ошибка при извлечении текста из файла: {e}")
         return
 
     if text:
-        article.text = text
+        # Преобразуем текст в HTML-формат для CKEditor
+        # Разбиваем на абзацы и оборачиваем каждый в <p>
+        paragraphs = text.split('\n\n')
+        html_paragraphs = []
+
+        for p in paragraphs:
+            if p.strip():  # Пропускаем пустые абзацы
+                html_p = p.replace('\n', '<br>')
+                html_paragraphs.append(f'<p>{html_p}</p>')
+
+        html_text = ''.join(html_paragraphs)
+        article.text = html_text
         article.save()
+
+
+@csrf_exempt
+def process_file(request):
+    """
+    Обрабатывает загруженный файл и возвращает извлеченный текст.
+    Поддерживаются только .txt и .docx форматы.
+    """
+    if request.method != 'POST' or 'file' not in request.FILES:
+        return JsonResponse({'error': 'No file provided'}, status=400)
+
+    uploaded_file = request.FILES['file']
+    ext = os.path.splitext(uploaded_file.name)[1].lower()
+    text = ""
+
+    try:
+        if ext == '.txt':
+            text = uploaded_file.read().decode('utf-8')
+        elif ext == '.docx':
+            # Сохраняем файл временно
+            temp_path = os.path.join('media', 'temp', uploaded_file.name)
+            os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+
+            with open(temp_path, 'wb+') as destination:
+                for chunk in uploaded_file.chunks():
+                    destination.write(chunk)
+
+            # Извлекаем текст
+            doc = Document(temp_path)
+            text = '\n'.join([p.text for p in doc.paragraphs])
+
+            # Удаляем временный файл
+            os.remove(temp_path)
+        else:
+            return JsonResponse({'error': 'Unsupported file format. Only .txt and .docx are supported.'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+    # Преобразуем текст в HTML
+    paragraphs = text.split('\n\n')
+    html_paragraphs = []
+
+    for p in paragraphs:
+        if p.strip():  # Пропускаем пустые абзацы
+            html_p = p.replace('\n', '<br>')
+            html_paragraphs.append(f'<p>{html_p}</p>')
+
+    html_text = ''.join(html_paragraphs)
+
+    return JsonResponse({'text': html_text})
 
 
 @login_required
@@ -114,8 +175,12 @@ def generate_audio(request, pk):
     if not article.text:
         return HttpResponse("Нет текста для озвучивания", status=400)
 
+    # Очищаем HTML-теги для получения чистого текста
+    clean_text = re.sub(r'<.*?>', ' ', article.text)
+    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+
     # Генерируем аудио без сохранения
-    tts = gTTS(text=article.text, lang=article.language)
+    tts = gTTS(text=clean_text, lang=article.language)
     buffer = io.BytesIO()
     tts.write_to_fp(buffer)
     buffer.seek(0)

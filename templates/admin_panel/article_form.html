@@ -3,6 +3,8 @@
 {% block title %}{{ edit_mode|yesno:"Редактирование,Создание" }} статьи{% endblock %}
 
 {% block content %}
+{{ form.media }}  <!-- Загрузка скриптов CKEditor -->
+
 <div class="article-form-container">
     <div class="article-form-header">
         <h2>{{ edit_mode|yesno:"Редактирование,Создание" }} статьи</h2>
@@ -71,7 +73,7 @@
                     <div class="file-upload-area" id="fileUploadArea">
                         <div class="file-placeholder">
                             <div class="upload-icon">📄</div>
-                            <p>Перетащите файл (.txt, .docx, .pdf)<br>или нажмите для выбора</p>
+                            <p>Перетащите файл (.txt, .docx, .doc)<br>или нажмите для выбора</p>
                         </div>
                         <div class="file-preview" id="filePreviewContainer" style="display:none;">
                             <div class="file-info">
@@ -82,7 +84,7 @@
                         <div style="display:none;">{{ form.uploaded_file }}</div>
                     </div>
                     <div class="file-help">
-                        <p>Поддерживаемые форматы: .txt, .docx, .pdf</p>
+                        <p>Поддерживаемые форматы: .txt, .docx, .doc</p>
                     </div>
                 </div>
 
@@ -189,7 +191,7 @@
         margin-top: 10px;
     }
 
-        .btn-remove-image, .btn-remove-file {
+    .btn-remove-image, .btn-remove-file {
         background-color: #ef4444;
         color: white;
         border: none;
@@ -273,7 +275,7 @@
         const fileName = document.getElementById('fileName');
 
         // Клик по области загрузки изображения
-        if (imageUploadArea && !imagePreview.src) {
+        if (imageUploadArea && imagePlaceholder) {
             imageUploadArea.addEventListener('click', function() {
                 imageInput.click();
             });
@@ -292,7 +294,7 @@
                 if (this.files && this.files[0]) {
                     const reader = new FileReader();
                     
-                    reader.onload = function(e) {
+                                        reader.onload = function(e) {
                         if (imagePlaceholder) imagePlaceholder.style.display = 'none';
                         if (previewContainer) previewContainer.style.display = 'block';
                         imagePreview.src = e.target.result;
@@ -303,20 +305,71 @@
             });
         }
 
+        // Функция для установки текста в редактор (работает с CKEditor или обычным textarea)
+        function setEditorContent(text) {
+            // Проверяем, загружен ли CKEditor
+            if (typeof CKEDITOR !== 'undefined') {
+                // Если редактор уже инициализирован
+                if (CKEDITOR.instances.id_text) {
+                    CKEDITOR.instances.id_text.setData(text);
+                } else {
+                    // Если редактор еще не инициализирован, ждем его готовности
+                    CKEDITOR.on('instanceReady', function(evt) {
+                        if (evt.editor.name === 'id_text') {
+                            evt.editor.setData(text);
+                        }
+                    });
+                }
+            } else {
+                // Используем обычное текстовое поле
+                const textArea = document.querySelector('textarea[name="text"]');
+                if (textArea) {
+                    textArea.value = text;
+                }
+            }
+        }
+
         // Обработка выбора файла
         if (fileInput) {
             fileInput.addEventListener('change', function() {
                 if (this.files && this.files[0]) {
-                    fileName.textContent = this.files[0].name;
+                    const file = this.files[0];
+                    fileName.textContent = file.name;
                     filePreviewContainer.style.display = 'block';
                     
-                    // Если это текстовый файл, попробуем прочитать его содержимое
-                    if (this.files[0].type === 'text/plain') {
+                    // Обработка текстовых файлов
+                    if (file.type === 'text/plain') {
                         const reader = new FileReader();
                         reader.onload = function(e) {
-                            document.querySelector('textarea[name="text"]').value = e.target.result;
+                            setEditorContent(e.target.result);
                         };
-                        reader.readAsText(this.files[0]);
+                        reader.readAsText(file);
+                    } else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+                        // Для DOCX отправляем файл на сервер для обработки
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        
+                        // Показываем сообщение о загрузке
+                        setEditorContent('<p>Загрузка и обработка файла...</p>');
+                        
+                        fetch('{% url "process_file" %}', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                setEditorContent('<p>Ошибка при обработке файла: ' + data.error + '</p>');
+                            } else {
+                                setEditorContent(data.text);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            setEditorContent('<p>Ошибка при обработке файла. Попробуйте еще раз.</p>');
+                        });
+                    } else {
+                        setEditorContent('<p>Неподдерживаемый формат файла. Поддерживаются только .txt, .docx и .doc</p>');
                     }
                 }
             });
@@ -399,24 +452,61 @@
             fileUploadArea.addEventListener('drop', handleFileDrop, false);
 
             function handleFileDrop(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                
-                if (files && files[0]) {
-                    fileInput.files = files;
-                    fileName.textContent = files[0].name;
-                    filePreviewContainer.style.display = 'block';
-                    
-                    // Если это текстовый файл, попробуем прочитать его содержимое
-                    if (files[0].type === 'text/plain') {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            document.querySelector('textarea[name="text"]').value = e.target.result;
-                        };
-                        reader.readAsText(files[0]);
-                    }
-                }
-            }
+              const dt = e.dataTransfer;
+              const files = dt.files;
+              
+              if (files && files[0]) {
+                  const file = files[0];
+                  fileInput.files = files;
+                  fileName.textContent = file.name;
+                  filePreviewContainer.style.display = 'block';
+                  
+                  // Обработка текстовых файлов
+                  if (file.type === 'text/plain') {
+                      const reader = new FileReader();
+                      reader.onload = function(e) {
+                          setEditorContent(e.target.result);
+                      };
+                      reader.readAsText(file);
+                  } else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+                      // Для DOCX отправляем файл на сервер для обработки
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      
+                      // Показываем сообщение о загрузке
+                      setEditorContent('<p>Загрузка и обработка файла...</p>');
+                      
+                      fetch('{% url "process_file" %}', {
+                          method: 'POST',
+                          body: formData
+                      })
+                      .then(response => response.json())
+                      .then(data => {
+                          if (data.error) {
+                              setEditorContent('<p>Ошибка при обработке файла: ' + data.error + '</p>');
+                          } else {
+                              setEditorContent(data.text);
+                          }
+                      })
+                      .catch(error => {
+                          console.error('Error:', error);
+                          setEditorContent('<p>Ошибка при обработке файла. Попробуйте еще раз.</p>');
+                      });
+                  } else {
+                      setEditorContent('<p>Неподдерживаемый формат файла. Поддерживаются только .txt и .docx</p>');
+                  }
+              }
+          }
+        }
+
+        // Проверка загрузки CKEditor и настройка обработчиков
+        if (typeof CKEDITOR !== 'undefined') {
+            // Ждем, пока CKEditor полностью инициализируется
+            CKEDITOR.on('instanceReady', function(evt) {
+                console.log('CKEditor готов:', evt.editor.name);
+            });
+        } else {
+            console.log('CKEditor не обнаружен, используем обычное текстовое поле');
         }
     });
 
@@ -453,3 +543,4 @@
     }
 </script>
 {% endblock %}
+                        

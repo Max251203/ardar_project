@@ -73,6 +73,98 @@
         .close-message:hover {
             opacity: 1;
         }
+
+        /* Стили для модального окна авторизации */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: var(--card);
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--text-light);
+            cursor: pointer;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .auth-tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-light);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+        }
+
+        .auth-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .auth-tab-content {
+            display: none;
+        }
+
+        .auth-tab-content.active {
+            display: block;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .password-group {
+            position: relative;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 38px;
+            width: 22px;
+            height: 22px;
+            background: url("{% static 'img/eye.png' %}") no-repeat center;
+            background-size: contain;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .toggle-password[data-state="visible"] {
+            background-image: url("{% static 'img/eye-slash.png' %}");
+        }
     </style>
 </head>
 
@@ -102,13 +194,13 @@
 
                 {% if request.user.is_authenticated %}
                     {% if request.user.is_superuser or request.user.role == 'admin' %}
-                        <a href="{% url 'admin_dashboard' %}">🎛️ Админка</a>
+                        <a href="{% url 'admin_dashboard' %}">Админка</a>
                     {% endif %}
 
                     <span>{{ request.user.email }}</span>
                     <a href="{% url 'logout_user' %}">Выйти</a>
                 {% else %}
-                    <a href="{% url 'auth' %}">Вход / Регистрация</a>
+                    <a href="#" id="authLink">Вход / Регистрация</a>
                 {% endif %}
 
                 <button class="theme-toggle" id="theme-toggle">🌙</button>
@@ -136,6 +228,68 @@
             © 2025 Ardar Project
         </div>
     </footer>
+
+    <!-- Модальное окно авторизации -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Вход</button>
+                <button class="auth-tab" data-tab="register">Регистрация</button>
+            </div>
+            
+            <div id="loginTab" class="auth-tab-content active">
+                <form method="POST" action="{% url 'auth' %}" class="auth-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="mode" value="login">
+                    
+                    <div class="form-group">
+                        <label for="login-email">Email:</label>
+                        <input type="email" id="login-email" name="username" required class="input-field">
+                    </div>
+                    
+                    <div class="form-group password-group">
+                        <label for="login-password">Пароль:</label>
+                        <input type="password" id="login-password" name="password" required class="input-field">
+                        <button type="button" class="toggle-password" data-state="hidden"></button>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Войти</button>
+                </form>
+            </div>
+            
+            <div id="registerTab" class="auth-tab-content">
+                <form method="POST" action="{% url 'auth' %}" class="auth-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="mode" value="register">
+                    
+                    <div class="form-group">
+                        <label for="register-name">Имя:</label>
+                        <input type="text" id="register-name" name="name" required class="input-field">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-email">Email:</label>
+                        <input type="email" id="register-email" name="email" required class="input-field">
+                    </div>
+                    
+                    <div class="form-group password-group">
+                        <label for="register-password">Пароль:</label>
+                        <input type="password" id="register-password" name="password" required class="input-field">
+                        <button type="button" class="toggle-password" data-state="hidden"></button>
+                    </div>
+                    
+                    <div class="form-group password-group">
+                        <label for="register-password-confirm">Подтвердите пароль:</label>
+                        <input type="password" id="register-password-confirm" name="password_confirm" required class="input-field">
+                        <button type="button" class="toggle-password" data-state="hidden"></button>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Зарегистрироваться</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <script>
         // Переключение темы
@@ -166,39 +320,79 @@
                     }, 500);
                 }, 5000);
             });
+            
+            // Сверхбыстрые переходы
+            const mainContent = document.querySelector('main');
+            if (mainContent) {
+                mainContent.style.opacity = 0;
+                mainContent.style.transform = 'translateY(5px)';
+                
+                setTimeout(() => {
+                    mainContent.style.opacity = 1;
+                    mainContent.style.transform = 'translateY(0)';
+                    mainContent.style.transition = 'opacity 0.1s, transform 0.1s';
+                }, 10);
+            }
         });
 
-        // Плавные переходы между страницами
+        // Модальное окно авторизации
         document.addEventListener('DOMContentLoaded', function() {
-            const links = document.querySelectorAll('a:not([target="_blank"]):not([href^="#"]):not([href^="javascript"])');
+            const authLink = document.getElementById('authLink');
+            const modal = document.getElementById('authModal');
+            const closeBtn = document.querySelector('.close-modal');
+            const tabs = document.querySelectorAll('.auth-tab');
+            const tabContents = document.querySelectorAll('.auth-tab-content');
+            const toggleBtns = document.querySelectorAll('.toggle-password');
             
-            links.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    // Исключаем ссылки с атрибутом data-no-transition
-                    if (this.hasAttribute('data-no-transition')) return;
-                    
-                    // Исключаем формы и другие элементы, которые не должны иметь плавный переход
-                    if (this.closest('form') || this.classList.contains('no-transition')) return;
-                    
+            // Открытие модального окна при клике на ссылку авторизации
+            if (authLink) {
+                authLink.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const href = this.getAttribute('href');
+                    modal.style.display = 'block';
+                });
+            }
+            
+            // Закрытие модального окна
+            closeBtn.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+            
+            // Закрытие при клике вне модального окна
+            window.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // Переключение вкладок
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Убираем активный класс со всех вкладок
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
                     
-                    // Плавное затухание
-                    document.body.style.opacity = 0;
-                    document.body.style.transition = 'opacity 0.3s';
-                    
-                    setTimeout(() => {
-                        window.location.href = href;
-                    }, 300);
+                    // Добавляем активный класс текущей вкладке
+                    this.classList.add('active');
+                    const tabName = this.getAttribute('data-tab');
+                    document.getElementById(tabName + 'Tab').classList.add('active');
                 });
             });
             
-            // Плавное появление при загрузке страницы
-            document.body.style.opacity = 0;
-            setTimeout(() => {
-                document.body.style.opacity = 1;
-                document.body.style.transition = 'opacity 0.3s';
-            }, 10);
+            // Переключение видимости пароля
+            toggleBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const input = this.previousElementSibling;
+                    const currentState = this.getAttribute('data-state');
+                    
+                    if (currentState === 'hidden') {
+                        input.type = 'text';
+                        this.setAttribute('data-state', 'visible');
+                    } else {
+                        input.type = 'password';
+                        this.setAttribute('data-state', 'hidden');
+                    }
+                });
+            });
         });
     </script>
 </body>

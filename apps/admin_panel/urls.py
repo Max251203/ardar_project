@@ -1,5 +1,4 @@
 # apps/admin_panel/urls.py
-
 from django.urls import path
 from . import views
 
@@ -22,6 +21,7 @@ urlpatterns = [
 
     # CRUD пользователи
     path('users/', views.admin_users, name='admin_users'),
+    path('users/create/', views.admin_create_user, name='admin_create_user'),
     path('users/<int:user_id>/edit/',
          views.admin_edit_user, name='admin_edit_user'),
     path('users/<int:user_id>/delete/',

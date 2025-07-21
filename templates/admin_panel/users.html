@@ -2,8 +2,6 @@
 {% block title %}Управление пользователями{% endblock %}
 
 {% block content %}
-<!-- Добавить в начало блока content -->
-{% csrf_token %}
 <div class="admin-container">
     <div class="admin-header">
         <h2>Управление пользователями</h2>
@@ -18,8 +16,13 @@
         <div class="search-box">
             <input type="text" id="userSearch" placeholder="Поиск пользователей..." onkeyup="filterUsers()">
         </div>
+        <div class="user-actions">
+            <a href="{% url 'admin_create_user' %}" class="btn-create">➕ Создать пользователя</a>
+        </div>
     </div>
 
+    {% csrf_token %}
+    
     {% if users %}
     <div class="users-table">
         <div class="table-header">
@@ -54,7 +57,7 @@
                     </span>
                     {% endif %}
                 </div>
-                <div class="col-date">{{ user.date_joined|date:"d.m.Y" }}</div>
+                                <div class="col-date">{{ user.date_joined|date:"d.m.Y" }}</div>
                 <div class="col-actions">
                     {% if user != request.user %}
                     <a href="{% url 'admin_edit_user' user.id %}" class="btn-edit" title="Редактировать">✏️</a>
@@ -79,6 +82,7 @@
         margin-bottom: 20px;
         display: flex;
         justify-content: space-between;
+        align-items: center;
     }
 
     .search-box {
@@ -92,6 +96,20 @@
         border: 1px solid var(--border);
         border-radius: 6px;
         font-size: 14px;
+    }
+
+    .user-actions {
+        text-align: right;
+    }
+
+    .btn-create {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
     }
 
     .role-selector {

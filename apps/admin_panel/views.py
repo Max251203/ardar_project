@@ -188,6 +188,37 @@ def admin_delete_user(request, user_id):
     return redirect('admin_users')
 
 
+@login_required
+def admin_create_user(request):
+    if not is_admin(request):
+        return HttpResponseForbidden("Нет прав")
+
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        name = request.POST.get('name')
+        password = request.POST.get('password')
+        role = request.POST.get('role')
+
+        if email and name and password and role in dict(User.ROLE_CHOICES):
+            # Проверяем, что пользователь с таким email не существует
+            if User.objects.filter(email=email).exists():
+                messages.error(
+                    request, f"Пользователь с email {email} уже существует")
+                return render(request, 'admin_panel/user_create.html')
+
+            # Создаем пользователя
+            user = User.objects.create_user(
+                email=email,
+                password=password,
+                name=name,
+                role=role
+            )
+            messages.success(request, f"Пользователь {email} успешно создан")
+            return redirect('admin_users')
+
+    return render(request, 'admin_panel/user_create.html')
+
+
 # Утилиты
 def is_admin(request):
     return request.user.is_authenticated and (

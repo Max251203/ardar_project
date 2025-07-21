@@ -1,5 +1,7 @@
+# apps/articles/models.py
 from django.db import models
 from django.contrib.auth import get_user_model
+from ckeditor_uploader.fields import RichTextUploadingField
 
 
 class Article(models.Model):
@@ -13,7 +15,8 @@ class Article(models.Model):
     language = models.CharField(max_length=2, choices=LANGS, default='ru')
     image = models.ImageField(
         upload_to='article_images/', null=True, blank=True)
-    text = models.TextField()
+    # Используем RichTextUploadingField
+    text = RichTextUploadingField(blank=True)
     uploaded_file = models.FileField(
         upload_to='article_files/', null=True, blank=True)
     author = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
