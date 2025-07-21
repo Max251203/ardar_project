@@ -1,34 +1,455 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{{ edit_mode|yesno:"Редактирование,Создание" }} статьи{% endblock %}
 
 {% block content %}
-<div class="create-container">
-    <h2>{{ edit_mode|yesno:"Редактирование,Создание" }} статьи</h2>
+<div class="article-form-container">
+    <div class="article-form-header">
+        <h2>{{ edit_mode|yesno:"Редактирование,Создание" }} статьи</h2>
+        <a href="{% url 'admin_articles' %}" class="btn-back">← Назад к списку</a>
+    </div>
 
-    <form method="POST" enctype="multipart/form-data" class="create-form">
+    <form method="POST" enctype="multipart/form-data" class="article-form" id="articleForm">
         {% csrf_token %}
+        
+        <div class="form-layout">
+            <div class="form-main">
+                <div class="form-group">
+                    <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+                    {{ form.title }}
+                    {% if form.title.errors %}
+                    <div class="field-errors">{{ form.title.errors }}</div>
+                    {% endif %}
+                </div>
 
-        {% for field in form %}
-        <div class="form-group">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}
-            <div class="field-errors">
-                {{ field.errors }}
-            </div>
-            {% endif %}
-            {% if field.help_text %}
-            <div class="field-help">
-                {{ field.help_text }}
-            </div>
-            {% endif %}
-        </div>
-        {% endfor %}
+                <div class="form-group">
+                    <label for="{{ form.language.id_for_label }}">{{ form.language.label }}</label>
+                    {{ form.language }}
+                    {% if form.language.errors %}
+                    <div class="field-errors">{{ form.language.errors }}</div>
+                    {% endif %}
+                </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn-submit">Сохранить статью</button>
-            <a href="{% url 'admin_articles' %}" class="btn-cancel">Отмена</a>
+                <div class="form-group">
+                    <label for="{{ form.text.id_for_label }}">{{ form.text.label }}</label>
+                    {{ form.text }}
+                    {% if form.text.errors %}
+                    <div class="field-errors">{{ form.text.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-sidebar">
+                <div class="form-card">
+                    <h3>Изображение</h3>
+                    <div class="image-upload-area" id="imageUploadArea">
+                        {% if form.instance.image %}
+                        <div class="image-preview">
+                            <img src="{{ form.instance.image.url }}" alt="Превью" id="imagePreview">
+                            <div class="image-actions">
+                                <button type="button" class="btn-remove-image" onclick="removeImage()">Удалить</button>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="image-placeholder" id="imagePlaceholder">
+                            <div class="upload-icon">📷</div>
+                            <p>Перетащите изображение сюда<br>или нажмите для выбора</p>
+                        </div>
+                        <div class="image-preview" id="previewContainer" style="display:none;">
+                            <img src="" alt="Превью" id="imagePreview">
+                            <div class="image-actions">
+                                <button type="button" class="btn-remove-image" onclick="removeImage()">Удалить</button>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div style="display:none;">{{ form.image }}</div>
+                    </div>
+                </div>
+
+                <div class="form-card">
+                    <h3>Загрузить текст из файла</h3>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <div class="file-placeholder">
+                            <div class="upload-icon">📄</div>
+                            <p>Перетащите файл (.txt, .docx, .pdf)<br>или нажмите для выбора</p>
+                        </div>
+                        <div class="file-preview" id="filePreviewContainer" style="display:none;">
+                            <div class="file-info">
+                                <span class="file-name" id="fileName"></span>
+                                <button type="button" class="btn-remove-file" onclick="removeFile()">Удалить</button>
+                            </div>
+                        </div>
+                        <div style="display:none;">{{ form.uploaded_file }}</div>
+                    </div>
+                    <div class="file-help">
+                        <p>Поддерживаемые форматы: .txt, .docx, .pdf</p>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-submit">Сохранить статью</button>
+                </div>
+            </div>
         </div>
     </form>
 </div>
+
+<style>
+    .article-form-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: var(--card);
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .article-form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .article-form-header h2 {
+        margin: 0;
+    }
+
+    .form-layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+    }
+
+    .form-main {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-card {
+        background-color: var(--bg);
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .form-card h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 18px;
+    }
+
+    .image-upload-area, .file-upload-area {
+        border: 2px dashed var(--border);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .image-upload-area:hover, .file-upload-area:hover {
+        border-color: var(--primary);
+    }
+
+    .upload-icon {
+        font-size: 32px;
+        margin-bottom: 10px;
+        color: var(--text-light);
+    }
+
+    .image-placeholder p, .file-placeholder p {
+        margin: 0;
+        color: var(--text-light);
+        font-size: 14px;
+    }
+
+    .image-preview {
+        text-align: center;
+    }
+
+    .image-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+
+    .image-actions, .file-info {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+        .btn-remove-image, .btn-remove-file {
+        background-color: #ef4444;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+
+    .file-preview {
+        padding: 10px;
+        background-color: rgba(0, 0, 0, 0.03);
+        border-radius: 4px;
+    }
+
+    .file-name {
+        font-weight: 500;
+        word-break: break-all;
+    }
+
+    .file-help {
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--text-light);
+    }
+
+    .form-actions {
+        margin-top: 20px;
+    }
+
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .btn-submit:hover {
+        opacity: 0.9;
+    }
+
+    .btn-back {
+        padding: 8px 16px;
+        background-color: var(--bg);
+        color: var(--text);
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+
+    .btn-back:hover {
+        background-color: var(--border);
+    }
+
+    @media (max-width: 768px) {
+        .form-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обработчики для загрузки изображения
+        const imageInput = document.querySelector('input[name="image"]');
+        const imageUploadArea = document.getElementById('imageUploadArea');
+        const imagePlaceholder = document.getElementById('imagePlaceholder');
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+
+        // Обработчики для загрузки файла
+        const fileInput = document.querySelector('input[name="uploaded_file"]');
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const filePreviewContainer = document.getElementById('filePreviewContainer');
+        const fileName = document.getElementById('fileName');
+
+        // Клик по области загрузки изображения
+        if (imageUploadArea && !imagePreview.src) {
+            imageUploadArea.addEventListener('click', function() {
+                imageInput.click();
+            });
+        }
+
+        // Клик по области загрузки файла
+        if (fileUploadArea) {
+            fileUploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+        }
+
+        // Обработка выбора изображения
+        if (imageInput) {
+            imageInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        if (imagePlaceholder) imagePlaceholder.style.display = 'none';
+                        if (previewContainer) previewContainer.style.display = 'block';
+                        imagePreview.src = e.target.result;
+                    };
+                    
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+        }
+
+        // Обработка выбора файла
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    fileName.textContent = this.files[0].name;
+                    filePreviewContainer.style.display = 'block';
+                    
+                    // Если это текстовый файл, попробуем прочитать его содержимое
+                    if (this.files[0].type === 'text/plain') {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.querySelector('textarea[name="text"]').value = e.target.result;
+                        };
+                        reader.readAsText(this.files[0]);
+                    }
+                }
+            });
+        }
+
+        // Drag & Drop для изображений
+        if (imageUploadArea) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                imageUploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                imageUploadArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                imageUploadArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                imageUploadArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                imageUploadArea.classList.remove('highlight');
+            }
+
+            imageUploadArea.addEventListener('drop', handleImageDrop, false);
+
+            function handleImageDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files && files[0]) {
+                    imageInput.files = files;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (imagePlaceholder) imagePlaceholder.style.display = 'none';
+                        if (previewContainer) previewContainer.style.display = 'block';
+                        imagePreview.src = e.target.result;
+                    };
+                    reader.readAsDataURL(files[0]);
+                }
+            }
+        }
+
+        // Drag & Drop для файлов
+        if (fileUploadArea) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                fileUploadArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                fileUploadArea.classList.remove('highlight');
+            }
+
+            fileUploadArea.addEventListener('drop', handleFileDrop, false);
+
+            function handleFileDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files && files[0]) {
+                    fileInput.files = files;
+                    fileName.textContent = files[0].name;
+                    filePreviewContainer.style.display = 'block';
+                    
+                    // Если это текстовый файл, попробуем прочитать его содержимое
+                    if (files[0].type === 'text/plain') {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.querySelector('textarea[name="text"]').value = e.target.result;
+                        };
+                        reader.readAsText(files[0]);
+                    }
+                }
+            }
+        }
+    });
+
+    // Функция удаления изображения
+    function removeImage() {
+        const imageInput = document.querySelector('input[name="image"]');
+        const imagePreview = document.getElementById('imagePreview');
+        const imagePlaceholder = document.getElementById('imagePlaceholder');
+        const previewContainer = document.getElementById('previewContainer');
+        
+        imageInput.value = '';
+        if (imagePreview) imagePreview.src = '';
+        
+        if (imagePlaceholder) {
+            imagePlaceholder.style.display = 'block';
+            previewContainer.style.display = 'none';
+        } else {
+            // Если мы редактируем существующую статью с изображением
+            const checkbox = document.querySelector('input[name="image-clear"]');
+            if (checkbox) checkbox.checked = true;
+            
+            const form = document.getElementById('articleForm');
+            form.submit();
+        }
+    }
+
+    // Функция удаления файла
+    function removeFile() {
+        const fileInput = document.querySelector('input[name="uploaded_file"]');
+        const filePreviewContainer = document.getElementById('filePreviewContainer');
+        
+        fileInput.value = '';
+        filePreviewContainer.style.display = 'none';
+    }
+</script>
 {% endblock %}

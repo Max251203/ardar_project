@@ -1,3 +1,4 @@
+from django.contrib.messages import constants as messages
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -101,3 +102,11 @@ USE_TZ = True
 LOCALE_PATHS = [
     BASE_DIR / 'locale',
 ]
+
+MESSAGE_TAGS = {
+    messages.DEBUG: 'debug',
+    messages.INFO: 'info',
+    messages.SUCCESS: 'success',
+    messages.WARNING: 'warning',
+    messages.ERROR: 'error',
+}

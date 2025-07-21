@@ -8,6 +8,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/admin.css' %}">
+    <style>
+        /* Стили для сообщений */
+        .messages {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 15px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .message.success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .message.error {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .message.warning {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .message.info {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .close-message {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            margin-left: 10px;
+            opacity: 0.8;
+        }
+
+        .close-message:hover {
+            opacity: 1;
+        }
+    </style>
 </head>
 
 <body>
@@ -51,6 +117,17 @@
     </header>
 
     <main class="container">
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="message {{ message.tags }}">
+                {{ message }}
+                <button class="close-message" onclick="this.parentElement.remove()">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         {% block content %}{% endblock %}
     </main>
 
@@ -61,6 +138,7 @@
     </footer>
 
     <script>
+        // Переключение темы
         const toggle = document.getElementById('theme-toggle');
         const html = document.documentElement;
         const savedTheme = localStorage.getItem('theme') || 'light';
@@ -73,6 +151,54 @@
             html.dataset.theme = newTheme;
             localStorage.setItem('theme', newTheme);
             toggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        });
+
+        // Автоматическое скрытие сообщений
+        document.addEventListener('DOMContentLoaded', function() {
+            const messages = document.querySelectorAll('.message');
+            messages.forEach(message => {
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    message.style.transform = 'translateX(100%)';
+                    message.style.transition = 'opacity 0.5s, transform 0.5s';
+                    setTimeout(() => {
+                        message.remove();
+                    }, 500);
+                }, 5000);
+            });
+        });
+
+        // Плавные переходы между страницами
+        document.addEventListener('DOMContentLoaded', function() {
+            const links = document.querySelectorAll('a:not([target="_blank"]):not([href^="#"]):not([href^="javascript"])');
+            
+            links.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // Исключаем ссылки с атрибутом data-no-transition
+                    if (this.hasAttribute('data-no-transition')) return;
+                    
+                    // Исключаем формы и другие элементы, которые не должны иметь плавный переход
+                    if (this.closest('form') || this.classList.contains('no-transition')) return;
+                    
+                    e.preventDefault();
+                    const href = this.getAttribute('href');
+                    
+                    // Плавное затухание
+                    document.body.style.opacity = 0;
+                    document.body.style.transition = 'opacity 0.3s';
+                    
+                    setTimeout(() => {
+                        window.location.href = href;
+                    }, 300);
+                });
+            });
+            
+            // Плавное появление при загрузке страницы
+            document.body.style.opacity = 0;
+            setTimeout(() => {
+                document.body.style.opacity = 1;
+                document.body.style.transition = 'opacity 0.3s';
+            }, 10);
         });
     </script>
 </body>

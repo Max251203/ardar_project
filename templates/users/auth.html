@@ -153,7 +153,7 @@
             <div class="input-group">
                 <label for="{{ login_form.password.id_for_label }}">Пароль</label>
                 {{ login_form.password }}
-                <button type="button" class="toggle-password" onclick="togglePassword(this)"></button>
+                <button type="button" class="toggle-password" data-state="hidden" onclick="togglePassword(this)"></button>
             </div>
 
             {% else %}
@@ -174,13 +174,13 @@
             <div class="input-group">
                 <label for="{{ register_form.password.id_for_label }}">Пароль</label>
                 {{ register_form.password }}
-                <button type="button" class="toggle-password" onclick="togglePassword(this)"></button>
+                <button type="button" class="toggle-password" data-state="hidden" onclick="togglePassword(this)"></button>
             </div>
 
             <div class="input-group">
                 <label for="{{ register_form.password_confirm.id_for_label }}">Подтвердите пароль</label>
                 {{ register_form.password_confirm }}
-                <button type="button" class="toggle-password" onclick="togglePassword(this)"></button>
+                <button type="button" class="toggle-password" data-state="hidden" onclick="togglePassword(this)"></button>
             </div>
             {% endif %}
 
@@ -205,11 +205,30 @@
 
         function togglePassword(button) {
             const input = button.parentNode.querySelector('input');
-            const isVisible = input.type === 'text';
-
-            input.type = isVisible ? 'password' : 'text';
-            button.classList.toggle('hidden', !isVisible);
+            const currentState = button.getAttribute('data-state');
+            
+            if (currentState === 'hidden') {
+                input.type = 'text';
+                button.setAttribute('data-state', 'visible');
+                button.classList.add('hidden');
+            } else {
+                input.type = 'password';
+                button.setAttribute('data-state', 'hidden');
+                button.classList.remove('hidden');
+            }
         }
+
+        // Инициализация всех полей пароля
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('input[type="password"]').forEach(function(input) {
+                input.type = 'password';
+                const button = input.parentNode.querySelector('.toggle-password');
+                if (button) {
+                    button.setAttribute('data-state', 'hidden');
+                    button.classList.remove('hidden');
+                }
+            });
+        });
 
         document.querySelectorAll('input').forEach(input => {
             input.setAttribute('autocomplete', 'off');

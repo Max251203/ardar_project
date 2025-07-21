@@ -128,7 +128,7 @@ def admin_users(request):
 @login_required
 def admin_edit_user(request, user_id):
     if not is_admin(request):
-        return HttpResponseForbidden()
+        return HttpResponseForbidden("Нет прав")
 
     user = get_object_or_404(User, id=user_id)
 
@@ -136,11 +136,18 @@ def admin_edit_user(request, user_id):
         return HttpResponseForbidden("Нельзя редактировать себя")
 
     if request.method == 'POST':
-        user.name = request.POST.get('name')
-        user.email = request.POST.get('email')
-        user.save()
-        messages.success(request, 'Пользователь обновлён')
-        return redirect('admin_users')
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        role = request.POST.get('role')
+
+        if name and email and role in dict(User.ROLE_CHOICES):
+            user.name = name
+            user.email = email
+            user.role = role
+            user.save()
+            messages.success(
+                request, f"Пользователь {user.email} успешно обновлен")
+            return redirect('admin_users')
 
     return render(request, 'admin_panel/user_form.html', {'user': user})
 
@@ -148,16 +155,20 @@ def admin_edit_user(request, user_id):
 @login_required
 def admin_change_role(request, user_id):
     if not is_admin(request):
-        return HttpResponseForbidden()
+        return HttpResponseForbidden("Нет прав")
 
     user = get_object_or_404(User, id=user_id)
+
+    if user == request.user:
+        return HttpResponseForbidden("Вы не можете изменить свою роль")
 
     if request.method == 'POST':
         new_role = request.POST.get('role')
         if new_role in dict(User.ROLE_CHOICES):
             user.role = new_role
             user.save()
-            messages.success(request, 'Роль обновлена')
+            messages.success(
+                request, f"Роль пользователя {user.email} изменена на {user.get_role_display()}")
             return redirect('admin_users')
 
     return render(request, 'admin_panel/change_role.html', {'user': user})

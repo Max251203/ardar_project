@@ -2,6 +2,8 @@
 {% block title %}Управление пользователями{% endblock %}
 
 {% block content %}
+<!-- Добавить в начало блока content -->
+{% csrf_token %}
 <div class="admin-container">
     <div class="admin-header">
         <h2>Управление пользователями</h2>
@@ -9,6 +11,12 @@
             <a href="{% url 'admin_dashboard' %}">Дашборд</a>
             <a href="{% url 'admin_articles' %}">Статьи</a>
             <a href="{% url 'admin_users' %}" class="active">Пользователи</a>
+        </div>
+    </div>
+
+    <div class="users-controls">
+        <div class="search-box">
+            <input type="text" id="userSearch" placeholder="Поиск пользователей..." onkeyup="filterUsers()">
         </div>
     </div>
 
@@ -22,28 +30,42 @@
             <div class="col-actions">Действия</div>
         </div>
 
-        {% for user in users %}
-        <div class="table-row">
-            <div class="col-email">{{ user.email }}</div>
-            <div class="col-name">{{ user.name }}</div>
-            <div class="col-role">
-                {% if user.is_superuser %}
-                <span class="role-admin">Суперадмин</span>
-                {% else %}
-                <span class="role-{{ user.role }}">{{ user.get_role_display }}</span>
-                {% endif %}
+        <div id="usersList">
+            {% for user in users %}
+            <div class="table-row user-row">
+                <div class="col-email">{{ user.email }}</div>
+                <div class="col-name">{{ user.name }}</div>
+                <div class="col-role">
+                    {% if user.is_superuser %}
+                    <span class="role-admin">Суперадмин</span>
+                    {% else %}
+                    <span class="role-{{ user.role }}">
+                        {{ user.get_role_display }}
+                        {% if user != request.user %}
+                        <div class="role-selector">
+                            <select onchange="changeRole(this, '{{ user.id }}')" class="role-select">
+                                <option value="guest" {% if user.role == "guest" %}selected{% endif %}>Гость</option>
+                                <option value="registered" {% if user.role == "registered" %}selected{% endif %}>Зарегистрированный</option>
+                                <option value="privileged" {% if user.role == "privileged" %}selected{% endif %}>Привилегированный</option>
+                                <option value="admin" {% if user.role == "admin" %}selected{% endif %}>Администратор</option>
+                            </select>
+                        </div>
+                        {% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="col-date">{{ user.date_joined|date:"d.m.Y" }}</div>
+                <div class="col-actions">
+                    {% if user != request.user %}
+                    <a href="{% url 'admin_edit_user' user.id %}" class="btn-edit" title="Редактировать">✏️</a>
+                    <a href="{% url 'admin_delete_user' user.id %}" class="btn-delete" onclick="return confirm('Удалить пользователя?')" title="Удалить">🗑️</a>
+                    {% else %}
+                    <span class="current-user">(Вы)</span>
+                    {% endif %}
+                </div>
             </div>
-            <div class="col-date">{{ user.date_joined|date:"d.m.Y" }}</div>
-            <div class="col-actions">
-                {% if user != request.user %}
-                <a href="{% url 'admin_edit_user' user.id %}" class="btn-edit">Изменить роль</a>
-                <a href="{% url 'admin_delete_user' user.id %}" class="btn-delete" onclick="return confirm('Удалить пользователя?')">Удалить</a>
-                {% else %}
-                <span style="color:#6b7280;">(Вы)</span>
-                {% endif %}
-            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
     {% else %}
     <div class="no-users">
@@ -51,4 +73,91 @@
     </div>
     {% endif %}
 </div>
+
+<style>
+    .users-controls {
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .search-box {
+        flex: 1;
+        max-width: 400px;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .role-selector {
+        margin-top: 5px;
+    }
+
+    .role-select {
+        padding: 4px 8px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 12px;
+        background-color: var(--bg);
+    }
+
+    .current-user {
+        color: var(--text-light);
+        font-style: italic;
+    }
+</style>
+
+<script>
+    function filterUsers() {
+        const input = document.getElementById('userSearch');
+        const filter = input.value.toUpperCase();
+        const rows = document.querySelectorAll('.user-row');
+        
+        rows.forEach(row => {
+            const email = row.querySelector('.col-email').textContent;
+            const name = row.querySelector('.col-name').textContent;
+            
+            if (email.toUpperCase().indexOf(filter) > -1 || name.toUpperCase().indexOf(filter) > -1) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function changeRole(select, userId) {
+        const newRole = select.value;
+        
+        // Создаем форму для отправки
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin-panel/users/${userId}/change-role/`;
+        
+        // Добавляем CSRF токен
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken.value;
+            form.appendChild(csrfInput);
+        }
+        
+        // Добавляем значение роли
+        const roleInput = document.createElement('input');
+        roleInput.type = 'hidden';
+        roleInput.name = 'role';
+        roleInput.value = newRole;
+        form.appendChild(roleInput);
+        
+        // Добавляем форму в документ и отправляем
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
 {% endblock %}
