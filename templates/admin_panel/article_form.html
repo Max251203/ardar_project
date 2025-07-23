@@ -30,6 +30,7 @@
                     {% if form.language.errors %}
                     <div class="field-errors">{{ form.language.errors }}</div>
                     {% endif %}
+                    <div class="field-help">Язык будет определен автоматически при вводе текста</div>
                 </div>
 
                 <div class="form-group">
@@ -274,6 +275,12 @@
         const filePreviewContainer = document.getElementById('filePreviewContainer');
         const fileName = document.getElementById('fileName');
 
+        // Получаем элементы формы для определения языка
+        const titleInput = document.querySelector('input[name="title"]');
+        const textArea = document.querySelector('textarea[name="text"]');
+        const languageSelect = document.querySelector('select[name="language"]');
+        const form = document.getElementById('articleForm');
+
         // Клик по области загрузки изображения
         if (imageUploadArea && imagePlaceholder) {
             imageUploadArea.addEventListener('click', function() {
@@ -294,7 +301,7 @@
                 if (this.files && this.files[0]) {
                     const reader = new FileReader();
                     
-                                        reader.onload = function(e) {
+                    reader.onload = function(e) {
                         if (imagePlaceholder) imagePlaceholder.style.display = 'none';
                         if (previewContainer) previewContainer.style.display = 'block';
                         imagePreview.src = e.target.result;
@@ -391,8 +398,7 @@
             });
 
             ['dragleave', 'drop'].forEach(eventName => {
-                imageUploadArea.addEventListener(eventName, unhighlight, false);
-            });
+                imageUploadArea.addEventListener(eventName, unhighlight, false);            });
 
             function highlight() {
                 imageUploadArea.classList.add('highlight');
@@ -508,6 +514,142 @@
         } else {
             console.log('CKEditor не обнаружен, используем обычное текстовое поле');
         }
+        
+        // Функция для определения языка текста
+        function detectLanguage(text) {
+            // Регулярные выражения для разных языков
+            const armenianRegex = /[\u0530-\u058F]/g;
+            const russianRegex = /[\u0400-\u04FF]/g;
+            const englishRegex = /[a-zA-Z]/g;
+            const otherScriptRegex = /[^\u0530-\u058F\u0400-\u04FFa-zA-Z0-9\s.,!?;:'"()\-]/g;
+            
+            // Подсчитываем количество символов каждого языка
+            const armenianCount = (text.match(armenianRegex) || []).length;
+            const russianCount = (text.match(russianRegex) || []).length;
+            const englishCount = (text.match(englishRegex) || []).length;
+            const otherScriptCount = (text.match(otherScriptRegex) || []).length;
+            
+            // Общее количество символов (без пробелов и знаков препинания)
+            const totalChars = armenianCount + russianCount + englishCount + otherScriptCount;
+            
+            // Если есть символы других письменностей (китайский, арабский и т.д.)
+            if (otherScriptCount > 0 && otherScriptCount / totalChars > 0.1) {
+                // Если более 10% символов - другие письменности, считаем язык неподдерживаемым
+                return null;
+            }
+            
+            // Определяем преобладающий язык (должен составлять не менее 60% текста)
+            if (armenianCount > 0 && armenianCount / totalChars >= 0.6) {
+                return 'hy';
+            } else if (russianCount > 0 && russianCount / totalChars >= 0.6) {
+                return 'ru';
+            } else if (englishCount > 0 && englishCount / totalChars >= 0.6) {
+                return 'en';
+            } else {
+                // Если нет явного преобладания, возвращаем null
+                return null;
+            }
+        }
+
+        // Автоматическое определение языка при вводе текста
+        function autoDetectLanguage() {
+            // Получаем текст из заголовка и содержимого
+            const titleText = titleInput.value;
+            
+            // Получаем текст из CKEditor, если он используется
+            let contentText = '';
+            if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances.id_text) {
+                contentText = CKEDITOR.instances.id_text.getData();
+                // Удаляем HTML-теги
+                contentText = contentText.replace(/<[^>]*>/g, ' ');
+            } else {
+                contentText = textArea.value;
+            }
+            
+            // Объединяем текст для анализа, придавая заголовку и тексту равный вес
+            const fullText = titleText + ' ' + contentText;
+            
+            // Если текста недостаточно, пропускаем определение
+            if (fullText.length < 10) return;
+            
+            // Определяем язык текста
+            const detectedLanguage = detectLanguage(fullText);
+            
+            // Если язык определен, устанавливаем его
+            if (detectedLanguage) {
+                languageSelect.value = detectedLanguage;
+            }
+        }
+        
+        // Добавляем обработчики событий для определения языка
+        if (titleInput && textArea && languageSelect) {
+            // Автоопределение языка при вводе текста
+            titleInput.addEventListener('blur', autoDetectLanguage);
+            
+            // Если используется CKEditor
+            if (typeof CKEDITOR !== 'undefined') {
+                CKEDITOR.on('instanceReady', function(evt) {
+                    if (evt.editor.name === 'id_text') {
+                        evt.editor.on('blur', autoDetectLanguage);
+                    }
+                });
+            } else {
+                textArea.addEventListener('blur', autoDetectLanguage);
+            }
+            
+            // Проверка при отправке формы
+            form.addEventListener('submit', function(e) {
+                // Получаем текст из заголовка и содержимого
+                const titleText = titleInput.value;
+                
+                // Получаем текст из CKEditor, если он используется
+                let contentText = '';
+                if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances.id_text) {
+                    contentText = CKEDITOR.instances.id_text.getData();
+                    // Удаляем HTML-теги
+                    contentText = contentText.replace(/<[^>]*>/g, ' ');
+                } else {
+                    contentText = textArea.value;
+                }
+                
+                // Объединяем текст для анализа
+                const fullText = titleText + ' ' + contentText;
+                
+                // Если текста достаточно для определения языка
+                if (fullText.length >= 10) {
+                    // Определяем язык текста
+                    const detectedLanguage = detectLanguage(fullText);
+                    
+                    // Получаем выбранный язык
+                    const selectedLanguage = languageSelect.value;
+                    
+                    // Если язык не определен, показываем предупреждение
+                    if (!detectedLanguage) {
+                        const message = "Не удалось определить язык текста. Поддерживаются только русский, английский и армянский языки. Пожалуйста, используйте один из этих языков.";
+                        alert(message);
+                        e.preventDefault(); // Блокируем отправку формы
+                        return;
+                    }
+                    
+                    // Если языки не совпадают, показываем предупреждение и блокируем отправку
+                    if (detectedLanguage !== selectedLanguage) {
+                        const languageNames = {
+                            'ru': 'русский',
+                            'en': 'английский',
+                            'hy': 'армянский'
+                        };
+                        
+                        const message = `Внимание! Текст написан на ${languageNames[detectedLanguage]} языке, но выбран ${languageNames[selectedLanguage]}. Пожалуйста, выберите правильный язык или проверьте текст.`;
+                        
+                        alert(message);
+                        e.preventDefault(); // Блокируем отправку формы
+                        
+                        // Автоматически устанавливаем правильный язык
+                        languageSelect.value = detectedLanguage;
+                    }
+                }
+            });
+        }
     });
 
     // Функция удаления изображения
@@ -543,4 +685,4 @@
     }
 </script>
 {% endblock %}
-                        
+                    

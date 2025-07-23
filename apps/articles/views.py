@@ -1,3 +1,6 @@
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+import logging
 import re
 import io
 import os
@@ -19,11 +22,12 @@ from docx import Document
 
 def article_list(request):
     """
-    Список всех статей с поиском, фильтрацией по дате и ленивой загрузкой
+    Список всех статей с поиском, фильтрацией по дате и языку, и ленивой загрузкой
     """
     search_query = request.GET.get('q', '')
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
+    language = request.GET.get('language', '')  # Новый параметр
     page = request.GET.get('page', 1)
 
     # Базовый запрос
@@ -42,6 +46,10 @@ def article_list(request):
 
     if date_to:
         articles = articles.filter(created_at__lte=date_to)
+
+    # Фильтр по языку
+    if language:
+        articles = articles.filter(language=language)
 
     # Сортировка
     articles = articles.order_by('-created_at')
@@ -66,7 +74,8 @@ def article_list(request):
         'articles': page_obj,
         'search_query': search_query,
         'date_from': date_from,
-        'date_to': date_to
+        'date_to': date_to,
+        'language': language  # Передаем выбранный язык в шаблон
     })
 
 
@@ -208,6 +217,10 @@ def process_file(request):
     return JsonResponse({'text': html_text})
 
 
+# Получаем логгер
+logger = logging.getLogger(__name__)
+
+
 @login_required
 def generate_audio_armtts(request, pk):
     """
@@ -216,6 +229,7 @@ def generate_audio_armtts(request, pk):
     article = get_object_or_404(Article, pk=pk)
 
     if not article.text:
+        logger.warning(f"Статья {pk} не содержит текста для озвучивания")
         return HttpResponse("Нет текста для озвучивания", status=400)
 
     # Очищаем HTML-теги для получения чистого текста
@@ -225,15 +239,20 @@ def generate_audio_armtts(request, pk):
     # Ограничиваем длину текста, если он слишком большой
     if len(clean_text) > 1000:
         clean_text = clean_text[:1000]
+        logger.info(f"Текст статьи {pk} был обрезан до 1000 символов")
 
     # Проверяем язык статьи
-    if article.language == 'hy':
-        # Для армянского языка используем ArmTTS через RapidAPI
-        url = "https://armtts1.p.rapidapi.com/v3/synthesize"
+    article_language = article.language
+    logger.info(f"Озвучка статьи {pk} на языке: {article_language}")
+
+    # Используем ArmTTS API для всех языков
+    try:
+        # Используем RapidAPI для ArmTTS
+        url = "https://armtts1.p.rapidapi.com/tts"
 
         payload = {
             "text": clean_text,
-            "voice": "male"  # или "female", если доступно
+            "voice": "male"
         }
 
         headers = {
@@ -242,49 +261,40 @@ def generate_audio_armtts(request, pk):
             "X-RapidAPI-Host": "armtts1.p.rapidapi.com"
         }
 
-        try:
-            response = requests.post(url, json=payload, headers=headers)
+        logger.info(f"Отправка запроса к ArmTTS API: {url}")
+        logger.debug(f"Payload: {payload}")
 
-            if response.status_code != 200:
-                return HttpResponse(f"Ошибка API: {response.status_code} - {response.text}", status=500)
+        response = requests.post(url, json=payload, headers=headers)
 
-            # Предполагаем, что API возвращает аудио в формате MP3 или WAV
-            # Проверяем заголовок Content-Type
-            content_type = response.headers.get('Content-Type', '')
+        logger.info(f"Статус ответа: {response.status_code}")
 
-            if 'audio' in content_type:
-                # Если API возвращает аудио напрямую
-                return HttpResponse(response.content, content_type=content_type)
-            else:
-                # Если API возвращает URL или другие данные
-                data = response.json()
+        if response.status_code != 200:
+            error_text = f"Ошибка API: {response.status_code}"
+            try:
+                error_text += f" - {response.text}"
+            except:
+                pass
+            logger.error(f"Ошибка API: {error_text}")
+            return HttpResponse(error_text, status=500)
 
-                if 'audio_url' in data:
-                    # Если API возвращает URL аудио, скачиваем его
-                    audio_url = data['audio_url']
-                    audio_response = requests.get(audio_url)
-                    return HttpResponse(audio_response.content, content_type='audio/mpeg')
-                elif 'audio_base64' in data:
-                    # Если API возвращает аудио в формате base64
-                    import base64
-                    audio_data = base64.b64decode(data['audio_base64'])
-                    return HttpResponse(audio_data, content_type='audio/mpeg')
-                else:
-                    return HttpResponse("Неподдерживаемый формат ответа от API", status=500)
+        # Если ответ успешный, возвращаем аудио
+        logger.info("Успешный ответ от ArmTTS API")
+        return HttpResponse(response.content, content_type='audio/mpeg')
 
-        except Exception as e:
-            return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)
-    else:
-        # Для других языков используем gTTS
-        from gtts import gTTS
-        import io
+    except Exception as e:
+        logger.error(f"Исключение при запросе к API: {str(e)}")
+        return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)
 
-        try:
-            tts = gTTS(text=clean_text, lang=article.language)
-            mp3_fp = io.BytesIO()
-            tts.write_to_fp(mp3_fp)
-            mp3_fp.seek(0)
 
-            return HttpResponse(mp3_fp.read(), content_type='audio/mpeg')
-        except Exception as e:
-            return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)
+# apps/articles/views.py
+@login_required
+def get_article_image(request, pk):
+    """
+    Возвращает изображение статьи из БД
+    """
+    article = get_object_or_404(Article, pk=pk)
+
+    if not article.image_data:
+        return HttpResponse("Изображение не найдено", status=404)
+
+    return HttpResponse(article.image_data, content_type=article.image_type)

@@ -13,15 +13,25 @@ class Article(models.Model):
 
     title = models.CharField(max_length=200)
     language = models.CharField(max_length=2, choices=LANGS, default='ru')
-    image = models.ImageField(
-        upload_to='article_images/', null=True, blank=True)
-    # Используем RichTextUploadingField
+
+    # Поля для хранения изображения в БД
+    image_data = models.BinaryField(null=True, blank=True)
+    image_name = models.CharField(max_length=255, null=True, blank=True)
+    image_type = models.CharField(max_length=100, null=True, blank=True)
+
+    # Используем RichTextUploadingField для текста
     text = RichTextUploadingField(blank=True)
-    uploaded_file = models.FileField(
-        upload_to='article_files/', null=True, blank=True)
+
     author = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title
+
+    # Метод для получения URL изображения
+    @property
+    def image_url(self):
+        if self.image_data:
+            return f"/articles/image/{self.id}/"
+        return None

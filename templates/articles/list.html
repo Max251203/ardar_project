@@ -12,6 +12,17 @@
                     <input type="text" name="q" placeholder="Поиск по названию" value="{{ search_query }}" class="search-input">
                 </div>
                 
+                <!-- Фильтр по языку -->
+                <div class="filter-group">
+                    <label>Язык:</label>
+                    <select name="language" class="language-select">
+                        <option value="">Все языки</option>
+                        <option value="ru" {% if language == 'ru' %}selected{% endif %}>Русский</option>
+                        <option value="en" {% if language == 'en' %}selected{% endif %}>English</option>
+                        <option value="hy" {% if language == 'hy' %}selected{% endif %}>Հայերեն</option>
+                    </select>
+                </div>
+                
                 <div class="filter-group">
                     <label>От:</label>
                     <input type="date" name="date_from" value="{{ date_from }}" class="date-input">
@@ -29,7 +40,7 @@
             </div>
         </form>
     </div>
-    
+        
     <div id="articles-container" class="card-grid">
         {% include "articles/includes/article_cards.html" %}
     </div>

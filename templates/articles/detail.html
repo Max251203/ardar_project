@@ -25,39 +25,53 @@
     </div>
     {% endif %}
 
-    <div class="article-content">
-        {{ article.text|safe }}
-    </div>
-
-    <div class="article-audio">
-        <h3>Прослушать статью</h3>
-        
-        <div class="audio-controls">
-            <div class="voice-selection">
-                <label for="voice-select">Выберите голос:</label>
-                <select id="voice-select" class="voice-select"></select>
-            </div>
-            
-            <div class="speech-controls">
-                <button id="play-btn" class="btn-speech">Воспроизвести</button>
-                <button id="pause-btn" class="btn-speech" disabled>Пауза</button>
-                <button id="stop-btn" class="btn-speech" disabled>Остановить</button>
-            </div>
-            
-            <div class="speech-rate">
-                <label for="rate">Скорость:</label>
-                <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
-                <span id="rate-value">1</span>
-            </div>
-            
-            <div class="speech-pitch">
-                <label for="pitch">Высота:</label>
-                <input type="range" id="pitch" min="0" max="2" value="1" step="0.1">
-                <span id="pitch-value">1</span>
-            </div>
+    <!-- Минимальный плеер перед текстом статьи -->
+    <div class="article-player">
+        <div class="player-header">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+                <path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+            <span>Прослушать статью</span>
         </div>
         
-        <div id="speech-status" class="speech-status"></div>
+        <div class="player-options">
+            <select id="voice-select" class="voice-select">
+                <option value="browser">Браузерная озвучка</option>
+                <option value="armtts">ArmTTS (армянский)</option>
+            </select>
+            
+            <button id="generate-btn" class="generate-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                    <path fill="currentColor" d="M8 5v14l11-7z"/>
+                </svg>
+                Сгенерировать аудио
+            </button>
+        </div>
+        
+        <!-- Контейнер для ReadAloud виджета -->
+        <div id="ra-container" class="audio-container" style="display: none;">
+            <div id="ra-player" data-skin="https://assets.readaloudwidget.com/embed/skins/default">
+                <div class="ra-button" onclick="readAloud(document.getElementById('ra-audio'), document.getElementById('ra-player'))">
+                    <img src="https://assets.readaloudwidget.com/embed/skins/default/play-icon.png"/> Прослушать текст
+                </div>
+            </div>
+            <audio id="ra-audio" 
+                   data-lang="{% if article.language == 'ru' %}ru-RU{% elif article.language == 'en' %}en-US{% else %}hy-AM{% endif %}" 
+                   data-voice="{% if article.language == 'ru' %}Google ru-RU-Standard-D{% elif article.language == 'en' %}Google en-US-Standard-D{% else %}{% endif %}" 
+                   data-key="bdf2cc56acaf9af5e5c713ae0724e275">
+            </audio>
+        </div>
+        
+        <!-- Плеер для ArmTTS -->
+        <div id="armtts-container" class="audio-container" style="display: none;">
+            <audio id="armtts-audio" controls style="width: 100%;"></audio>
+        </div>
+        
+        <div id="player-status" class="player-status"></div>
+    </div>
+
+    <div class="article-content">
+        {{ article.text|safe }}
     </div>
 
     <div class="article-actions">
@@ -67,12 +81,14 @@
 
 <style>
     .article-container {
-        max-width: 800px;
+        width: 800px;
+        max-width: 100%;
         margin: 0 auto;
         background-color: var(--card);
         border-radius: 10px;
         padding: 30px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        box-sizing: border-box;
     }
 
     .article-header {
@@ -94,6 +110,105 @@
         color: #6b7280;
         margin-bottom: 15px;
     }
+    
+    /* Стили для плеера */
+    .article-player {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: var(--bg);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .player-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-weight: 500;
+        color: var(--text);
+    }
+    
+    .player-options {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .voice-select {
+        flex: 1;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background-color: var(--card);
+        color: var(--text);
+    }
+    
+    .generate-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 8px 15px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .generate-btn:hover {
+        opacity: 0.9;
+    }
+    
+    /* Контейнеры для аудио-плееров */
+    .audio-container {
+        margin-top: 15px;
+        width: 100%;
+        min-height: 40px;
+    }
+    
+    /* Стили для ReadAloud */
+    .ra-player {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    
+    .ra-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 15px;
+        background-color: var(--primary);
+        color: white;
+        cursor: pointer;
+        font-weight: 500;
+    }
+    
+    .ra-button img {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .player-status {
+        margin-top: 10px;
+        font-size: 14px;
+        color: var(--text-light);
+        min-height: 20px;
+    }
+    
+    .player-status.error {
+        color: #ef4444;
+    }
+    
+    .player-status.info {
+        color: #3b82f6;
+    }
 
     .article-pending {
         background-color: #fff7ed;
@@ -107,12 +222,17 @@
         margin-bottom: 25px;
         border-radius: 8px;
         overflow: hidden;
+        width: 100%;
+        height: auto;
+        max-height: 500px;
+        text-align: center;
     }
 
     .article-image img {
         width: 100%;
-        max-height: 400px;
-        object-fit: cover;
+        height: 100%;
+        object-fit: contain;
+        max-height: 500px;
     }
 
     .article-content {
@@ -120,82 +240,12 @@
         line-height: 1.7;
         color: var(--text);
         margin-bottom: 30px;
-    }
-
-    .article-audio {
-        margin-bottom: 30px;
-    }
-
-    .audio-controls {
-        background-color: var(--card);
-        padding: 20px;
-        border-radius: 8px;
-        margin-top: 15px;
-        border: 1px solid var(--border);
-    }
-    
-    .voice-selection {
-        margin-bottom: 15px;
-    }
-    
-    .voice-select {
         width: 100%;
-        padding: 8px;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        background-color: var(--bg);
-        color: var(--text);
     }
     
-    .speech-controls {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 15px;
-    }
-    
-    .btn-speech {
-        padding: 10px 15px;
-        background-color: var(--primary);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    
-    .btn-speech:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-    }
-    
-    .speech-rate, .speech-pitch {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
-    
-    .speech-rate input, .speech-pitch input {
-        flex: 1;
-    }
-    
-    .speech-status {
-        margin-top: 15px;
-        padding: 10px;
-        border-radius: 4px;
-        font-size: 14px;
-        min-height: 40px;
-    }
-    
-    .speech-status.error {
-        background-color: #fee2e2;
-        color: #ef4444;
-        border: 1px solid #fecaca;
-    }
-    
-    .speech-status.info {
-        background-color: #e0f2fe;
-        color: #0ea5e9;
-        border: 1px solid #bae6fd;
+    .article-content img {
+        max-width: 100%;
+        height: auto;
     }
 
     .article-actions {
@@ -218,246 +268,281 @@
     .btn-back:hover {
         background-color: #d1d5db;
     }
+    
+    @media (max-width: 576px) {
+        .player-options {
+            flex-direction: column;
+        }
+    }
 </style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Проверяем поддержку Web Speech API
-        if ('speechSynthesis' in window) {
-            const speechStatus = document.getElementById('speech-status');
-            const voiceSelect = document.getElementById('voice-select');
-            const playBtn = document.getElementById('play-btn');
-            const pauseBtn = document.getElementById('pause-btn');
-            const stopBtn = document.getElementById('stop-btn');
-            const rateInput = document.getElementById('rate');
-            const rateValue = document.getElementById('rate-value');
-            const pitchInput = document.getElementById('pitch');
-            const pitchValue = document.getElementById('pitch-value');
+        // Элементы плеера
+        const voiceSelect = document.getElementById('voice-select');
+        const generateBtn = document.getElementById('generate-btn');
+        let raContainer = document.getElementById('ra-container');
+        const armttsContainer = document.getElementById('armtts-container');
+        const armttsAudio = document.getElementById('armtts-audio');
+        const playerStatus = document.getElementById('player-status');
+        
+        // Глобальные переменные для отслеживания состояния озвучки
+        let currentAudio = null; // текущий аудио-элемент или объект ReadAloud
+        let isPlaying = false;   // флаг воспроизведения
+        let readAloudInitialized = false; // флаг инициализации ReadAloud
+        let lastSelectedVoice = voiceSelect.value; // последний выбранный голос
+        
+        // Функция для полного пересоздания контейнера ReadAloud
+        function recreateReadAloudContainer() {
+            // Получаем родительский элемент
+            const parent = raContainer.parentElement;
             
-            let voices = [];
-            let currentUtterance = null;
+            // Удаляем старый контейнер
+            parent.removeChild(raContainer);
             
-            // Получаем текст статьи, очищенный от HTML-тегов
-            const articleContent = document.querySelector('.article-content');
-            const articleText = articleContent ? articleContent.textContent.trim() : '';
+            // Создаем новый контейнер
+            const newContainer = document.createElement('div');
+            newContainer.id = 'ra-container';
+            newContainer.className = 'audio-container';
+            newContainer.style.display = 'none';
             
-            // Функция для получения доступных голосов
-            function loadVoices() {
-                voices = speechSynthesis.getVoices();
-                
-                // Очищаем список голосов
-                voiceSelect.innerHTML = '';
-                
-                // Добавляем голоса в выпадающий список
-                voices.forEach((voice, index) => {
-                    const option = document.createElement('option');
-                    option.value = index;
-                    option.textContent = `${voice.name} (${voice.lang})`;
-                    
-                    // Выбираем голос по умолчанию в зависимости от языка статьи
-                    const articleLang = '{{ article.language }}';
-                    if (voice.lang.startsWith(articleLang)) {
-                        option.selected = true;
-                    }
-                    
-                    voiceSelect.appendChild(option);
-                });
-                
-                // Если нет голосов для языка статьи, выбираем первый доступный
-                if (!voiceSelect.value && voices.length > 0) {
-                    voiceSelect.value = 0;
-                }
-                
-                // Если статья на армянском, добавляем опцию ArmTTS
-                const articleLang = '{{ article.language }}';
-                if (articleLang === 'hy') {
-                    const option = document.createElement('option');
-                    option.value = 'armtts';
-                    option.textContent = 'ArmTTS (Армянский специализированный)';
-                    voiceSelect.appendChild(option);
-                }
-            }
+            // Создаем HTML для нового контейнера
+            newContainer.innerHTML = `
+                <div id="ra-player" data-skin="https://assets.readaloudwidget.com/embed/skins/default">
+                    <div class="ra-button" onclick="readAloud(document.getElementById('ra-audio'), document.getElementById('ra-player'))">
+                        <img src="https://assets.readaloudwidget.com/embed/skins/default/play-icon.png"/> Прослушать текст
+                    </div>
+                </div>
+                <audio id="ra-audio" 
+                       data-lang="${'{{ article.language }}' === 'ru' ? 'ru-RU' : '{{ article.language }}' === 'en' ? 'en-US' : 'hy-AM'}" 
+                       data-voice="${'{{ article.language }}' === 'ru' ? 'Google ru-RU-Standard-D' : '{{ article.language }}' === 'en' ? 'Google en-US-Standard-D' : ''}" 
+                       data-key="bdf2cc56acaf9af5e5c713ae0724e275">
+                </audio>
+            `;
             
-            // Загружаем голоса при загрузке страницы
-            loadVoices();
+            // Добавляем новый контейнер в родительский элемент
+            parent.appendChild(newContainer);
             
-            // В некоторых браузерах голоса загружаются асинхронно
-            if (speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = loadVoices;
-            }
+            // Обновляем ссылку на контейнер
+            raContainer = newContainer;
             
-            // Обработчик для кнопки воспроизведения
-            playBtn.addEventListener('click', function() {
-                // Если уже есть активное воспроизведение, останавливаем его
-                if (currentUtterance) {
-                    speechSynthesis.cancel();
-                }
-                
-                // Проверяем, выбран ли ArmTTS
-                const selectedVoiceValue = voiceSelect.value;
-                
-                if (selectedVoiceValue === 'armtts') {
-                    // Используем серверную озвучку для армянского языка
-                    speechStatus.textContent = 'Запрос на озвучивание...';
-                    speechStatus.className = 'speech-status info';
-                    
-                    fetch(`/articles/{{ article.pk }}/generate-audio-armtts/`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Ошибка при генерации аудио');
-                            }
-                            return response.blob();
-                        })
-                        .then(blob => {
-                            const audioUrl = URL.createObjectURL(blob);
-                            const audio = new Audio(audioUrl);
-                            
-                            audio.onplay = function() {
-                                speechStatus.textContent = 'Воспроизведение...';
-                                playBtn.disabled = true;
-                                pauseBtn.disabled = false;
-                                stopBtn.disabled = false;
-                            };
-                            
-                            audio.onended = function() {
-                                speechStatus.textContent = 'Воспроизведение завершено';
-                                playBtn.disabled = false;
-                                pauseBtn.disabled = true;
-                                stopBtn.disabled = true;
-                                currentUtterance = null;
-                            };
-                            
-                            audio.onerror = function() {
-                                speechStatus.textContent = 'Ошибка воспроизведения';
-                                speechStatus.className = 'speech-status error';
-                                playBtn.disabled = false;
-                                pauseBtn.disabled = true;
-                                stopBtn.disabled = true;
-                                currentUtterance = null;
-                            };
-                            
-                            // Сохраняем ссылку на аудио для управления
-                            currentUtterance = audio;
-                            
-                            // Начинаем воспроизведение
-                            audio.play();
-                        })
-                        .catch(error => {
-                            speechStatus.textContent = 'Ошибка: ' + error.message;
-                            speechStatus.className = 'speech-status error';
-                            playBtn.disabled = false;
-                            pauseBtn.disabled = true;
-                            stopBtn.disabled = true;
-                        });
-                } else {
-                    // Используем Web Speech API
-                    currentUtterance = new SpeechSynthesisUtterance(articleText);
-                    
-                    // Устанавливаем выбранный голос
-                    const selectedVoice = voices[selectedVoiceValue];
-                    if (selectedVoice) {
-                        currentUtterance.voice = selectedVoice;
-                    }
-                    
-                    // Устанавливаем скорость и высоту
-                    currentUtterance.rate = parseFloat(rateInput.value);
-                    currentUtterance.pitch = parseFloat(pitchInput.value);
-                    
-                    // Обработчики событий
-                    currentUtterance.onstart = function() {
-                        speechStatus.textContent = 'Воспроизведение...';
-                        speechStatus.className = 'speech-status info';
-                        playBtn.disabled = true;
-                        pauseBtn.disabled = false;
-                        stopBtn.disabled = false;
-                    };
-                    
-                    currentUtterance.onend = function() {
-                        speechStatus.textContent = 'Воспроизведение завершено';
-                        speechStatus.className = 'speech-status info';
-                        playBtn.disabled = false;
-                        pauseBtn.disabled = true;
-                        stopBtn.disabled = true;
-                        currentUtterance = null;
-                    };
-                    
-                    currentUtterance.onerror = function(event) {
-                        speechStatus.textContent = 'Ошибка воспроизведения: ' + event.error;
-                        speechStatus.className = 'speech-status error';
-                        playBtn.disabled = false;
-                        pauseBtn.disabled = true;
-                        stopBtn.disabled = true;
-                        currentUtterance = null;
-                    };
-                    
-                    // Начинаем воспроизведение
-                    speechSynthesis.speak(currentUtterance);
-                }
-            });
+            // Сбрасываем глобальные переменные
+            window.readAloudPlayer = null;
+            readAloudInitialized = false;
             
-            // Обработчик для кнопки паузы
-            pauseBtn.addEventListener('click', function() {
-                if (currentUtterance) {
-                    if (currentUtterance instanceof Audio) {
-                        // Для аудио-элемента
-                        if (currentUtterance.paused) {
-                            currentUtterance.play();
-                            pauseBtn.textContent = 'Пауза';
-                            speechStatus.textContent = 'Воспроизведение...';
-                        } else {
-                                                        currentUtterance.pause();
-                            pauseBtn.textContent = 'Продолжить';
-                            speechStatus.textContent = 'Пауза';
-                        }
-                    } else if (speechSynthesis.speaking) {
-                        // Для Web Speech API
-                        if (speechSynthesis.paused) {
-                            speechSynthesis.resume();
-                            pauseBtn.textContent = 'Пауза';
-                            speechStatus.textContent = 'Воспроизведение...';
-                        } else {
-                            speechSynthesis.pause();
-                            pauseBtn.textContent = 'Продолжить';
-                            speechStatus.textContent = 'Пауза';
-                        }
-                    }
-                }
-            });
-            
-            // Обработчик для кнопки остановки
-            stopBtn.addEventListener('click', function() {
-                if (currentUtterance) {
-                    if (currentUtterance instanceof Audio) {
-                        // Для аудио-элемента
-                        currentUtterance.pause();
-                        currentUtterance.currentTime = 0;
-                    } else {
-                        // Для Web Speech API
-                        speechSynthesis.cancel();
-                    }
-                    
-                    speechStatus.textContent = 'Воспроизведение остановлено';
-                    speechStatus.className = 'speech-status info';
-                    playBtn.disabled = false;
-                    pauseBtn.disabled = true;
-                    stopBtn.disabled = true;
-                    currentUtterance = null;
-                }
-            });
-            
-            // Обновление отображения значения скорости
-            rateInput.addEventListener('input', function() {
-                rateValue.textContent = rateInput.value;
-            });
-            
-            // Обновление отображения значения высоты
-            pitchInput.addEventListener('input', function() {
-                pitchValue.textContent = pitchInput.value;
-            });
-        } else {
-            // Если Web Speech API не поддерживается
-            document.querySelector('.audio-controls').innerHTML = '<p class="speech-status error">Ваш браузер не поддерживает технологию синтеза речи.</p>';
+            return newContainer;
         }
+        
+        // Функция для остановки текущей озвучки
+        function stopCurrentAudio() {
+            console.log("Остановка текущей озвучки:", currentAudio, isPlaying);
+            
+            // Останавливаем ReadAloud в любом случае
+            if (window.readAloudPlayer && typeof window.readAloudPlayer.stop === 'function') {
+                console.log("Останавливаем ReadAloud");
+                window.readAloudPlayer.stop();
+            }
+            
+            // Останавливаем speechSynthesis в любом случае
+            if (window.speechSynthesis) {
+                console.log("Останавливаем speechSynthesis");
+                window.speechSynthesis.cancel();
+            }
+            
+            // Останавливаем HTML Audio
+            if (armttsAudio) {
+                console.log("Останавливаем HTML Audio");
+                armttsAudio.pause();
+                armttsAudio.currentTime = 0;
+            }
+            
+            // Сбрасываем глобальные переменные
+            window.readAloudPlayer = null;
+            readAloudInitialized = false;
+            isPlaying = false;
+            currentAudio = null;
+        }
+        
+        // Функция для ReadAloud
+        window.readAloud = function(e, t) {
+            // Останавливаем текущую озвучку
+            stopCurrentAudio();
+            
+            var n = "https://assets.readaloudwidget.com/embed/",
+            s = (/iPad|iPhone|iPod/.test(navigator.userAgent) && (e.src = n + "sound/silence.mp3", e.play(), "undefined" != typeof speechSynthesis && speechSynthesis.speak(new SpeechSynthesisUtterance(" "))), document.createElement("script"));
+            s.onload = function() { 
+                try {
+                    window.readAloudPlayer = readAloudInit(e, t);
+                    currentAudio = 'readAloud';
+                    isPlaying = true;
+                    readAloudInitialized = true;
+                } catch (error) {
+                    console.error("Ошибка инициализации ReadAloud:", error);
+                    playerStatus.textContent = "Ошибка инициализации озвучки: " + error.message;
+                    playerStatus.className = "player-status error";
+                }
+            };
+            s.onerror = function(error) {
+                console.error("Ошибка загрузки скрипта ReadAloud:", error);
+                playerStatus.textContent = "Ошибка загрузки озвучки";
+                playerStatus.className = "player-status error";
+            };
+            s.src = n + "js/readaloud.min.js";
+            document.head.appendChild(s);
+        }
+        
+        // Функция для показа ReadAloud виджета с проверкой поддержки языка
+        function showReadAloud() {
+            // Пересоздаем контейнер ReadAloud для полного сброса
+            recreateReadAloudContainer();
+            
+            // Проверяем поддержку языка браузером
+            const articleLanguage = '{{ article.language }}';
+            const languageCode = articleLanguage === 'ru' ? 'ru-RU' : 
+                                articleLanguage === 'en' ? 'en-US' : 'hy-AM';
+            
+            // Проверяем, поддерживает ли браузер этот язык
+            let isLanguageSupported = false;
+            
+            if ('speechSynthesis' in window) {
+                const voices = window.speechSynthesis.getVoices();
+                isLanguageSupported = voices.some(voice => 
+                    voice.lang.startsWith(articleLanguage) || 
+                    voice.lang.startsWith(languageCode.split('-')[0])
+                );
+                
+                // Если голосов еще нет, ждем их загрузки
+                if (voices.length === 0) {
+                    window.speechSynthesis.onvoiceschanged = function() {
+                        const updatedVoices = window.speechSynthesis.getVoices();
+                        isLanguageSupported = updatedVoices.some(voice => 
+                            voice.lang.startsWith(articleLanguage) || 
+                            voice.lang.startsWith(languageCode.split('-')[0])
+                        );
+                        checkLanguageSupport();
+                    };
+                } else {
+                    checkLanguageSupport();
+                }
+            } else {
+                // Если браузер не поддерживает Web Speech API
+                playerStatus.textContent = "Ваш браузер не поддерживает озвучку текста";
+                playerStatus.className = "player-status error";
+                return;
+            }
+            
+            function checkLanguageSupport() {
+                if (!isLanguageSupported) {
+                    playerStatus.textContent = `Ваш браузер не поддерживает озвучку на ${
+                        articleLanguage === 'ru' ? 'русском' : 
+                        articleLanguage === 'en' ? 'английском' : 'армянском'
+                    } языке. Попробуйте установить языковой пакет или использовать другой браузер.`;
+                    playerStatus.className = "player-status error";
+                    
+                    // Если язык армянский, предлагаем использовать ArmTTS
+                    if (articleLanguage === 'hy') {
+                        playerStatus.textContent += " Попробуйте использовать специализированную озвучку ArmTTS.";
+                        // Автоматически переключаем на ArmTTS
+                        voiceSelect.value = 'armtts';
+                    }
+                } else {
+                    // Язык поддерживается, показываем ReadAloud
+                    playerStatus.textContent = "Браузерная озвучка готова";
+                    playerStatus.className = "player-status info";
+                    armttsContainer.style.display = "none";
+                    raContainer.style.display = "block";
+                }
+            }
+        }
+        
+        // Генерация аудио через ArmTTS
+        function generateArmTTS() {
+            // Останавливаем текущую озвучку
+            stopCurrentAudio();
+            
+            playerStatus.textContent = "Генерация аудио...";
+            playerStatus.className = "player-status info";
+            raContainer.style.display = "none";
+            armttsContainer.style.display = "none";
+            
+            fetch("/articles/{{ article.pk }}/generate-audio-armtts/")
+                .then(response => {
+                    if (!response.ok) throw new Error("Ошибка генерации аудио");
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    armttsAudio.src = url;
+                    armttsContainer.style.display = "block";
+                    playerStatus.textContent = "Аудио готово к воспроизведению";
+                    playerStatus.className = "player-status info";
+                    
+                    // Добавляем обработчики событий для отслеживания состояния
+                    armttsAudio.onplay = function() {
+                        isPlaying = true;
+                        currentAudio = armttsAudio;
+                    };
+                    
+                    armttsAudio.onpause = function() {
+                        if (currentAudio === armttsAudio) {
+                            isPlaying = false;
+                        }
+                    };
+                    
+                    armttsAudio.onended = function() {
+                        if (currentAudio === armttsAudio) {
+                            isPlaying = false;
+                            currentAudio = null;
+                        }
+                    };
+                })
+                .catch(error => {
+                    playerStatus.textContent = "Ошибка: " + error.message;
+                    playerStatus.className = "player-status error";
+                });
+        }
+        
+        // Обработчик кнопки генерации
+        generateBtn.addEventListener('click', function() {
+            const selectedVoice = voiceSelect.value;
+            
+            // Останавливаем текущую озвучку в любом случае
+            stopCurrentAudio();
+            
+            // Запоминаем выбранный тип озвучки
+            lastSelectedVoice = selectedVoice;
+            
+            if (selectedVoice === 'armtts') {
+                generateArmTTS();
+            } else {
+                showReadAloud();
+            }
+        });
+        
+        // Обработчик изменения выбора озвучки
+        voiceSelect.addEventListener('change', function() {
+            const selectedVoice = this.value;
+            
+            // Останавливаем текущую озвучку и сбрасываем плееры
+            stopCurrentAudio();
+            
+            // Если меняем на браузерную озвучку, пересоздаем контейнер
+            if (selectedVoice === 'browser') {
+                recreateReadAloudContainer();
+            }
+            
+            // Скрываем плееры при смене озвучки
+            raContainer.style.display = "none";
+            armttsContainer.style.display = "none";
+            playerStatus.textContent = "Выбран вариант озвучки: " + this.options[this.selectedIndex].text;
+            playerStatus.className = "player-status";
+            
+            // Запоминаем выбранный тип озвучки
+            lastSelectedVoice = selectedVoice;
+        });
+        
+        // Инициализация
+        playerStatus.textContent = "Выберите вариант озвучки и нажмите 'Сгенерировать аудио'";
     });
 </script>
 {% endblock %}
