@@ -58,6 +58,15 @@ def admin_create_article(request):
         article = form.save(commit=False)
         article.author = request.user
         article.is_approved = True
+
+        # Обработка загруженного изображения
+        if 'image' in request.FILES:
+            image_file = request.FILES['image']
+            # Читаем данные изображения
+            article.image_data = image_file.read()
+            article.image_name = image_file.name
+            article.image_type = image_file.content_type
+
         article.save()
         messages.success(request, "Статья создана")
         return redirect('admin_articles')
@@ -75,7 +84,17 @@ def admin_edit_article(request, pk):
                        request.FILES or None, instance=article)
 
     if form.is_valid():
-        form.save()
+        article = form.save(commit=False)
+
+        # Обработка загруженного изображения
+        if 'image' in request.FILES:
+            image_file = request.FILES['image']
+            # Читаем данные изображения
+            article.image_data = image_file.read()
+            article.image_name = image_file.name
+            article.image_type = image_file.content_type
+
+        article.save()
         messages.success(request, "Изменения сохранены")
         return redirect('admin_articles')
 

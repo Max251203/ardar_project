@@ -1,8 +1,7 @@
-<!-- templates/articles/_card.html -->
 <div class="card">
     <div class="card-image-container">
-        {% if article.image %}
-        <img src="{{ article.image.url }}" class="card-image" alt="Обложка">
+        {% if article.image_data %}
+        <img src="{% url 'article_image' article.pk %}" class="card-image" alt="Обложка">
         {% else %}
         <div class="card-image-placeholder">
             <span>Нет изображения</span>

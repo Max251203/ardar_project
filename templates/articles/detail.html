@@ -19,9 +19,9 @@
         {% endif %}
     </div>
 
-    {% if article.image %}
+    {% if article.image_data %}
     <div class="article-image">
-        <img src="{{ article.image.url }}" alt="{{ article.title }}">
+        <img src="{% url 'article_image' article.pk %}" alt="{{ article.title }}">
     </div>
     {% endif %}
 

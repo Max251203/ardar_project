@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
-    article_list, article_detail, article_create, process_file, generate_audio_armtts, get_article_image
+    article_list, article_detail, article_create, process_file,
+    generate_audio_armtts, get_article_image, remove_article_image
 )
 
 urlpatterns = [
@@ -11,4 +12,6 @@ urlpatterns = [
          generate_audio_armtts, name='generate_audio_armtts'),
     path('process-file/', process_file, name='process_file'),
     path('image/<int:pk>/', get_article_image, name='article_image'),
+    path('<int:pk>/remove-image/', remove_article_image,
+         name='remove_article_image'),
 ]

@@ -109,24 +109,6 @@
     ├── Dockerfile
     └── docker-compose.yml
 ├── manage.py
-├── media
-    ├── article_files
-        ├── NEW_Минимальные_требования_для_стажеров_JS_React.pdf
-        ├── Проект_37-Б.docx
-        ├── Проект_37-Б_82ki25W.docx
-        ├── ТЗ._Платформа.docx
-        └── ТЗ._Платформа_dnpBA3f.docx
-    ├── article_images
-        ├── Back.jpeg
-        ├── Back_LnsN4Xw.jpeg
-        ├── Lynyrd_Skynyrd.jpg
-        └── clear_img_1.jpg
-    ├── audio_cache
-        ├── audio_ru_a84d50f7af38eef3391a62b77c073ea6.mp3
-        └── audio_ru_d8132cce3f194dad7d9e681f437199f9.mp3
-    └── temp
-        ├── NEW_Минимальные_требования_для_стажеров_JS,_React.pdf
-        └── Мурашко Максим Дмитриевич.pdf
 ├── prob.py
 ├── project_structure.txt
 ├── requirements.txt
@@ -664,6 +646,42 @@
                 ├── features.py
                 ├── py.typed
                 └── report.py
+            ├── PyPDF2
+                ├── __init__.py
+                ├── _cmap.py
+                ├── _codecs
+                    ├── __init__.py
+                    ├── adobe_glyphs.py
+                    ├── pdfdoc.py
+                    ├── std.py
+                    ├── symbol.py
+                    └── zapfding.py
+                ├── _encryption.py
+                ├── _merger.py
+                ├── _page.py
+                ├── _protocols.py
+                ├── _reader.py
+                ├── _security.py
+                ├── _utils.py
+                ├── _version.py
+                ├── _writer.py
+                ├── constants.py
+                ├── errors.py
+                ├── filters.py
+                ├── generic
+                    ├── __init__.py
+                    ├── _annotations.py
+                    ├── _base.py
+                    ├── _data_structures.py
+                    ├── _fit.py
+                    ├── _outline.py
+                    ├── _rectangle.py
+                    └── _utils.py
+                ├── pagerange.py
+                ├── papersizes.py
+                ├── py.typed
+                ├── types.py
+                └── xmp.py
             ├── SpeechRecognition-3.8.1.dist-info
                 ├── .dropbox.attr
                 ├── DESCRIPTION.rst
@@ -10598,6 +10616,89 @@
                 ├── __init__.py
                 ├── context_processors.py
                 └── js.py
+            ├── langdetect
+                ├── __init__.py
+                ├── detector.py
+                ├── detector_factory.py
+                ├── lang_detect_exception.py
+                ├── language.py
+                ├── profiles
+                    ├── af
+                    ├── ar
+                    ├── bg
+                    ├── bn
+                    ├── ca
+                    ├── cs
+                    ├── cy
+                    ├── da
+                    ├── de
+                    ├── el
+                    ├── en
+                    ├── es
+                    ├── et
+                    ├── fa
+                    ├── fi
+                    ├── fr
+                    ├── gu
+                    ├── he
+                    ├── hi
+                    ├── hr
+                    ├── hu
+                    ├── id
+                    ├── it
+                    ├── ja
+                    ├── kn
+                    ├── ko
+                    ├── lt
+                    ├── lv
+                    ├── mk
+                    ├── ml
+                    ├── mr
+                    ├── ne
+                    ├── nl
+                    ├── no
+                    ├── pa
+                    ├── pl
+                    ├── pt
+                    ├── ro
+                    ├── ru
+                    ├── sk
+                    ├── sl
+                    ├── so
+                    ├── sq
+                    ├── sv
+                    ├── sw
+                    ├── ta
+                    ├── te
+                    ├── th
+                    ├── tl
+                    ├── tr
+                    ├── uk
+                    ├── ur
+                    ├── vi
+                    ├── zh-cn
+                    └── zh-tw
+                ├── tests
+                    ├── __init__.py
+                    ├── test_detector.py
+                    └── test_language.py
+                └── utils
+                    ├── __init__.py
+                    ├── lang_profile.py
+                    ├── messages.properties
+                    ├── messages.py
+                    ├── ngram.py
+                    └── unicode_block.py
+            ├── langdetect-1.0.9.dist-info
+                ├── INSTALLER
+                ├── METADATA
+                ├── RECORD
+                ├── REQUESTED
+                ├── WHEEL
+                ├── licenses
+                    ├── LICENSE
+                    └── NOTICE
+                └── top_level.txt
             ├── lxml
                 ├── ElementInclude.py
                 ├── __init__.py
@@ -11839,6 +11940,13 @@
                 ├── RECORD
                 ├── WHEEL
                 └── top_level.txt
+            ├── pypdf2-3.0.1.dist-info
+                ├── INSTALLER
+                ├── LICENSE
+                ├── METADATA
+                ├── RECORD
+                ├── REQUESTED
+                └── WHEEL
             ├── python_decouple-3.8.dist-info
                 ├── INSTALLER
                 ├── LICENSE

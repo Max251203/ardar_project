@@ -46,9 +46,9 @@
                 <div class="form-card">
                     <h3>Изображение</h3>
                     <div class="image-upload-area" id="imageUploadArea">
-                        {% if form.instance.image %}
+                        {% if form.instance.image_data %}
                         <div class="image-preview">
-                            <img src="{{ form.instance.image.url }}" alt="Превью" id="imagePreview">
+                            <img src="{% url 'article_image' form.instance.pk %}" alt="Превью" id="imagePreview">
                             <div class="image-actions">
                                 <button type="button" class="btn-remove-image" onclick="removeImage()">Удалить</button>
                             </div>
@@ -410,7 +410,7 @@
 
             imageUploadArea.addEventListener('drop', handleImageDrop, false);
 
-            function handleImageDrop(e) {
+                        function handleImageDrop(e) {
                 const dt = e.dataTransfer;
                 const files = dt.files;
                 
@@ -667,11 +667,24 @@
             previewContainer.style.display = 'none';
         } else {
             // Если мы редактируем существующую статью с изображением
-            const checkbox = document.querySelector('input[name="image-clear"]');
-            if (checkbox) checkbox.checked = true;
-            
-            const form = document.getElementById('articleForm');
-            form.submit();
+            {% if form.instance.pk %}
+            // Отправляем AJAX запрос на удаление изображения
+            fetch('{% url "remove_article_image" form.instance.pk %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Перезагружаем страницу для обновления
+                    window.location.reload();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+            {% endif %}
         }
     }
 
@@ -685,4 +698,3 @@
     }
 </script>
 {% endblock %}
-                    

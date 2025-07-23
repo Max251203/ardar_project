@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 import logging
 import re
@@ -112,6 +112,14 @@ def article_create(request):
     if request.method == 'POST' and form.is_valid():
         article = form.save(commit=False)
         article.author = request.user
+
+        # Обработка загруженного изображения
+        if 'image' in request.FILES:
+            image_file = request.FILES['image']
+            # Читаем данные изображения
+            article.image_data = image_file.read()
+            article.image_name = image_file.name
+            article.image_type = image_file.content_type
 
         if getattr(request.user, 'role', '') in ['privileged', 'admin'] or request.user.is_superuser:
             article.is_approved = True
@@ -286,7 +294,6 @@ def generate_audio_armtts(request, pk):
         return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)
 
 
-# apps/articles/views.py
 @login_required
 def get_article_image(request, pk):
     """
@@ -298,3 +305,25 @@ def get_article_image(request, pk):
         return HttpResponse("Изображение не найдено", status=404)
 
     return HttpResponse(article.image_data, content_type=article.image_type)
+
+
+@login_required
+def remove_article_image(request, pk):
+    """
+    Удаляет изображение из статьи
+    """
+    article = get_object_or_404(Article, pk=pk)
+
+    # Проверка прав доступа
+    if not (request.user == article.author or
+            getattr(request.user, 'role', '') == 'admin' or
+            request.user.is_superuser):
+        return HttpResponseForbidden()
+
+    # Удаляем данные изображения
+    article.image_data = None
+    article.image_name = None
+    article.image_type = None
+    article.save()
+
+    return JsonResponse({'success': True})
