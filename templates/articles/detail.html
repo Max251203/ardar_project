@@ -172,22 +172,28 @@
     }
     
     /* Стили для ReadAloud */
-    .ra-player {
-        width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        overflow: hidden;
+    #ra-player, 
+    #ra-player div, 
+    #ra-player div div, 
+    #ra-player div div div {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
     }
     
     .ra-button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 15px;
-        background-color: var(--primary);
-        color: white;
-        cursor: pointer;
-        font-weight: 500;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 10px 15px !important;
+        background-color: var(--primary) !important;
+        color: white !important;
+        cursor: pointer !important;
+        font-weight: 500 !important;
+        border-radius: 6px !important;
+        width: auto !important;
+        border: none !important;
     }
     
     .ra-button img {
@@ -292,7 +298,7 @@
         let readAloudInitialized = false; // флаг инициализации ReadAloud
         let lastSelectedVoice = voiceSelect.value; // последний выбранный голос
         
-        // Функция для полного пересоздания контейнера ReadAloud
+        // Функция для полного удаления и пересоздания контейнера ReadAloud
         function recreateReadAloudContainer() {
             // Получаем родительский элемент
             const parent = raContainer.parentElement;
@@ -308,7 +314,7 @@
             
             // Создаем HTML для нового контейнера
             newContainer.innerHTML = `
-                <div id="ra-player" data-skin="https://assets.readaloudwidget.com/embed/skins/default">
+                                <div id="ra-player" data-skin="https://assets.readaloudwidget.com/embed/skins/default">
                     <div class="ra-button" onclick="readAloud(document.getElementById('ra-audio'), document.getElementById('ra-player'))">
                         <img src="https://assets.readaloudwidget.com/embed/skins/default/play-icon.png"/> Прослушать текст
                     </div>
@@ -335,23 +341,18 @@
         
         // Функция для остановки текущей озвучки
         function stopCurrentAudio() {
-            console.log("Остановка текущей озвучки:", currentAudio, isPlaying);
-            
             // Останавливаем ReadAloud в любом случае
             if (window.readAloudPlayer && typeof window.readAloudPlayer.stop === 'function') {
-                console.log("Останавливаем ReadAloud");
                 window.readAloudPlayer.stop();
             }
             
             // Останавливаем speechSynthesis в любом случае
             if (window.speechSynthesis) {
-                console.log("Останавливаем speechSynthesis");
                 window.speechSynthesis.cancel();
             }
             
             // Останавливаем HTML Audio
             if (armttsAudio) {
-                console.log("Останавливаем HTML Audio");
                 armttsAudio.pause();
                 armttsAudio.currentTime = 0;
             }
@@ -377,13 +378,11 @@
                     isPlaying = true;
                     readAloudInitialized = true;
                 } catch (error) {
-                    console.error("Ошибка инициализации ReadAloud:", error);
                     playerStatus.textContent = "Ошибка инициализации озвучки: " + error.message;
                     playerStatus.className = "player-status error";
                 }
             };
             s.onerror = function(error) {
-                console.error("Ошибка загрузки скрипта ReadAloud:", error);
                 playerStatus.textContent = "Ошибка загрузки озвучки";
                 playerStatus.className = "player-status error";
             };
@@ -467,7 +466,11 @@
             
             fetch("/articles/{{ article.pk }}/generate-audio-armtts/")
                 .then(response => {
-                    if (!response.ok) throw new Error("Ошибка генерации аудио");
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(text || "Ошибка генерации аудио");
+                        });
+                    }
                     return response.blob();
                 })
                 .then(blob => {
@@ -526,14 +529,13 @@
             // Останавливаем текущую озвучку и сбрасываем плееры
             stopCurrentAudio();
             
-            // Если меняем на браузерную озвучку, пересоздаем контейнер
-            if (selectedVoice === 'browser') {
-                recreateReadAloudContainer();
-            }
+            // Полностью удаляем и пересоздаем контейнер ReadAloud
+            recreateReadAloudContainer();
             
             // Скрываем плееры при смене озвучки
             raContainer.style.display = "none";
             armttsContainer.style.display = "none";
+            
             playerStatus.textContent = "Выбран вариант озвучки: " + this.options[this.selectedIndex].text;
             playerStatus.className = "player-status";
             

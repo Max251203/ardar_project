@@ -1,12 +1,9 @@
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
-import logging
 import re
 import io
 import os
-import tempfile
 import requests
-import hashlib
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
@@ -225,19 +222,15 @@ def process_file(request):
     return JsonResponse({'text': html_text})
 
 
-# Получаем логгер
-logger = logging.getLogger(__name__)
-
-
 @login_required
 def generate_audio_armtts(request, pk):
     """
     Генерирует аудио-версию статьи с использованием ArmTTS через RapidAPI
+    или альтернативные методы
     """
     article = get_object_or_404(Article, pk=pk)
 
     if not article.text:
-        logger.warning(f"Статья {pk} не содержит текста для озвучивания")
         return HttpResponse("Нет текста для озвучивания", status=400)
 
     # Очищаем HTML-теги для получения чистого текста
@@ -245,53 +238,73 @@ def generate_audio_armtts(request, pk):
     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
 
     # Ограничиваем длину текста, если он слишком большой
-    if len(clean_text) > 1000:
-        clean_text = clean_text[:1000]
-        logger.info(f"Текст статьи {pk} был обрезан до 1000 символов")
+    if len(clean_text) > 500:
+        clean_text = clean_text[:500]
 
     # Проверяем язык статьи
     article_language = article.language
-    logger.info(f"Озвучка статьи {pk} на языке: {article_language}")
 
-    # Используем ArmTTS API для всех языков
-    try:
-        # Используем RapidAPI для ArmTTS
-        url = "https://armtts1.p.rapidapi.com/tts"
+    # Если язык не армянский, используем gTTS вместо ArmTTS API
+    if article_language != 'hy':
+        try:
+            # Используем Google Text-to-Speech
+            language_code = {
+                'ru': 'ru',
+                'en': 'en',
+                'hy': 'hy'  # Может не поддерживаться
+            }.get(article_language, 'en')
 
-        payload = {
-            "text": clean_text,
-            "voice": "male"
-        }
+            tts = gTTS(text=clean_text, lang=language_code, slow=False)
 
-        headers = {
-            "content-type": "application/json",
-            "X-RapidAPI-Key": "a6da876895msha42d73d5b3f58b2p107cd5jsn8be0d03bce46",
-            "X-RapidAPI-Host": "armtts1.p.rapidapi.com"
-        }
+            # Сохраняем аудио во временный файл
+            audio_file = io.BytesIO()
+            tts.write_to_fp(audio_file)
+            audio_file.seek(0)
 
-        logger.info(f"Отправка запроса к ArmTTS API: {url}")
-        logger.debug(f"Payload: {payload}")
+            # Возвращаем аудио
+            return HttpResponse(audio_file.read(), content_type='audio/mpeg')
 
-        response = requests.post(url, json=payload, headers=headers)
+        except Exception as e:
+            return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)
 
-        logger.info(f"Статус ответа: {response.status_code}")
+    # Пробуем разные endpoints для ArmTTS API
+    endpoints_to_try = [
+        "https://armtts1.p.rapidapi.com/synthesize",
+        "https://armtts1.p.rapidapi.com/v1/synthesize",
+        "https://armtts1.p.rapidapi.com/v2/synthesize",
+        "https://armtts1.p.rapidapi.com/v3/synthesize"
+    ]
 
-        if response.status_code != 200:
-            error_text = f"Ошибка API: {response.status_code}"
-            try:
-                error_text += f" - {response.text}"
-            except:
-                pass
-            logger.error(f"Ошибка API: {error_text}")
-            return HttpResponse(error_text, status=500)
+    # Пробуем ArmTTS API
+    for url in endpoints_to_try:
+        try:
+            payload = {
+                "text": clean_text,
+                "voice": "male"
+            }
 
-        # Если ответ успешный, возвращаем аудио
-        logger.info("Успешный ответ от ArmTTS API")
-        return HttpResponse(response.content, content_type='audio/mpeg')
+            headers = {
+                "content-type": "application/json",
+                # Замените на новый ключ API
+                "X-RapidAPI-Key": "1e8d32c7c3msh767635ff925bcd7p13000fjsn07bbb0ccda3f",
+                "X-RapidAPI-Host": "armtts1.p.rapidapi.com"
+            }
 
-    except Exception as e:
-        logger.error(f"Исключение при запросе к API: {str(e)}")
-        return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)
+            response = requests.post(
+                url, json=payload, headers=headers, timeout=30)
+
+            if response.status_code == 200:
+                return HttpResponse(response.content, content_type='audio/mpeg')
+            elif response.status_code == 404:
+                continue
+            else:
+                return HttpResponse(f"Ошибка API: {response.status_code} - {response.text}", status=500)
+
+        except Exception as e:
+            continue
+
+    # Если все endpoints не работают, возвращаем ошибку
+    return HttpResponse("ArmTTS API временно недоступен. Попробуйте использовать браузерную озвучку.", status=503)
 
 
 @login_required
