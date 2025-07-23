@@ -1,33 +1,73 @@
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 import re
+import io
+import os
+import tempfile
+import requests
+import hashlib
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
+from django.core.paginator import Paginator
+from django.template.loader import render_to_string
+from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from .forms import ArticleForm
 from .models import Article
 from gtts import gTTS
-from django.conf import settings
-import os
 from docx import Document
-import textract
-from django.http import HttpResponse
-import io
 
 
 def article_list(request):
     """
-    Список всех статей:
-    - если пользователь аутентифицирован, он видит свои черновики
-    - остальные видят только одобренные статьи
+    Список всех статей с поиском, фильтрацией по дате и ленивой загрузкой
     """
+    search_query = request.GET.get('q', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    page = request.GET.get('page', 1)
+
+    # Базовый запрос
     if request.user.is_authenticated:
         articles = (Article.objects.filter(is_approved=True) |
-                    Article.objects.filter(author=request.user)).distinct().order_by('-created_at')
+                    Article.objects.filter(author=request.user)).distinct()
     else:
-        articles = Article.objects.filter(
-            is_approved=True).order_by('-created_at')
+        articles = Article.objects.filter(is_approved=True)
 
-    return render(request, 'articles/list.html', {'articles': articles})
+    # Применяем фильтры
+    if search_query:
+        articles = articles.filter(title__icontains=search_query)
+
+    if date_from:
+        articles = articles.filter(created_at__gte=date_from)
+
+    if date_to:
+        articles = articles.filter(created_at__lte=date_to)
+
+    # Сортировка
+    articles = articles.order_by('-created_at')
+
+    # Пагинация
+    paginator = Paginator(articles, 6)  # 6 статей на страницу
+    page_obj = paginator.get_page(page)
+
+    # Для AJAX-запросов возвращаем только HTML карточек
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string(
+            'articles/includes/article_cards.html',
+            {'articles': page_obj}
+        )
+        return JsonResponse({
+            'html': html,
+            'has_next': page_obj.has_next()
+        })
+
+    # Для обычных запросов возвращаем полную страницу
+    return render(request, 'articles/list.html', {
+        'articles': page_obj,
+        'search_query': search_query,
+        'date_from': date_from,
+        'date_to': date_to
+    })
 
 
 def article_detail(request, pk):
@@ -169,7 +209,10 @@ def process_file(request):
 
 
 @login_required
-def generate_audio(request, pk):
+def generate_audio_armtts(request, pk):
+    """
+    Генерирует аудио-версию статьи с использованием ArmTTS через RapidAPI
+    """
     article = get_object_or_404(Article, pk=pk)
 
     if not article.text:
@@ -179,13 +222,69 @@ def generate_audio(request, pk):
     clean_text = re.sub(r'<.*?>', ' ', article.text)
     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
 
-    # Генерируем аудио без сохранения
-    tts = gTTS(text=clean_text, lang=article.language)
-    buffer = io.BytesIO()
-    tts.write_to_fp(buffer)
-    buffer.seek(0)
+    # Ограничиваем длину текста, если он слишком большой
+    if len(clean_text) > 1000:
+        clean_text = clean_text[:1000]
 
-    # Отправляем аудио как поток
-    response = HttpResponse(buffer.read(), content_type="audio/mpeg")
-    response['Content-Disposition'] = f'inline; filename=article_{article.pk}.mp3'
-    return response
+    # Проверяем язык статьи
+    if article.language == 'hy':
+        # Для армянского языка используем ArmTTS через RapidAPI
+        url = "https://armtts1.p.rapidapi.com/v3/synthesize"
+
+        payload = {
+            "text": clean_text,
+            "voice": "male"  # или "female", если доступно
+        }
+
+        headers = {
+            "content-type": "application/json",
+            "X-RapidAPI-Key": "a6da876895msha42d73d5b3f58b2p107cd5jsn8be0d03bce46",
+            "X-RapidAPI-Host": "armtts1.p.rapidapi.com"
+        }
+
+        try:
+            response = requests.post(url, json=payload, headers=headers)
+
+            if response.status_code != 200:
+                return HttpResponse(f"Ошибка API: {response.status_code} - {response.text}", status=500)
+
+            # Предполагаем, что API возвращает аудио в формате MP3 или WAV
+            # Проверяем заголовок Content-Type
+            content_type = response.headers.get('Content-Type', '')
+
+            if 'audio' in content_type:
+                # Если API возвращает аудио напрямую
+                return HttpResponse(response.content, content_type=content_type)
+            else:
+                # Если API возвращает URL или другие данные
+                data = response.json()
+
+                if 'audio_url' in data:
+                    # Если API возвращает URL аудио, скачиваем его
+                    audio_url = data['audio_url']
+                    audio_response = requests.get(audio_url)
+                    return HttpResponse(audio_response.content, content_type='audio/mpeg')
+                elif 'audio_base64' in data:
+                    # Если API возвращает аудио в формате base64
+                    import base64
+                    audio_data = base64.b64decode(data['audio_base64'])
+                    return HttpResponse(audio_data, content_type='audio/mpeg')
+                else:
+                    return HttpResponse("Неподдерживаемый формат ответа от API", status=500)
+
+        except Exception as e:
+            return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)
+    else:
+        # Для других языков используем gTTS
+        from gtts import gTTS
+        import io
+
+        try:
+            tts = gTTS(text=clean_text, lang=article.language)
+            mp3_fp = io.BytesIO()
+            tts.write_to_fp(mp3_fp)
+            mp3_fp.seek(0)
+
+            return HttpResponse(mp3_fp.read(), content_type='audio/mpeg')
+        except Exception as e:
+            return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)

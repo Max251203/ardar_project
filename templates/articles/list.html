@@ -1,171 +1,242 @@
 {% extends "base.html" %}
+{% block title %}Статьи{% endblock %}
+
 {% block content %}
-<h2>Статьи</h2>
-{% if articles %}
-<div class="card-grid">
-    {% for article in articles %}
-    {% include "articles/_card.html" %}
-    {% endfor %}
+<div class="article-container" style="max-width: 1200px;">
+    <h1>Все статьи</h1>
+    
+    <div class="search-filters">
+        <form method="get" id="searchForm">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <input type="text" name="q" placeholder="Поиск по названию" value="{{ search_query }}" class="search-input">
+                </div>
+                
+                <div class="filter-group">
+                    <label>От:</label>
+                    <input type="date" name="date_from" value="{{ date_from }}" class="date-input">
+                </div>
+                
+                <div class="filter-group">
+                    <label>До:</label>
+                    <input type="date" name="date_to" value="{{ date_to }}" class="date-input">
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit" class="btn-search">Найти</button>
+                    <button type="button" id="resetFilters" class="btn-reset">Сбросить</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <div id="articles-container" class="card-grid">
+        {% include "articles/includes/article_cards.html" %}
+    </div>
+    
+    {% if articles.has_next %}
+    <div class="load-more">
+        <button id="loadMoreBtn" class="btn-load-more">Загрузить ещё</button>
+    </div>
+    {% endif %}
+    
+    {% if user.is_authenticated and user.role != 'guest' %}
+    <div class="add-article-btn" style="margin-top: 40px;">
+        <a class="btn-create" href="{% url 'article_create' %}">Добавить статью</a>
+    </div>
+    {% endif %}
 </div>
-{% else %}
-<p>Пока статей нет.</p>
-{% endif %}
-{% if request.user.is_authenticated %}
-{% if request.user.role == "registered" or request.user.role == "privileged" or request.user.role == "admin" or request.user.is_superuser %}
-<div class="add-article-btn">
-    <a href="{% url 'article_create' %}" class="btn-create">➕ Добавить статью</a>
-</div>
-{% endif %}
-{% endif %}
+
 <style>
+    .search-filters {
+        background-color: var(--card);
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+    }
+    
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .filter-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text);
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid var(--primary);
+        border-radius: 6px;
+        background-color: var(--bg);
+        font-size: 16px;
+        transition: all 0.2s;
+        color: var(--text);
+    }
+    
+    .search-input:focus {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        outline: none;
+    }
+    
+    .date-input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background-color: var(--bg);
+        color: var(--text);
+    }
+    
+    .date-input:focus {
+        border-color: var(--primary);
+        outline: none;
+    }
+    
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-search, .btn-reset {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-search {
+        background-color: var(--primary);
+        color: white;
+    }
+    
+    .btn-search:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+    
+    .btn-reset {
+        background-color: #e5e7eb;
+        color: #374151;
+    }
+    
+    .btn-reset:hover {
+        background-color: #d1d5db;
+    }
+    
     .card-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: 25px;
         margin-bottom: 40px;
     }
-
-    .card {
-        border: 1px solid var(--border, #e5e7eb);
-        border-radius: 10px;
-        overflow: hidden;
-        background: var(--card, #f9f9f9);
-        display: flex;
-        flex-direction: column;
-        height: 450px;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .card-image-container {
-        height: 200px;
-        min-height: 200px;
-        background-color: #e2e8f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        position: relative;
-    }
-
-    .card-image {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-    }
-
-    .card-image-placeholder {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #64748b;
-        font-size: 15px;
-        background: #e2e8f0;
-    }
-
-    .card-content {
-        padding: 16px;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-    }
-
-    .card-title {
-        margin-top: 0;
-        margin-bottom: 10px;
-        font-size: 18px;
-        line-height: 1.3;
-        height: 47px;
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-
-    .card-meta {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        font-size: 13px;
-        color: #6b7280;
-        margin-bottom: 12px;
-    }
-
-    .card-excerpt {
-        color: var(--text, #111827);
-        margin-bottom: 15px;
-        flex-grow: 1;
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        line-clamp: 3;
-        -webkit-box-orient: vertical;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-
-    .card-footer {
-        margin-top: auto;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .read-more {
-        display: inline-block;
-        color: var(--primary, #2563eb);
-        font-weight: 500;
-        text-decoration: none;
-    }
-
-    .read-more:hover {
-        text-decoration: underline;
-    }
-
-    .pending {
-        color: #f59e0b;
-        font-weight: 500;
-        font-size: 13px;
-    }
-
-    .add-article-btn {
-        margin-top: 30px;
+    
+    .load-more {
         text-align: center;
+        margin-bottom: 30px;
     }
-
-    .btn-create {
-        display: inline-block;
+    
+    .btn-load-more {
         padding: 12px 24px;
-        background-color: var(--primary, #2563eb);
+        background-color: var(--primary);
         color: white;
-        text-decoration: none;
+        border: none;
         border-radius: 6px;
-        font-weight: bold;
-        transition: background-color 0.2s;
+        cursor: pointer;
     }
-
-    .btn-create:hover {
-        opacity: 0.9;
-    }
-
-    @media (max-width: 768px) {
+    
+    @media (max-width: 992px) {
         .card-grid {
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        }
-
-        .card {
-            height: 420px;
+            grid-template-columns: repeat(2, 1fr);
         }
     }
-
-    @media (max-width: 480px) {
+    
+    @media (max-width: 576px) {
         .card-grid {
             grid-template-columns: 1fr;
         }
+        
+        .filter-row {
+            flex-direction: column;
+        }
+        
+        .filter-group {
+            width: 100%;
+        }
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('articles-container');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        const resetBtn = document.getElementById('resetFilters');
+        let currentPage = 1;
+        
+        // Обработчик кнопки "Загрузить ещё"
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', function() {
+                currentPage++;
+                loadMoreArticles(currentPage);
+            });
+        }
+        
+        // Обработчик кнопки "Сбросить"
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                window.location.href = '{% url "article_list" %}';
+            });
+        }
+        
+        // Функция загрузки дополнительных статей
+        function loadMoreArticles(page) {
+            // Получаем текущие параметры фильтрации
+            const searchQuery = document.querySelector('input[name="q"]').value;
+            const dateFrom = document.querySelector('input[name="date_from"]').value;
+            const dateTo = document.querySelector('input[name="date_to"]').value;
+            
+            // Формируем URL с параметрами
+            let url = `?page=${page}`;
+            if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`;
+            if (dateFrom) url += `&date_from=${encodeURIComponent(dateFrom)}`;
+            if (dateTo) url += `&date_to=${encodeURIComponent(dateTo)}`;
+            
+            // Отправляем AJAX-запрос
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Добавляем новые статьи в контейнер
+                container.insertAdjacentHTML('beforeend', data.html);
+                
+                // Скрываем кнопку, если больше нет статей
+                if (!data.has_next) {
+                    loadMoreBtn.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка при загрузке статей:', error);
+            });
+        }
+    });
+</script>
 {% endblock %}

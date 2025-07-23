@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.articles',
     'apps.admin_panel',
+    'apps.legal',  # Добавляем новое приложение
 ]
 
 CKEDITOR_UPLOAD_PATH = 'uploads/'

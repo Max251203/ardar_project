@@ -1,4 +1,3 @@
-# ardar/urls.py
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -11,8 +10,9 @@ urlpatterns = [
     path('auth/', include('apps.users.urls')),
     path('articles/', include('apps.articles.urls')),
     path('admin-panel/', include('apps.admin_panel.urls')),
+    path('legal/', include('apps.legal.urls')),  # Добавляем новые URL
     path('i18n/setlang/', set_language, name='set_language'),
-    path('ckeditor/', include('ckeditor_uploader.urls')),  # Добавить эту строку
+    path('ckeditor/', include('ckeditor_uploader.urls')),
 ]
 
 if settings.DEBUG:

@@ -31,10 +31,33 @@
 
     <div class="article-audio">
         <h3>Прослушать статью</h3>
-        <audio controls class="audio-player">
-            <source src="{% url 'generate_audio' article.pk %}" type="audio/mpeg">
-            Ваш браузер не поддерживает аудио-элемент.
-        </audio>
+        
+        <div class="audio-controls">
+            <div class="voice-selection">
+                <label for="voice-select">Выберите голос:</label>
+                <select id="voice-select" class="voice-select"></select>
+            </div>
+            
+            <div class="speech-controls">
+                <button id="play-btn" class="btn-speech">Воспроизвести</button>
+                <button id="pause-btn" class="btn-speech" disabled>Пауза</button>
+                <button id="stop-btn" class="btn-speech" disabled>Остановить</button>
+            </div>
+            
+            <div class="speech-rate">
+                <label for="rate">Скорость:</label>
+                <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
+                <span id="rate-value">1</span>
+            </div>
+            
+            <div class="speech-pitch">
+                <label for="pitch">Высота:</label>
+                <input type="range" id="pitch" min="0" max="2" value="1" step="0.1">
+                <span id="pitch-value">1</span>
+            </div>
+        </div>
+        
+        <div id="speech-status" class="speech-status"></div>
     </div>
 
     <div class="article-actions">
@@ -103,9 +126,76 @@
         margin-bottom: 30px;
     }
 
-    .audio-player {
+    .audio-controls {
+        background-color: var(--card);
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 15px;
+        border: 1px solid var(--border);
+    }
+    
+    .voice-selection {
+        margin-bottom: 15px;
+    }
+    
+    .voice-select {
         width: 100%;
-        margin-top: 10px;
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background-color: var(--bg);
+        color: var(--text);
+    }
+    
+    .speech-controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .btn-speech {
+        padding: 10px 15px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .btn-speech:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+    
+    .speech-rate, .speech-pitch {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .speech-rate input, .speech-pitch input {
+        flex: 1;
+    }
+    
+    .speech-status {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 14px;
+        min-height: 40px;
+    }
+    
+    .speech-status.error {
+        background-color: #fee2e2;
+        color: #ef4444;
+        border: 1px solid #fecaca;
+    }
+    
+    .speech-status.info {
+        background-color: #e0f2fe;
+        color: #0ea5e9;
+        border: 1px solid #bae6fd;
     }
 
     .article-actions {
@@ -129,4 +219,245 @@
         background-color: #d1d5db;
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Проверяем поддержку Web Speech API
+        if ('speechSynthesis' in window) {
+            const speechStatus = document.getElementById('speech-status');
+            const voiceSelect = document.getElementById('voice-select');
+            const playBtn = document.getElementById('play-btn');
+            const pauseBtn = document.getElementById('pause-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const rateInput = document.getElementById('rate');
+            const rateValue = document.getElementById('rate-value');
+            const pitchInput = document.getElementById('pitch');
+            const pitchValue = document.getElementById('pitch-value');
+            
+            let voices = [];
+            let currentUtterance = null;
+            
+            // Получаем текст статьи, очищенный от HTML-тегов
+            const articleContent = document.querySelector('.article-content');
+            const articleText = articleContent ? articleContent.textContent.trim() : '';
+            
+            // Функция для получения доступных голосов
+            function loadVoices() {
+                voices = speechSynthesis.getVoices();
+                
+                // Очищаем список голосов
+                voiceSelect.innerHTML = '';
+                
+                // Добавляем голоса в выпадающий список
+                voices.forEach((voice, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    
+                    // Выбираем голос по умолчанию в зависимости от языка статьи
+                    const articleLang = '{{ article.language }}';
+                    if (voice.lang.startsWith(articleLang)) {
+                        option.selected = true;
+                    }
+                    
+                    voiceSelect.appendChild(option);
+                });
+                
+                // Если нет голосов для языка статьи, выбираем первый доступный
+                if (!voiceSelect.value && voices.length > 0) {
+                    voiceSelect.value = 0;
+                }
+                
+                // Если статья на армянском, добавляем опцию ArmTTS
+                const articleLang = '{{ article.language }}';
+                if (articleLang === 'hy') {
+                    const option = document.createElement('option');
+                    option.value = 'armtts';
+                    option.textContent = 'ArmTTS (Армянский специализированный)';
+                    voiceSelect.appendChild(option);
+                }
+            }
+            
+            // Загружаем голоса при загрузке страницы
+            loadVoices();
+            
+            // В некоторых браузерах голоса загружаются асинхронно
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
+            
+            // Обработчик для кнопки воспроизведения
+            playBtn.addEventListener('click', function() {
+                // Если уже есть активное воспроизведение, останавливаем его
+                if (currentUtterance) {
+                    speechSynthesis.cancel();
+                }
+                
+                // Проверяем, выбран ли ArmTTS
+                const selectedVoiceValue = voiceSelect.value;
+                
+                if (selectedVoiceValue === 'armtts') {
+                    // Используем серверную озвучку для армянского языка
+                    speechStatus.textContent = 'Запрос на озвучивание...';
+                    speechStatus.className = 'speech-status info';
+                    
+                    fetch(`/articles/{{ article.pk }}/generate-audio-armtts/`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Ошибка при генерации аудио');
+                            }
+                            return response.blob();
+                        })
+                        .then(blob => {
+                            const audioUrl = URL.createObjectURL(blob);
+                            const audio = new Audio(audioUrl);
+                            
+                            audio.onplay = function() {
+                                speechStatus.textContent = 'Воспроизведение...';
+                                playBtn.disabled = true;
+                                pauseBtn.disabled = false;
+                                stopBtn.disabled = false;
+                            };
+                            
+                            audio.onended = function() {
+                                speechStatus.textContent = 'Воспроизведение завершено';
+                                playBtn.disabled = false;
+                                pauseBtn.disabled = true;
+                                stopBtn.disabled = true;
+                                currentUtterance = null;
+                            };
+                            
+                            audio.onerror = function() {
+                                speechStatus.textContent = 'Ошибка воспроизведения';
+                                speechStatus.className = 'speech-status error';
+                                playBtn.disabled = false;
+                                pauseBtn.disabled = true;
+                                stopBtn.disabled = true;
+                                currentUtterance = null;
+                            };
+                            
+                            // Сохраняем ссылку на аудио для управления
+                            currentUtterance = audio;
+                            
+                            // Начинаем воспроизведение
+                            audio.play();
+                        })
+                        .catch(error => {
+                            speechStatus.textContent = 'Ошибка: ' + error.message;
+                            speechStatus.className = 'speech-status error';
+                            playBtn.disabled = false;
+                            pauseBtn.disabled = true;
+                            stopBtn.disabled = true;
+                        });
+                } else {
+                    // Используем Web Speech API
+                    currentUtterance = new SpeechSynthesisUtterance(articleText);
+                    
+                    // Устанавливаем выбранный голос
+                    const selectedVoice = voices[selectedVoiceValue];
+                    if (selectedVoice) {
+                        currentUtterance.voice = selectedVoice;
+                    }
+                    
+                    // Устанавливаем скорость и высоту
+                    currentUtterance.rate = parseFloat(rateInput.value);
+                    currentUtterance.pitch = parseFloat(pitchInput.value);
+                    
+                    // Обработчики событий
+                    currentUtterance.onstart = function() {
+                        speechStatus.textContent = 'Воспроизведение...';
+                        speechStatus.className = 'speech-status info';
+                        playBtn.disabled = true;
+                        pauseBtn.disabled = false;
+                        stopBtn.disabled = false;
+                    };
+                    
+                    currentUtterance.onend = function() {
+                        speechStatus.textContent = 'Воспроизведение завершено';
+                        speechStatus.className = 'speech-status info';
+                        playBtn.disabled = false;
+                        pauseBtn.disabled = true;
+                        stopBtn.disabled = true;
+                        currentUtterance = null;
+                    };
+                    
+                    currentUtterance.onerror = function(event) {
+                        speechStatus.textContent = 'Ошибка воспроизведения: ' + event.error;
+                        speechStatus.className = 'speech-status error';
+                        playBtn.disabled = false;
+                        pauseBtn.disabled = true;
+                        stopBtn.disabled = true;
+                        currentUtterance = null;
+                    };
+                    
+                    // Начинаем воспроизведение
+                    speechSynthesis.speak(currentUtterance);
+                }
+            });
+            
+            // Обработчик для кнопки паузы
+            pauseBtn.addEventListener('click', function() {
+                if (currentUtterance) {
+                    if (currentUtterance instanceof Audio) {
+                        // Для аудио-элемента
+                        if (currentUtterance.paused) {
+                            currentUtterance.play();
+                            pauseBtn.textContent = 'Пауза';
+                            speechStatus.textContent = 'Воспроизведение...';
+                        } else {
+                                                        currentUtterance.pause();
+                            pauseBtn.textContent = 'Продолжить';
+                            speechStatus.textContent = 'Пауза';
+                        }
+                    } else if (speechSynthesis.speaking) {
+                        // Для Web Speech API
+                        if (speechSynthesis.paused) {
+                            speechSynthesis.resume();
+                            pauseBtn.textContent = 'Пауза';
+                            speechStatus.textContent = 'Воспроизведение...';
+                        } else {
+                            speechSynthesis.pause();
+                            pauseBtn.textContent = 'Продолжить';
+                            speechStatus.textContent = 'Пауза';
+                        }
+                    }
+                }
+            });
+            
+            // Обработчик для кнопки остановки
+            stopBtn.addEventListener('click', function() {
+                if (currentUtterance) {
+                    if (currentUtterance instanceof Audio) {
+                        // Для аудио-элемента
+                        currentUtterance.pause();
+                        currentUtterance.currentTime = 0;
+                    } else {
+                        // Для Web Speech API
+                        speechSynthesis.cancel();
+                    }
+                    
+                    speechStatus.textContent = 'Воспроизведение остановлено';
+                    speechStatus.className = 'speech-status info';
+                    playBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    currentUtterance = null;
+                }
+            });
+            
+            // Обновление отображения значения скорости
+            rateInput.addEventListener('input', function() {
+                rateValue.textContent = rateInput.value;
+            });
+            
+            // Обновление отображения значения высоты
+            pitchInput.addEventListener('input', function() {
+                pitchValue.textContent = pitchInput.value;
+            });
+        } else {
+            // Если Web Speech API не поддерживается
+            document.querySelector('.audio-controls').innerHTML = '<p class="speech-status error">Ваш браузер не поддерживает технологию синтеза речи.</p>';
+        }
+    });
+</script>
 {% endblock %}
