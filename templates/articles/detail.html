@@ -172,16 +172,6 @@
     }
     
     /* Стили для ReadAloud */
-    #ra-player, 
-    #ra-player div, 
-    #ra-player div div, 
-    #ra-player div div div {
-        background-color: transparent !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
     .ra-button {
         display: inline-flex !important;
         align-items: center !important;
@@ -199,6 +189,214 @@
     .ra-button img {
         width: 20px;
         height: 20px;
+    }
+    
+    /* Стили для ReadAloud плеера */
+    #ra-player, 
+    #ra-player div {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Основной контейнер плеера */
+    #ra-player {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 10px !important;
+        border-radius: 8px !important;
+        width: 100% !important;
+        position: relative !important;
+    }
+
+    /* Группы элементов */
+    #ra-player .ra-group {
+        display: flex !important;
+        align-items: center !important;
+        background: transparent !important;
+    }
+
+    /* Кнопки плеера */
+    #ra-player .ra-btn {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        background-color: var(--primary) !important;
+        cursor: pointer !important;
+        margin: 0 5px !important;
+        color: white !important;
+    }
+
+    #ra-player .ra-btn img {
+        width: 18px !important;
+        height: 18px !important;
+    }
+
+    /* Прогресс-бар */
+    #ra-player .ra-status-bg {
+        position: relative !important;
+        height: 8px !important;
+        background-color: var(--border) !important;
+        border-radius: 4px !important;
+        overflow: hidden !important;
+        margin: 0 10px !important;
+    }
+
+    #ra-player .ra-load-progress-bar {
+        position: absolute !important;
+        height: 100% !important;
+        background-color: rgba(59, 130, 246, 0.3) !important;
+    }
+
+    #ra-player .ra-playback-position-bar {
+        position: absolute !important;
+        height: 100% !important;
+        background-color: var(--primary) !important;
+    }
+
+    #ra-player .ra-seek-knob {
+        position: absolute !important;
+        width: 16px !important;
+        height: 16px !important;
+        background-color: var(--primary) !important;
+        border-radius: 50% !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        cursor: pointer !important;
+    }
+
+    /* Текст времени */
+    #ra-player .ra-time-text {
+        font-size: 12px !important;
+        color: var(--text) !important;
+        margin-left: 10px !important;
+    }
+
+    /* Кнопка меню */
+    #ra-player .ra-btn-menu {
+        font-size: 18px !important;
+        font-weight: bold !important;
+    }
+
+    /* Меню */
+    #ra-player .ra-overlay {
+        position: absolute !important;
+        top: 100% !important;
+        right: 0 !important;
+        background-color: var(--card) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        padding: 10px !important;
+        z-index: 1000 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        width: 250px !important;
+    }
+
+    #ra-player .ra-menu-item {
+        display: flex !important;
+        align-items: center !important;
+        padding: 8px !important;
+        gap: 10px !important;
+        color: var(--text) !important;
+    }
+
+    #ra-player .ra-menu-item img {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    #ra-player .ra-voice-select {
+        background-color: var(--bg) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 4px !important;
+        padding: 5px !important;
+        color: var(--text) !important;
+        width: 100% !important;
+    }
+
+    #ra-player .ra-rate-bg,
+    #ra-player .ra-volume-bg {
+        position: relative !important;
+        height: 8px !important;
+        background-color: var(--border) !important;
+        border-radius: 4px !important;
+        overflow: hidden !important;
+        margin: 0 10px !important;
+    }
+
+    #ra-player .ra-rate-bar,
+    #ra-player .ra-volume-bar {
+        position: absolute !important;
+        height: 100% !important;
+        background-color: var(--primary) !important;
+    }
+
+    #ra-player .ra-rate-knob,
+    #ra-player .ra-volume-knob {
+        position: absolute !important;
+        width: 16px !important;
+        height: 16px !important;
+        background-color: var(--primary) !important;
+        border-radius: 50% !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        cursor: pointer !important;
+    }
+
+    #ra-player .ra-logo {
+        color: var(--text) !important;
+        font-weight: bold !important;
+    }
+
+    /* Растягивающийся элемент */
+    #ra-player .ra-grow-1 {
+        flex-grow: 1 !important;
+    }
+    
+    /* Стили для темной темы */
+    [data-theme="dark"] #ra-player .ra-btn {
+        background-color: #3b82f6 !important;
+    }
+    
+    [data-theme="dark"] #ra-player .ra-playback-position-bar,
+    [data-theme="dark"] #ra-player .ra-seek-knob,
+    [data-theme="dark"] #ra-player .ra-rate-bar,
+    [data-theme="dark"] #ra-player .ra-volume-bar,
+    [data-theme="dark"] #ra-player .ra-rate-knob,
+    [data-theme="dark"] #ra-player .ra-volume-knob {
+        background-color: #3b82f6 !important;
+    }
+    
+    [data-theme="dark"] #ra-player .ra-load-progress-bar {
+        background-color: rgba(59, 130, 246, 0.3) !important;
+    }
+    
+    [data-theme="dark"] #ra-player .ra-overlay {
+        background-color: #1f2937 !important;
+        border-color: #374151 !important;
+    }
+    
+    [data-theme="dark"] #ra-player .ra-voice-select {
+        background-color: #111827 !important;
+        border-color: #374151 !important;
+        color: #f9fafb !important;
+    }
+    
+    [data-theme="dark"] #ra-player .ra-status-bg,
+    [data-theme="dark"] #ra-player .ra-rate-bg,
+    [data-theme="dark"] #ra-player .ra-volume-bg {
+        background-color: #374151 !important;
+    }
+    
+    [data-theme="dark"] #ra-player .ra-time-text,
+    [data-theme="dark"] #ra-player .ra-menu-item,
+    [data-theme="dark"] #ra-player .ra-logo {
+        color: #f9fafb !important;
     }
     
     .player-status {
