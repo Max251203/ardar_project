@@ -1,6 +1,12 @@
 from django.shortcuts import redirect
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from .forms import LoginForm, RegisterForm
+from django.shortcuts import render, redirect
+from django.contrib.auth import get_user_model
+from django.conf import settings
+User = get_user_model()
 
 
 def auth_view(request):
@@ -34,3 +40,37 @@ def auth_view(request):
 def logout_user(request):
     logout(request)
     return redirect('home')
+
+
+@login_required
+def user_profile(request):
+    """
+    Отображение и редактирование профиля пользователя
+    """
+    # Получаем социальные аккаунты пользователя, если установлен django-allauth
+    social_accounts = []
+    if 'allauth.socialaccount' in settings.INSTALLED_APPS:
+        from allauth.socialaccount.models import SocialAccount
+        social_accounts = SocialAccount.objects.filter(user=request.user)
+
+    if request.method == 'POST':
+        # Обработка формы редактирования профиля
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+
+        if name and email:
+            # Проверяем, не занят ли email другим пользователем
+            if email != request.user.email and User.objects.filter(email=email).exists():
+                messages.error(
+                    request, "Этот email уже используется другим пользователем")
+                return render(request, 'users/profile.html', {'social_accounts': social_accounts})
+
+            # Обновляем данные пользователя
+            request.user.name = name
+            request.user.email = email
+            request.user.save()
+
+            messages.success(request, "Профиль успешно обновлен")
+            return redirect('user_profile')
+
+    return render(request, 'users/profile.html', {'social_accounts': social_accounts})

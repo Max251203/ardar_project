@@ -165,6 +165,84 @@
         .toggle-password[data-state="visible"] {
             background-image: url("{% static 'img/eye-slash.png' %}");
         }
+
+        .form-links {
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        .forgot-password {
+            font-size: 14px;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+
+        .social-login {
+            margin-top: 20px;
+        }
+
+        .social-divider {
+            position: relative;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .social-divider:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: var(--border);
+        }
+
+        .social-divider span {
+            position: relative;
+            display: inline-block;
+            padding: 0 10px;
+            background-color: var(--card);
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .social-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-social {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-google {
+            background-color: #fff;
+            color: #757575;
+            border: 1px solid #ddd;
+        }
+
+        .btn-google:hover {
+            background-color: #f8f8f8;
+        }
+
+        .btn-google img {
+            width: 20px;
+            height: 20px;
+        }
     </style>
 </head>
 
@@ -180,11 +258,13 @@
                 </div>
             </a>
             
-            <form method="get" action="" id="lang-form" style="display:inline;">
-                <select name="lang" onchange="this.form.submit()" style="margin-left:15px;">
-                    <option value="ru" {% if is_ru %}selected{% endif %}>Русский</option>
-                    <option value="en" {% if is_en %}selected{% endif %}>English</option>
-                    <option value="hy" {% if is_hy %}selected{% endif %}>Հայերեն</option>
+            <form method="post" action="{% url 'set_language' %}" id="lang-form" style="display:inline;">
+                {% csrf_token %}
+                <input name="next" type="hidden" value="{{ request.path }}">
+                <select name="language" onchange="this.form.submit()" style="margin-left:15px;">
+                    <option value="ru" {% if LANGUAGE_CODE == 'ru' %}selected{% endif %}>Русский</option>
+                    <option value="en" {% if LANGUAGE_CODE == 'en' %}selected{% endif %}>English</option>
+                    <option value="hy" {% if LANGUAGE_CODE == 'hy' %}selected{% endif %}>Հայերեն</option>
                 </select>
             </form>
             
@@ -197,7 +277,7 @@
                         <a href="{% url 'admin_dashboard' %}">Админка</a>
                     {% endif %}
 
-                    <span>{{ request.user.email }}</span>
+                    <span><a href="{% url 'user_profile' %}">{{ request.user.name }}</a></span>
                     <a href="{% url 'logout_user' %}">Выйти</a>
                 {% else %}
                     <a href="#" id="authLink">Вход / Регистрация</a>
@@ -254,8 +334,26 @@
                         <button type="button" class="toggle-password" data-state="hidden"></button>
                     </div>
                     
+                    <div class="form-links">
+                        <a href="{% url 'password_reset' %}" class="forgot-password">Забыли пароль?</a>
+                    </div>
+                    
                     <button type="submit" class="btn-submit">Войти</button>
                 </form>
+                
+                {% if 'allauth.socialaccount' in INSTALLED_APPS %}
+                <div class="social-login">
+                    <div class="social-divider">
+                        <span>или войти через</span>
+                    </div>
+                    <div class="social-buttons">
+                        <a href="{% url 'google_login' %}" class="btn-social btn-google">
+                            <img src="{% static 'img/google-icon.png' %}" alt="Google">
+                            Google
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             
             <div id="registerTab" class="auth-tab-content">

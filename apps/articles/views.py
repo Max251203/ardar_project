@@ -15,16 +15,17 @@ from .forms import ArticleForm
 from .models import Article
 from gtts import gTTS
 from docx import Document
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 
 
 def article_list(request):
     """
-    Список всех статей с поиском, фильтрацией по дате и языку, и ленивой загрузкой
+    Список всех статей с поиском, фильтрацией по дате и языку, и пагинацией
     """
     search_query = request.GET.get('q', '')
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
-    language = request.GET.get('language', '')  # Новый параметр
+    language = request.GET.get('language', '')
     page = request.GET.get('page', 1)
 
     # Базовый запрос
@@ -53,26 +54,20 @@ def article_list(request):
 
     # Пагинация
     paginator = Paginator(articles, 6)  # 6 статей на страницу
-    page_obj = paginator.get_page(page)
 
-    # Для AJAX-запросов возвращаем только HTML карточек
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        html = render_to_string(
-            'articles/includes/article_cards.html',
-            {'articles': page_obj}
-        )
-        return JsonResponse({
-            'html': html,
-            'has_next': page_obj.has_next()
-        })
+    try:
+        articles = paginator.page(page)
+    except PageNotAnInteger:
+        articles = paginator.page(1)
+    except EmptyPage:
+        articles = paginator.page(paginator.num_pages)
 
-    # Для обычных запросов возвращаем полную страницу
     return render(request, 'articles/list.html', {
-        'articles': page_obj,
+        'articles': articles,
         'search_query': search_query,
         'date_from': date_from,
         'date_to': date_to,
-        'language': language  # Передаем выбранный язык в шаблон
+        'language': language
     })
 
 
@@ -93,6 +88,7 @@ def article_detail(request, pk):
     return render(request, 'articles/detail.html', {'article': article})
 
 
+# apps/articles/views.py
 @login_required
 def article_create(request):
     """
@@ -123,32 +119,43 @@ def article_create(request):
 
         article.save()
 
-        # 🔄 Обработка файла (если есть)
-        extract_text_from_file(article)
+        # Обработка файла (если есть)
+        if 'uploaded_file' in request.FILES:
+            extract_text_from_file(article, request.FILES['uploaded_file'])
 
         return redirect('article_detail', pk=article.pk)
 
     return render(request, 'admin_panel/article_form.html', {'form': form})
 
 
-def extract_text_from_file(article):
+def extract_text_from_file(article, uploaded_file):
     """
     Извлекает текст из файла (txt, docx) и сохраняет его в поле `text`.
     """
-    if not article.uploaded_file:
+    if not uploaded_file:
         return
 
-    ext = os.path.splitext(article.uploaded_file.name)[1].lower()
-    filepath = article.uploaded_file.path
+    ext = os.path.splitext(uploaded_file.name)[1].lower()
     text = ""
 
     try:
         if ext == '.txt':
-            with open(filepath, 'r', encoding='utf-8') as f:
-                text = f.read()
+            text = uploaded_file.read().decode('utf-8')
         elif ext == '.docx':
-            doc = Document(filepath)
+            # Сохраняем файл временно
+            temp_path = os.path.join('media', 'temp', uploaded_file.name)
+            os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+
+            with open(temp_path, 'wb+') as destination:
+                for chunk in uploaded_file.chunks():
+                    destination.write(chunk)
+
+            # Извлекаем текст
+            doc = Document(temp_path)
             text = '\n'.join([p.text for p in doc.paragraphs])
+
+            # Удаляем временный файл
+            os.remove(temp_path)
         else:
             print("[!] Нераспознаваемый тип файла:", ext)
             return
@@ -307,7 +314,6 @@ def generate_audio_armtts(request, pk):
     return HttpResponse("ArmTTS API временно недоступен. Попробуйте использовать браузерную озвучку.", status=503)
 
 
-@login_required
 def get_article_image(request, pk):
     """
     Возвращает изображение статьи из БД

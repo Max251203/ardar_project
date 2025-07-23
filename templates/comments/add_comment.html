@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Добавить комментарий{% endblock %}
+
+{% block content %}
+<div class="comment-form-container">
+    <h2>{% if existing_comment %}Редактировать{% else %}Добавить{% endif %} комментарий</h2>
+    <h3>К статье: {{ article.title }}</h3>
+    
+    <form method="post" class="comment-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            {{ form.text.label_tag }}
+            {{ form.text }}
+            {% if form.text.errors %}
+            <div class="field-errors">{{ form.text.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn-submit">Сохранить</button>
+            <a href="{% url 'article_detail' article.pk %}" class="btn-cancel">Отмена</a>
+        </div>
+    </form>
+</div>
+
+<style>
+    .comment-form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: var(--card);
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .comment-form {
+        margin-top: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+    
+    .input-field {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 15px;
+        background-color: var(--bg);
+        color: var(--text);
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .btn-submit {
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+    
+    .btn-cancel {
+        padding: 10px 20px;
+        background-color: #e5e7eb;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
