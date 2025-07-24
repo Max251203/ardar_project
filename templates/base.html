@@ -258,13 +258,16 @@
                 </div>
             </a>
             
-            <form method="post" action="{% url 'set_language' %}" id="lang-form" style="display:inline;">
+            {% load i18n %}
+            <form action="{% url 'set_language' %}" method="post">
                 {% csrf_token %}
-                <input name="next" type="hidden" value="{{ request.path }}">
-                <select name="language" onchange="this.form.submit()" style="margin-left:15px;">
-                    <option value="ru" {% if LANGUAGE_CODE == 'ru' %}selected{% endif %}>Русский</option>
-                    <option value="en" {% if LANGUAGE_CODE == 'en' %}selected{% endif %}>English</option>
-                    <option value="hy" {% if LANGUAGE_CODE == 'hy' %}selected{% endif %}>Հայերեն</option>
+                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                <select name="language" onchange="this.form.submit()">
+                    {% get_current_language as LANGUAGE_CODE %}
+                    {% get_available_languages as LANGUAGES %}
+                    {% for lang in LANGUAGES %}
+                        <option value="{{ lang.0 }}" {% if lang.0 == LANGUAGE_CODE %}selected{% endif %}>{{ lang.1 }}</option>
+                    {% endfor %}
                 </select>
             </form>
             
@@ -357,29 +360,29 @@
             </div>
             
             <div id="registerTab" class="auth-tab-content">
-                <form method="POST" action="{% url 'auth' %}" class="auth-form">
+                <form method="POST" action="{% url 'auth' %}" class="auth-form" autocomplete="off">
                     {% csrf_token %}
                     <input type="hidden" name="mode" value="register">
                     
-                    <div class="form-group">
+                                    <div class="form-group">
                         <label for="register-name">Имя:</label>
-                        <input type="text" id="register-name" name="name" required class="input-field">
+                        <input type="text" id="register-name" name="name" required class="input-field" autocomplete="off">
                     </div>
                     
                     <div class="form-group">
                         <label for="register-email">Email:</label>
-                        <input type="email" id="register-email" name="email" required class="input-field">
+                        <input type="email" id="register-email" name="email" required class="input-field" autocomplete="off">
                     </div>
                     
                     <div class="form-group password-group">
                         <label for="register-password">Пароль:</label>
-                        <input type="password" id="register-password" name="password" required class="input-field">
+                        <input type="password" id="register-password" name="password" required class="input-field" autocomplete="new-password">
                         <button type="button" class="toggle-password" data-state="hidden"></button>
                     </div>
                     
                     <div class="form-group password-group">
                         <label for="register-password-confirm">Подтвердите пароль:</label>
-                        <input type="password" id="register-password-confirm" name="password_confirm" required class="input-field">
+                        <input type="password" id="register-password-confirm" name="password_confirm" required class="input-field" autocomplete="new-password">
                         <button type="button" class="toggle-password" data-state="hidden"></button>
                     </div>
                     
@@ -388,6 +391,7 @@
             </div>
         </div>
     </div>
+                    
 
     <script>
         // Переключение темы

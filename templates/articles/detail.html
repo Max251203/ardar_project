@@ -445,11 +445,25 @@
         color: var(--text);
         margin-bottom: 30px;
         width: 100%;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
     }
-    
+
+    .article-content p {
+        margin-bottom: 1em;
+        max-width: 100%;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+
     .article-content img {
         max-width: 100%;
         height: auto;
+    }
+
+    .article-content a {
+        word-break: break-all;
     }
 
     .article-actions {

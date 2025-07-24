@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="social-container">
+    {% block social_content %}{% endblock %}
+</div>
+
+<style>
+    .social-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: var(--card);
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .social-container h1 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 24px;
+        color: var(--text);
+    }
+    
+    .social-container p {
+        margin-bottom: 20px;
+        color: var(--text);
+    }
+    
+    .social-form {
+        margin-top: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--text);
+    }
+    
+    .input-field {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 15px;
+        background-color: var(--bg);
+        color: var(--text);
+    }
+    
+    .form-actions {
+        margin-top: 30px;
+    }
+    
+    .btn-submit {
+        padding: 12px 24px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    
+    .btn-cancel {
+        padding: 12px 24px;
+        background-color: #e5e7eb;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        margin-left: 10px;
+    }
+    
+    .social-list {
+        margin-top: 20px;
+    }
+    
+    .social-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background-color: var(--bg);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        margin-bottom: 10px;
+    }
+    
+    .social-info {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .social-provider {
+        font-weight: 500;
+        color: var(--text);
+    }
+    
+    .social-uid {
+        font-size: 12px;
+        color: var(--text-light);
+    }
+    
+    .btn-disconnect {
+        padding: 6px 12px;
+        background-color: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    
+    .btn-connect {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        margin-top: 10px;
+    }
+    
+    .errorlist {
+        color: #ef4444;
+        margin-bottom: 20px;
+        padding-left: 20px;
+    }
+</style>
+{% endblock %}

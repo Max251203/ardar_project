@@ -1,0 +1,283 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ardar 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-24 04:18+0300\n"
+"PO-Revision-Date: 2025-07-24 04:18+0300\n"
+"Last-Translator: YOUR NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Armenian\n"
+"Language: hy\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Home"
+msgstr "Գլխավոր"
+
+msgid "Articles"
+msgstr "Հոդվածներ"
+
+msgid "Login"
+msgstr "Մուտք"
+
+msgid "Register"
+msgstr "Գրանցվել"
+
+msgid "Profile"
+msgstr "Պրոֆիլ"
+
+msgid "Logout"
+msgstr "Ելք"
+
+msgid "Admin"
+msgstr "Ադմին"
+
+msgid "Add article"
+msgstr "Ավելացնել հոդված"
+
+msgid "Edit article"
+msgstr "Խմբագրել հոդվածը"
+
+msgid "Delete article"
+msgstr "Ջնջել հոդվածը"
+
+msgid "Comments"
+msgstr "Մեկնաբանություններ"
+
+msgid "Rating"
+msgstr "Վարկանիշ"
+
+msgid "Search"
+msgstr "Որոնում"
+
+msgid "Save"
+msgstr "Պահպանել"
+
+msgid "Cancel"
+msgstr "Չեղարկել"
+
+msgid "Password"
+msgstr "Գաղտնաբառ"
+
+msgid "Repeat password"
+msgstr "Կրկնել գաղտնաբառը"
+
+msgid "Forgot password?"
+msgstr "Մոռացե՞լ եք գաղտնաբառը"
+
+msgid "Change password"
+msgstr "Փոխել գաղտնաբառը"
+
+msgid "Create article"
+msgstr "Ստեղծել հոդված"
+
+msgid "My articles"
+msgstr "Իմ հոդվածները"
+
+msgid "No articles yet."
+msgstr "Դեռ հոդվածներ չկան։"
+
+msgid "Published"
+msgstr "Հրապարակված է"
+
+msgid "Pending moderation"
+msgstr "Սպասում է հաստատման"
+
+msgid "Edit"
+msgstr "Խմբագրել"
+
+msgid "Delete"
+msgstr "Ջնջել"
+
+msgid "Save changes"
+msgstr "Պահպանել փոփոխությունները"
+
+msgid "Add comment"
+msgstr "Ավելացնել մեկնաբանություն"
+
+msgid "Your comment"
+msgstr "Ձեր մեկնաբանությունը"
+
+msgid "Submit"
+msgstr "Ուղարկել"
+
+msgid "Back"
+msgstr "Հետ"
+
+msgid "Next"
+msgstr "Հաջորդ"
+
+msgid "Previous"
+msgstr "Նախորդ"
+
+msgid "Page"
+msgstr "Էջ"
+
+msgid "of"
+msgstr "ից"
+
+msgid "Language"
+msgstr "Լեզու"
+
+msgid "English"
+msgstr "Անգլերեն"
+
+msgid "Russian"
+msgstr "Ռուսերեն"
+
+msgid "Armenian"
+msgstr "Հայերեն"
+
+msgid "Social accounts"
+msgstr "Սոցիալական հաշիվներ"
+
+msgid "Connect accounts"
+msgstr "Կապել հաշիվներ"
+
+msgid "Disconnect"
+msgstr "Անջատել"
+
+msgid "No comments yet."
+msgstr "Դեռ մեկնաբանություններ չկան։"
+
+msgid "You have no articles yet. Create your first one!"
+msgstr "Դուք դեռ հոդված չունեք։ Ստեղծեք առաջինը։"
+
+msgid "Search by title..."
+msgstr "Որոնել ըստ վերնագրի..."
+
+msgid "Save profile"
+msgstr "Պահպանել պրոֆիլը"
+
+msgid "Change"
+msgstr "Փոխել"
+
+msgid "Current password"
+msgstr "Ներկայիս գաղտնաբառը"
+
+msgid "New password"
+msgstr "Նոր գաղտնաբառ"
+
+msgid "Confirm new password"
+msgstr "Հաստատել նոր գաղտնաբառը"
+
+msgid "Password changed successfully"
+msgstr "Գաղտնաբառը հաջողությամբ փոխվեց"
+
+msgid "Profile updated successfully"
+msgstr "Պրոֆիլը հաջողությամբ թարմացվեց"
+
+msgid "Invalid email or password"
+msgstr "Սխալ էլ. փոստ կամ գաղտնաբառ"
+
+msgid "Registration successful"
+msgstr "Գրանցումը հաջողությամբ ավարտվեց"
+
+msgid "Email"
+msgstr "Էլ. փոստ"
+
+msgid "Name"
+msgstr "Անուն"
+
+msgid "Repeat for confirmation"
+msgstr "Կրկնել հաստատման համար"
+
+msgid "This field is required."
+msgstr "Այս դաշտը պարտադիր է։"
+
+msgid "Enter a valid email address."
+msgstr "Մուտքագրեք վավեր էլ. փոստի հասցե։"
+
+msgid "Enter a valid value."
+msgstr "Մուտքագրեք վավեր արժեք։"
+
+msgid "Enter a valid URL."
+msgstr "Մուտքագրեք վավեր URL։"
+
+msgid "Enter a valid integer."
+msgstr "Մուտքագրեք ամբողջ թիվ։"
+
+msgid "Enter a valid date."
+msgstr "Մուտքագրեք վավեր ամսաթիվ։"
+
+msgid "Enter a valid time."
+msgstr "Մուտքագրեք վավեր ժամանակ։"
+
+msgid "Enter a valid date/time."
+msgstr "Մուտքագրեք վավեր ամսաթիվ/ժամանակ։"
+
+msgid "Enter a valid duration."
+msgstr "Մուտքագրեք վավեր տևողություն։"
+
+msgid "Upload a valid image. The file you uploaded was either not an image or a corrupted image."
+msgstr "Վերբեռնեք վավեր պատկեր։ Ձեր վերբեռնած ֆայլը պատկեր չէ կամ վնասված է։"
+
+msgid "Clear"
+msgstr "Մաքրել"
+
+msgid "Currently"
+msgstr "Ներկայումս"
+
+msgid "Unknown"
+msgstr "Անհայտ"
+
+msgid "Yes"
+msgstr "Այո"
+
+msgid "No"
+msgstr "Ոչ"
+
+msgid "Back to articles"
+msgstr "Վերադառնալ հոդվածներին"
+
+msgid "Read more"
+msgstr "Կարդալ ավելին"
+
+msgid "Pending moderation"
+msgstr "Սպասում է հաստատման"
+
+msgid "Published"
+msgstr "Հրապարակված է"
+
+msgid "Add"
+msgstr "Ավելացնել"
+
+msgid "Edit"
+msgstr "Խմբագրել"
+
+msgid "Delete"
+msgstr "Ջնջել"
+
+msgid "Save changes"
+msgstr "Պահպանել փոփոխությունները"
+
+msgid "Submit"
+msgstr "Ուղարկել"
+
+msgid "Cancel"
+msgstr "Չեղարկել"
+
+msgid "Next"
+msgstr "Հաջորդ"
+
+msgid "Previous"
+msgstr "Նախորդ"
+
+msgid "Page"
+msgstr "Էջ"
+
+msgid "of"
+msgstr "ից"
+
+msgid "Language"
+msgstr "Լեզու"
+
+msgid "English"
+msgstr "Անգլերեն"
+
+msgid "Russian"
+msgstr "Ռուսերեն"
+
+msgid "Armenian"
+msgstr "Հայերեն"

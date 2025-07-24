@@ -1,0 +1,382 @@
+# Russian translations for your Django project
+# Copyright (C) 2025 YOUR NAME
+# This file is distributed under the same license as the PROJECT package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ardar 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-24 04:11+0300\n"
+"PO-Revision-Date: 2025-07-24 04:11+0300\n"
+"Last-Translator: YOUR NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: templates/base.html
+msgid "Home"
+msgstr "Главная"
+
+#: templates/base.html
+msgid "Articles"
+msgstr "Статьи"
+
+#: templates/base.html
+msgid "Login"
+msgstr "Вход"
+
+#: templates/base.html
+msgid "Register"
+msgstr "Регистрация"
+
+#: templates/base.html
+msgid "Profile"
+msgstr "Профиль"
+
+#: templates/base.html
+msgid "Logout"
+msgstr "Выйти"
+
+#: templates/base.html
+msgid "Admin"
+msgstr "Админка"
+
+#: templates/base.html
+msgid "Add article"
+msgstr "Добавить статью"
+
+#: templates/base.html
+msgid "Edit article"
+msgstr "Редактировать статью"
+
+#: templates/base.html
+msgid "Delete article"
+msgstr "Удалить статью"
+
+#: templates/base.html
+msgid "Comments"
+msgstr "Комментарии"
+
+#: templates/base.html
+msgid "Rating"
+msgstr "Рейтинг"
+
+#: templates/base.html
+msgid "Search"
+msgstr "Поиск"
+
+#: templates/base.html
+msgid "Save"
+msgstr "Сохранить"
+
+#: templates/base.html
+msgid "Cancel"
+msgstr "Отмена"
+
+#: templates/base.html
+msgid "Password"
+msgstr "Пароль"
+
+#: templates/base.html
+msgid "Repeat password"
+msgstr "Повторите пароль"
+
+#: templates/base.html
+msgid "Forgot password?"
+msgstr "Забыли пароль?"
+
+#: templates/base.html
+msgid "Change password"
+msgstr "Изменить пароль"
+
+#: templates/base.html
+msgid "Create article"
+msgstr "Создать статью"
+
+#: templates/base.html
+msgid "My articles"
+msgstr "Мои статьи"
+
+#: templates/base.html
+msgid "No articles yet."
+msgstr "Пока нет статей."
+
+#: templates/base.html
+msgid "Published"
+msgstr "Опубликовано"
+
+#: templates/base.html
+msgid "Pending moderation"
+msgstr "Ожидает модерации"
+
+#: templates/base.html
+msgid "Edit"
+msgstr "Редактировать"
+
+#: templates/base.html
+msgid "Delete"
+msgstr "Удалить"
+
+#: templates/base.html
+msgid "Save changes"
+msgstr "Сохранить изменения"
+
+#: templates/base.html
+msgid "Add comment"
+msgstr "Добавить комментарий"
+
+#: templates/base.html
+msgid "Your comment"
+msgstr "Ваш комментарий"
+
+#: templates/base.html
+msgid "Submit"
+msgstr "Отправить"
+
+#: templates/base.html
+msgid "Back"
+msgstr "Назад"
+
+#: templates/base.html
+msgid "Next"
+msgstr "Далее"
+
+#: templates/base.html
+msgid "Previous"
+msgstr "Назад"
+
+#: templates/base.html
+msgid "Page"
+msgstr "Страница"
+
+#: templates/base.html
+msgid "of"
+msgstr "из"
+
+#: templates/base.html
+msgid "Language"
+msgstr "Язык"
+
+#: templates/base.html
+msgid "English"
+msgstr "Английский"
+
+#: templates/base.html
+msgid "Russian"
+msgstr "Русский"
+
+#: templates/base.html
+msgid "Armenian"
+msgstr "Армянский"
+
+#: templates/base.html
+msgid "Social accounts"
+msgstr "Социальные аккаунты"
+
+#: templates/base.html
+msgid "Connect accounts"
+msgstr "Подключить аккаунты"
+
+#: templates/base.html
+msgid "Disconnect"
+msgstr "Отключить"
+
+#: templates/base.html
+msgid "No comments yet."
+msgstr "Пока нет комментариев."
+
+#: templates/base.html
+msgid "You have no articles yet. Create your first one!"
+msgstr "У вас пока нет статей. Создайте первую!"
+
+#: templates/base.html
+msgid "Search by title..."
+msgstr "Поиск по названию..."
+
+#: templates/base.html
+msgid "Save profile"
+msgstr "Сохранить профиль"
+
+#: templates/base.html
+msgid "Change"
+msgstr "Изменить"
+
+#: templates/base.html
+msgid "Current password"
+msgstr "Текущий пароль"
+
+#: templates/base.html
+msgid "New password"
+msgstr "Новый пароль"
+
+#: templates/base.html
+msgid "Confirm new password"
+msgstr "Подтвердите новый пароль"
+
+#: templates/base.html
+msgid "Password changed successfully"
+msgstr "Пароль успешно изменён"
+
+#: templates/base.html
+msgid "Profile updated successfully"
+msgstr "Профиль успешно обновлён"
+
+#: templates/base.html
+msgid "Invalid email or password"
+msgstr "Неверный email или пароль"
+
+#: templates/base.html
+msgid "Registration successful"
+msgstr "Регистрация прошла успешно"
+
+#: templates/base.html
+msgid "Email"
+msgstr "Email"
+
+#: templates/base.html
+msgid "Name"
+msgstr "Имя"
+
+#: templates/base.html
+msgid "Repeat for confirmation"
+msgstr "Повторите для подтверждения"
+
+#: templates/base.html
+msgid "This field is required."
+msgstr "Это поле обязательно для заполнения."
+
+#: templates/base.html
+msgid "Enter a valid email address."
+msgstr "Введите корректный адрес электронной почты."
+
+#: templates/base.html
+msgid "Enter a valid value."
+msgstr "Введите корректное значение."
+
+#: templates/base.html
+msgid "Enter a valid URL."
+msgstr "Введите корректный URL."
+
+#: templates/base.html
+msgid "Enter a valid integer."
+msgstr "Введите целое число."
+
+#: templates/base.html
+msgid "Enter a valid date."
+msgstr "Введите корректную дату."
+
+#: templates/base.html
+msgid "Enter a valid time."
+msgstr "Введите корректное время."
+
+#: templates/base.html
+msgid "Enter a valid date/time."
+msgstr "Введите корректные дату и время."
+
+#: templates/base.html
+msgid "Enter a valid duration."
+msgstr "Введите корректную длительность."
+
+#: templates/base.html
+msgid "Upload a valid image. The file you uploaded was either not an image or a corrupted image."
+msgstr "Загрузите корректное изображение. Файл либо не является изображением, либо повреждён."
+
+#: templates/base.html
+msgid "Clear"
+msgstr "Очистить"
+
+#: templates/base.html
+msgid "Currently"
+msgstr "Текущее"
+
+#: templates/base.html
+msgid "Change"
+msgstr "Изменить"
+
+#: templates/base.html
+msgid "Unknown"
+msgstr "Неизвестно"
+
+#: templates/base.html
+msgid "Yes"
+msgstr "Да"
+
+#: templates/base.html
+msgid "No"
+msgstr "Нет"
+
+#: templates/base.html
+msgid "Back to articles"
+msgstr "Назад к статьям"
+
+#: templates/base.html
+msgid "Read more"
+msgstr "Читать далее"
+
+#: templates/base.html
+msgid "Pending moderation"
+msgstr "Ожидает модерации"
+
+#: templates/base.html
+msgid "Published"
+msgstr "Опубликовано"
+
+#: templates/base.html
+msgid "Add"
+msgstr "Добавить"
+
+#: templates/base.html
+msgid "Edit"
+msgstr "Редактировать"
+
+#: templates/base.html
+msgid "Delete"
+msgstr "Удалить"
+
+#: templates/base.html
+msgid "Save changes"
+msgstr "Сохранить изменения"
+
+#: templates/base.html
+msgid "Submit"
+msgstr "Отправить"
+
+#: templates/base.html
+msgid "Cancel"
+msgstr "Отмена"
+
+#: templates/base.html
+msgid "Next"
+msgstr "Далее"
+
+#: templates/base.html
+msgid "Previous"
+msgstr "Назад"
+
+#: templates/base.html
+msgid "Page"
+msgstr "Страница"
+
+#: templates/base.html
+msgid "of"
+msgstr "из"
+
+#: templates/base.html
+msgid "Language"
+msgstr "Язык"
+
+#: templates/base.html
+msgid "English"
+msgstr "Английский"
+
+#: templates/base.html
+msgid "Russian"
+msgstr "Русский"
+
+#: templates/base.html
+msgid "Armenian"
+msgstr "Армянский"

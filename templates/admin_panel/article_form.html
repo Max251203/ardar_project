@@ -400,7 +400,7 @@
                 imageUploadArea.addEventListener(eventName, preventDefaults, false);
             });
 
-                        function preventDefaults(e) {
+            function preventDefaults(e) {
                 e.preventDefault();
                 e.stopPropagation();
             }
@@ -611,6 +611,9 @@
             
             // Проверка при отправке формы
             form.addEventListener('submit', function(e) {
+                // Всегда предотвращаем отправку формы по умолчанию
+                e.preventDefault();
+                
                 // Получаем текст из заголовка и содержимого
                 const titleText = titleInput.value;
                 
@@ -639,8 +642,7 @@
                     if (!detectedLanguage) {
                         const message = "Не удалось определить язык текста. Поддерживаются только русский, английский и армянский языки. Пожалуйста, используйте один из этих языков.";
                         alert(message);
-                        e.preventDefault(); // Блокируем отправку формы
-                        return;
+                        return; // Блокируем отправку формы
                     }
                     
                     // Если языки не совпадают, показываем предупреждение и блокируем отправку
@@ -651,15 +653,22 @@
                             'hy': 'армянский'
                         };
                         
-                        const message = `Внимание! Текст написан на ${languageNames[detectedLanguage]} языке, но выбран ${languageNames[selectedLanguage]}. Пожалуйста, выберите правильный язык или проверьте текст.`;
-                        
-                        alert(message);
-                        e.preventDefault(); // Блокируем отправку формы
-                        
-                        // Автоматически устанавливаем правильный язык
+                        // Устанавливаем правильный язык в селекторе
                         languageSelect.value = detectedLanguage;
+                        
+                        const message = `Внимание! Текст написан на ${languageNames[detectedLanguage]} языке, но был выбран ${languageNames[selectedLanguage]}. Язык автоматически изменен на ${languageNames[detectedLanguage]}.`;
+                        alert(message);
+                        
+                        // Проверяем, что язык действительно изменился
+                        if (languageSelect.value !== detectedLanguage) {
+                            alert("Не удалось установить правильный язык. Пожалуйста, выберите язык вручную.");
+                            return; // Блокируем отправку формы
+                        }
                     }
                 }
+                
+                // Если все проверки пройдены, отправляем форму
+                this.submit();
             });
         }
     });
@@ -746,7 +755,7 @@
                         hiddenDiv.appendChild(imageInput.cloneNode(true));
                         imageUploadArea.appendChild(hiddenDiv);
                         
-                                                // Добавляем обработчики событий
+                        // Добавляем обработчики событий
                         const newImageInput = hiddenDiv.querySelector('input[name="image"]');
                         
                         // Обработчик клика на область загрузки
@@ -828,5 +837,6 @@
         filePreviewContainer.style.display = 'none';
     }
 </script>
+            
 {% endblock %}
                 

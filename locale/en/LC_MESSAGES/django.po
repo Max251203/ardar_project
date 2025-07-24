@@ -1,0 +1,288 @@
+# English translations for your Django project
+# Copyright (C) 2025 YOUR NAME
+# This file is distributed under the same license as the PROJECT package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ardar 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-24 04:11+0300\n"
+"PO-Revision-Date: 2025-07-24 04:11+0300\n"
+"Last-Translator: YOUR NAME <EMAIL@ADDRESS>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Home"
+msgstr "Home"
+
+msgid "Articles"
+msgstr "Articles"
+
+msgid "Login"
+msgstr "Login"
+
+msgid "Register"
+msgstr "Register"
+
+msgid "Profile"
+msgstr "Profile"
+
+msgid "Logout"
+msgstr "Logout"
+
+msgid "Admin"
+msgstr "Admin"
+
+msgid "Add article"
+msgstr "Add article"
+
+msgid "Edit article"
+msgstr "Edit article"
+
+msgid "Delete article"
+msgstr "Delete article"
+
+msgid "Comments"
+msgstr "Comments"
+
+msgid "Rating"
+msgstr "Rating"
+
+msgid "Search"
+msgstr "Search"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Password"
+msgstr "Password"
+
+msgid "Repeat password"
+msgstr "Repeat password"
+
+msgid "Forgot password?"
+msgstr "Forgot password?"
+
+msgid "Change password"
+msgstr "Change password"
+
+msgid "Create article"
+msgstr "Create article"
+
+msgid "My articles"
+msgstr "My articles"
+
+msgid "No articles yet."
+msgstr "No articles yet."
+
+msgid "Published"
+msgstr "Published"
+
+msgid "Pending moderation"
+msgstr "Pending moderation"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Delete"
+msgstr "Delete"
+
+msgid "Save changes"
+msgstr "Save changes"
+
+msgid "Add comment"
+msgstr "Add comment"
+
+msgid "Your comment"
+msgstr "Your comment"
+
+msgid "Submit"
+msgstr "Submit"
+
+msgid "Back"
+msgstr "Back"
+
+msgid "Next"
+msgstr "Next"
+
+msgid "Previous"
+msgstr "Previous"
+
+msgid "Page"
+msgstr "Page"
+
+msgid "of"
+msgstr "of"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "English"
+msgstr "English"
+
+msgid "Russian"
+msgstr "Russian"
+
+msgid "Armenian"
+msgstr "Armenian"
+
+msgid "Social accounts"
+msgstr "Social accounts"
+
+msgid "Connect accounts"
+msgstr "Connect accounts"
+
+msgid "Disconnect"
+msgstr "Disconnect"
+
+msgid "No comments yet."
+msgstr "No comments yet."
+
+msgid "You have no articles yet. Create your first one!"
+msgstr "You have no articles yet. Create your first one!"
+
+msgid "Search by title..."
+msgstr "Search by title..."
+
+msgid "Save profile"
+msgstr "Save profile"
+
+msgid "Change"
+msgstr "Change"
+
+msgid "Current password"
+msgstr "Current password"
+
+msgid "New password"
+msgstr "New password"
+
+msgid "Confirm new password"
+msgstr "Confirm new password"
+
+msgid "Password changed successfully"
+msgstr "Password changed successfully"
+
+msgid "Profile updated successfully"
+msgstr "Profile updated successfully"
+
+msgid "Invalid email or password"
+msgstr "Invalid email or password"
+
+msgid "Registration successful"
+msgstr "Registration successful"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Repeat for confirmation"
+msgstr "Repeat for confirmation"
+
+msgid "This field is required."
+msgstr "This field is required."
+
+msgid "Enter a valid email address."
+msgstr "Enter a valid email address."
+
+msgid "Enter a valid value."
+msgstr "Enter a valid value."
+
+msgid "Enter a valid URL."
+msgstr "Enter a valid URL."
+
+msgid "Enter a valid integer."
+msgstr "Enter a valid integer."
+
+msgid "Enter a valid date."
+msgstr "Enter a valid date."
+
+msgid "Enter a valid time."
+msgstr "Enter a valid time."
+
+msgid "Enter a valid date/time."
+msgstr "Enter a valid date/time."
+
+msgid "Enter a valid duration."
+msgstr "Enter a valid duration."
+
+msgid "Upload a valid image. The file you uploaded was either not an image or a corrupted image."
+msgstr "Upload a valid image. The file you uploaded was either not an image or a corrupted image."
+
+msgid "Clear"
+msgstr "Clear"
+
+msgid "Currently"
+msgstr "Currently"
+
+msgid "Unknown"
+msgstr "Unknown"
+
+msgid "Yes"
+msgstr "Yes"
+
+msgid "No"
+msgstr "No"
+
+msgid "Back to articles"
+msgstr "Back to articles"
+
+msgid "Read more"
+msgstr "Read more"
+
+msgid "Pending moderation"
+msgstr "Pending moderation"
+
+msgid "Published"
+msgstr "Published"
+
+msgid "Add"
+msgstr "Add"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Delete"
+msgstr "Delete"
+
+msgid "Save changes"
+msgstr "Save changes"
+
+msgid "Submit"
+msgstr "Submit"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Next"
+msgstr "Next"
+
+msgid "Previous"
+msgstr "Previous"
+
+msgid "Page"
+msgstr "Page"
+
+msgid "of"
+msgstr "of"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "English"
+msgstr "English"
+
+msgid "Russian"
+msgstr "Russian"
+
+msgid "Armenian"
+msgstr "Armenian"
