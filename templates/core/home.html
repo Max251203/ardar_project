@@ -1,14 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Главная — Ardar{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Home" %} — Ardar{% endblock %}
 
 {% block content %}
 <div class="article-container" style="max-width: 1200px;">
-    <h1 style="font-size: 32px;">Блог для серьёзных людей</h1>
-    <p style="font-size: 18px;">Обсуждение тем общественно-политической направленности. Здесь каждый желающий может стать автором статьи или обсудить публикации других авторов.</p>
+    <h1 style="font-size: 32px;">{% trans "Blog for serious people" %}</h1>
+    <p style="font-size: 18px;">{% trans "Discussion of socio-political topics. Here, anyone can become an author of an article or discuss other authors' publications." %}</p>
 
     <hr style="margin: 30px 0;">
 
-    <h2>Последние статьи</h2>
+    <h2>{% trans "Latest articles" %}</h2>
     {% if articles %}
     <div class="card-grid">
         {% for article in articles %}
@@ -16,11 +17,11 @@
         {% endfor %}
     </div>
     {% else %}
-    <p>Нет новых статей</p>
+    <p>{% trans "No new articles" %}</p>
     {% endif %}
 
     <div class="add-article-btn" style="margin-top: 40px;">
-        <a class="btn-create" href="{% url 'legal_page' %}">Условия использования и конфиденциальность</a>
+        <a class="btn-create" href="{% url 'legal_page' %}">{% trans "Terms of use and privacy" %}</a>
     </div>
 </div>
 

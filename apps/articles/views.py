@@ -336,6 +336,8 @@ def process_file(request):
     return JsonResponse({'text': html_text})
 
 
+# В apps/articles/views.py обновим функцию generate_audio_armtts
+
 @login_required
 def generate_audio_armtts(request, pk):
     """
@@ -381,6 +383,11 @@ def generate_audio_armtts(request, pk):
         except Exception as e:
             return HttpResponse(f"Ошибка при генерации аудио: {str(e)}", status=500)
 
+    # Получаем API ключ из настроек
+    from apps.core.models import SiteSettings
+    api_key = SiteSettings.get_setting(
+        'ARMTTS_API_KEY', '1e8d32c7c3msh767635ff925bcd7p13000fjsn07bbb0ccda3f')
+
     # Пробуем разные endpoints для ArmTTS API
     endpoints_to_try = [
         "https://armtts1.p.rapidapi.com/synthesize",
@@ -399,8 +406,7 @@ def generate_audio_armtts(request, pk):
 
             headers = {
                 "content-type": "application/json",
-                # Замените на новый ключ API
-                "X-RapidAPI-Key": "1e8d32c7c3msh767635ff925bcd7p13000fjsn07bbb0ccda3f",
+                "X-RapidAPI-Key": api_key,
                 "X-RapidAPI-Host": "armtts1.p.rapidapi.com"
             }
 

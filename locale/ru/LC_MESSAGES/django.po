@@ -1,158 +1,178 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
-#, fuzzy
+# locale/ru/LC_MESSAGES/django.po
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: ardar\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-24 12:00+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"POT-Creation-Date: 2025-07-20 12:00+0000\n"
+"PO-Revision-Date: 2025-07-20 12:00+0000\n"
+"Last-Translator: Admin <admin@example.com>\n"
+"Language-Team: Russian\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
 
-# Основные элементы навигации
+#: templates/base.html
 msgid "Home"
 msgstr "Главная"
 
+#: templates/base.html
 msgid "Articles"
 msgstr "Статьи"
 
+#: templates/base.html
 msgid "Admin Panel"
-msgstr "Админ-панель"
-
-msgid "Login / Register"
-msgstr "Вход / Регистрация"
-
-msgid "Logout"
-msgstr "Выйти"
-
-msgid "Profile"
-msgstr "Профиль"
-
-# Заголовки страниц
-msgid "Article List"
-msgstr "Список статей"
-
-msgid "Article Details"
-msgstr "Детали статьи"
-
-msgid "Create Article"
-msgstr "Создать статью"
-
-msgid "Edit Article"
-msgstr "Редактировать статью"
-
-msgid "User Profile"
-msgstr "Профиль пользователя"
-
-msgid "Admin Dashboard"
 msgstr "Панель администратора"
 
-# Кнопки и действия
-msgid "Save"
-msgstr "Сохранить"
+#: templates/base.html
+msgid "Sign in / Register"
+msgstr "Вход / Регистрация"
 
-msgid "Cancel"
-msgstr "Отмена"
+#: templates/base.html
+msgid "Sign out"
+msgstr "Выйти"
 
-msgid "Delete"
-msgstr "Удалить"
+#: templates/base.html
+msgid "Login"
+msgstr "Вход"
 
-msgid "Edit"
-msgstr "Редактировать"
+#: templates/base.html
+msgid "Register"
+msgstr "Регистрация"
 
-msgid "Back"
-msgstr "Назад"
+#: templates/base.html
+msgid "Email:"
+msgstr "Email:"
 
-msgid "Search"
-msgstr "Поиск"
+#: templates/base.html
+msgid "Password:"
+msgstr "Пароль:"
 
+#: templates/base.html
+msgid "Confirm password:"
+msgstr "Подтвердите пароль:"
+
+#: templates/base.html
+msgid "Name:"
+msgstr "Имя:"
+
+#: templates/base.html
+msgid "Forgot password?"
+msgstr "Забыли пароль?"
+
+#: templates/base.html
+msgid "or login with"
+msgstr "или войти через"
+
+#: templates/base.html
+msgid "Sign in"
+msgstr "Войти"
+
+#: templates/core/home.html
+msgid "Blog for serious people"
+msgstr "Блог для серьёзных людей"
+
+#: templates/core/home.html
+msgid "Discussion of socio-political topics. Here, anyone can become an author of an article or discuss other authors' publications."
+msgstr "Обсуждение тем общественно-политической направленности. Здесь каждый желающий может стать автором статьи или обсудить публикации других авторов."
+
+#: templates/core/home.html
+msgid "Latest articles"
+msgstr "Последние статьи"
+
+#: templates/core/home.html
+msgid "No new articles"
+msgstr "Нет новых статей"
+
+#: templates/core/home.html
+msgid "Terms of use and privacy"
+msgstr "Условия использования и конфиденциальность"
+
+#: templates/articles/list.html
+msgid "All articles"
+msgstr "Все статьи"
+
+#: templates/articles/list.html
+msgid "Add article"
+msgstr "Добавить статью"
+
+#: templates/articles/list.html
+msgid "Search by title"
+msgstr "Поиск по названию"
+
+#: templates/articles/list.html
+msgid "Language:"
+msgstr "Язык:"
+
+#: templates/articles/list.html
+msgid "All languages"
+msgstr "Все языки"
+
+#: templates/articles/list.html
+msgid "From:"
+msgstr "От:"
+
+#: templates/articles/list.html
+msgid "To:"
+msgstr "До:"
+
+#: templates/articles/list.html
+msgid "Find"
+msgstr "Найти"
+
+#: templates/articles/list.html
 msgid "Reset"
 msgstr "Сбросить"
 
-# Языки
-msgid "Russian"
-msgstr "Русский"
+#: templates/articles/detail.html
+msgid "Listen to article"
+msgstr "Прослушать статью"
 
-msgid "English"
-msgstr "Английский"
+#: templates/articles/detail.html
+msgid "Browser speech"
+msgstr "Браузерная озвучка"
 
-msgid "Armenian"
-msgstr "Армянский"
+#: templates/articles/detail.html
+msgid "Generate audio"
+msgstr "Сгенерировать аудио"
 
-# Статусы статей
-msgid "Pending"
-msgstr "Ожидает модерации"
+#: templates/articles/detail.html
+msgid "Your rating"
+msgstr "Ваша оценка"
 
-msgid "Approved"
-msgstr "Опубликовано"
+#: templates/articles/detail.html
+msgid "Login to rate the article"
+msgstr "Войдите, чтобы оценить статью"
 
-# Формы
-msgid "Title"
-msgstr "Заголовок"
+#: templates/articles/detail.html
+msgid "Average rating:"
+msgstr "Средняя оценка:"
 
-msgid "Language"
-msgstr "Язык"
+#: templates/articles/detail.html
+msgid "No ratings yet"
+msgstr "Пока нет оценок"
 
-msgid "Text"
-msgstr "Текст"
-
-msgid "Email"
-msgstr "Email"
-
-msgid "Password"
-msgstr "Пароль"
-
-msgid "Confirm Password"
-msgstr "Подтвердите пароль"
-
-msgid "Name"
-msgstr "Имя"
-
-# Комментарии и рейтинги
+#: templates/articles/detail.html
 msgid "Comments"
 msgstr "Комментарии"
 
-msgid "Add Comment"
-msgstr "Добавить комментарий"
+#: templates/articles/detail.html
+msgid "Write your comment..."
+msgstr "Напишите ваш комментарий..."
 
-msgid "Edit Comment"
-msgstr "Редактировать комментарий"
-
-msgid "Delete Comment"
-msgstr "Удалить комментарий"
-
-msgid "Rate Article"
-msgstr "Оценить статью"
-
-msgid "Your Rating"
-msgstr "Ваша оценка"
-
-msgid "Average Rating"
-msgstr "Средняя оценка"
-
-msgid "Total Ratings"
-msgstr "Всего оценок"
-
-msgid "Submit"
+#: templates/articles/detail.html
+msgid "Send"
 msgstr "Отправить"
 
-msgid "Change Rating"
-msgstr "Изменить оценку"
-
-msgid "Login to rate"
-msgstr "Войдите, чтобы оценить"
-
+#: templates/articles/detail.html
 msgid "Login to comment"
-msgstr "Войдите, чтобы комментировать"
+msgstr "Войдите, чтобы оставить комментарий"
 
+#: templates/articles/detail.html
 msgid "No comments yet"
 msgstr "Пока нет комментариев"
+
+#: templates/articles/detail.html
+msgid "Back to articles"
+msgstr "Назад к статьям"

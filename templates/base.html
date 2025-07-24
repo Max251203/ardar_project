@@ -1,6 +1,7 @@
 {% load static %}
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="{{ LANGUAGE_CODE }}">
 
 <head>
     <meta charset="UTF-8">
@@ -243,6 +244,56 @@
             width: 20px;
             height: 20px;
         }
+
+        /* Стили для сообщений об ошибках в модальном окне */
+        .auth-errors {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            color: #b91c1c;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .auth-errors ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        [data-theme="dark"] .auth-errors {
+            background-color: #7f1d1d;
+            border-left-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        /* Стили для селектора языка */
+        .language-selector {
+            margin-left: 20px;
+        }
+        
+        .language-selector select {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        .language-selector select option {
+            background-color: var(--bg);
+            color: var(--text);
+        }
+        
+        @media (max-width: 768px) {
+            .language-selector {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+        }
     </style>
 </head>
 
@@ -254,36 +305,37 @@
                 <div class="logo-text">
                     <span class="logo-title">ardar.info</span>
                     <div class="logo-divider"></div>
-                    <span class="logo-subtitle">Общественно-политический блог</span>
+                    <span class="logo-subtitle">{% if LANGUAGE_CODE == 'ru' %}Общественно-политический блог{% elif LANGUAGE_CODE == 'en' %}Socio-political blog{% else %}Հասարակական-քաղաքական բլոգ{% endif %}</span>
                 </div>
             </a>
             
-            {% load i18n %}
-            <form action="{% url 'set_language' %}" method="post">
+            <form action="{% url 'set_language' %}" method="post" class="language-selector">
                 {% csrf_token %}
                 <input name="next" type="hidden" value="{{ request.get_full_path }}">
-                <select name="language" onchange="this.form.submit()">
+                <select name="language" onchange="this.form.submit()" aria-label="{% trans 'Language' %}">
                     {% get_current_language as LANGUAGE_CODE %}
                     {% get_available_languages as LANGUAGES %}
                     {% for lang in LANGUAGES %}
-                        <option value="{{ lang.0 }}" {% if lang.0 == LANGUAGE_CODE %}selected{% endif %}>{{ lang.1 }}</option>
+                        <option value="{{ lang.0 }}" {% if lang.0 == LANGUAGE_CODE %}selected{% endif %}>
+                            {{ lang.1 }}
+                        </option>
                     {% endfor %}
                 </select>
             </form>
             
             <div class="nav-links">
-                <a href="{% url 'home' %}">Главная</a>
-                <a href="{% url 'article_list' %}">Статьи</a>
+                <a href="{% url 'home' %}">{% trans "Home" %}</a>
+                <a href="{% url 'article_list' %}">{% trans "Articles" %}</a>
 
                 {% if request.user.is_authenticated %}
                     {% if request.user.is_superuser or request.user.role == 'admin' %}
-                        <a href="{% url 'admin_dashboard' %}">Админка</a>
+                        <a href="{% url 'admin_dashboard' %}">{% trans "Admin Panel" %}</a>
                     {% endif %}
 
                     <span><a href="{% url 'user_profile' %}">{{ request.user.name }}</a></span>
-                    <a href="{% url 'logout_user' %}">Выйти</a>
+                    <a href="{% url 'logout_user' %}">{% trans "Sign out" %}</a>
                 {% else %}
-                    <a href="#" id="authLink">Вход / Регистрация</a>
+                    <a href="#" id="authLink">{% trans "Sign in / Register" %}</a>
                 {% endif %}
 
                 <button class="theme-toggle" id="theme-toggle">🌙</button>
@@ -317,37 +369,40 @@
         <div class="modal-content">
             <span class="close-modal">&times;</span>
             <div class="auth-tabs">
-                <button class="auth-tab active" data-tab="login">Вход</button>
-                <button class="auth-tab" data-tab="register">Регистрация</button>
+                <button class="auth-tab active" data-tab="login">{% trans "Login" %}</button>
+                <button class="auth-tab" data-tab="register">{% trans "Register" %}</button>
             </div>
             
+            <!-- Блок для ошибок -->
+            <div id="authErrors" class="auth-errors" style="display:none;"></div>
+            
             <div id="loginTab" class="auth-tab-content active">
-                <form method="POST" action="{% url 'auth' %}" class="auth-form">
+                <form id="loginForm" method="POST" action="{% url 'auth' %}" class="auth-form">
                     {% csrf_token %}
                     <input type="hidden" name="mode" value="login">
                     
                     <div class="form-group">
-                        <label for="login-email">Email:</label>
+                        <label for="login-email">{% trans "Email:" %}</label>
                         <input type="email" id="login-email" name="username" required class="input-field">
                     </div>
                     
                     <div class="form-group password-group">
-                        <label for="login-password">Пароль:</label>
+                        <label for="login-password">{% trans "Password:" %}</label>
                         <input type="password" id="login-password" name="password" required class="input-field">
                         <button type="button" class="toggle-password" data-state="hidden"></button>
                     </div>
                     
                     <div class="form-links">
-                        <a href="{% url 'password_reset' %}" class="forgot-password">Забыли пароль?</a>
+                        <a href="{% url 'password_reset' %}" class="forgot-password">{% trans "Forgot password?" %}</a>
                     </div>
                     
-                    <button type="submit" class="btn-submit">Войти</button>
+                    <button type="submit" class="btn-submit">{% trans "Sign in" %}</button>
                 </form>
                 
                 {% if 'allauth.socialaccount' in INSTALLED_APPS %}
                 <div class="social-login">
                     <div class="social-divider">
-                        <span>или войти через</span>
+                        <span>{% trans "or login with" %}</span>
                     </div>
                     <div class="social-buttons">
                         <a href="{% url 'google_login' %}" class="btn-social btn-google">
@@ -360,38 +415,37 @@
             </div>
             
             <div id="registerTab" class="auth-tab-content">
-                <form method="POST" action="{% url 'auth' %}" class="auth-form" autocomplete="off">
+                <form id="registerForm" method="POST" action="{% url 'auth' %}" class="auth-form" autocomplete="off">
                     {% csrf_token %}
                     <input type="hidden" name="mode" value="register">
                     
-                                    <div class="form-group">
-                        <label for="register-name">Имя:</label>
+                    <div class="form-group">
+                        <label for="register-name">{% trans "Name:" %}</label>
                         <input type="text" id="register-name" name="name" required class="input-field" autocomplete="off">
                     </div>
                     
                     <div class="form-group">
-                        <label for="register-email">Email:</label>
+                        <label for="register-email">{% trans "Email:" %}</label>
                         <input type="email" id="register-email" name="email" required class="input-field" autocomplete="off">
                     </div>
                     
                     <div class="form-group password-group">
-                        <label for="register-password">Пароль:</label>
+                        <label for="register-password">{% trans "Password:" %}</label>
                         <input type="password" id="register-password" name="password" required class="input-field" autocomplete="new-password">
                         <button type="button" class="toggle-password" data-state="hidden"></button>
                     </div>
                     
                     <div class="form-group password-group">
-                        <label for="register-password-confirm">Подтвердите пароль:</label>
+                        <label for="register-password-confirm">{% trans "Confirm password:" %}</label>
                         <input type="password" id="register-password-confirm" name="password_confirm" required class="input-field" autocomplete="new-password">
                         <button type="button" class="toggle-password" data-state="hidden"></button>
                     </div>
                     
-                    <button type="submit" class="btn-submit">Зарегистрироваться</button>
+                    <button type="submit" class="btn-submit">{% trans "Register" %}</button>
                 </form>
             </div>
         </div>
     </div>
-                    
 
     <script>
         // Переключение темы
@@ -445,6 +499,7 @@
             const tabs = document.querySelectorAll('.auth-tab');
             const tabContents = document.querySelectorAll('.auth-tab-content');
             const toggleBtns = document.querySelectorAll('.toggle-password');
+            const authErrors = document.getElementById('authErrors');
             
             // Открытие модального окна при клике на ссылку авторизации
             if (authLink) {
@@ -455,9 +510,11 @@
             }
             
             // Закрытие модального окна
-            closeBtn.addEventListener('click', function() {
-                modal.style.display = 'none';
-            });
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    modal.style.display = 'none';
+                });
+            }
             
             // Закрытие при клике вне модального окна
             window.addEventListener('click', function(e) {
@@ -477,6 +534,11 @@
                     this.classList.add('active');
                     const tabName = this.getAttribute('data-tab');
                     document.getElementById(tabName + 'Tab').classList.add('active');
+                    
+                    // Скрываем ошибки при переключении
+                    if (authErrors) {
+                        authErrors.style.display = 'none';
+                    }
                 });
             });
             
@@ -495,6 +557,134 @@
                     }
                 });
             });
+
+            // AJAX для форм авторизации
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            
+            // Обработка формы входа
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Скрываем предыдущие ошибки
+                    if (authErrors) {
+                        authErrors.style.display = 'none';
+                    }
+                    
+                    // Собираем данные формы
+                    const formData = new FormData(this);
+                    
+                    // Отправляем AJAX запрос
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Успешный вход - перенаправляем
+                            window.location.href = data.redirect;
+                        } else {
+                            // Показываем ошибки
+                            if (authErrors) {
+                                authErrors.innerHTML = '';
+                                if (data.errors && data.errors.length) {
+                                    const ul = document.createElement('ul');
+                                    data.errors.forEach(error => {
+                                        const li = document.createElement('li');
+                                        li.textContent = error;
+                                        ul.appendChild(li);
+                                    });
+                                    authErrors.appendChild(ul);
+                                    authErrors.style.display = 'block';
+                                } else {
+                                    authErrors.textContent = 'Произошла ошибка при входе. Пожалуйста, попробуйте снова.';
+                                    authErrors.style.display = 'block';
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        if (authErrors) {
+                            authErrors.textContent = 'Произошла ошибка при обработке запроса. Пожалуйста, попробуйте позже.';
+                            authErrors.style.display = 'block';
+                        }
+                    });
+                });
+            }
+            
+            // Обработка формы регистрации
+            if (registerForm) {
+                registerForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Скрываем предыдущие ошибки
+                    if (authErrors) {
+                        authErrors.style.display = 'none';
+                    }
+                    
+                    // Проверяем совпадение паролей
+                    const password = document.getElementById('register-password').value;
+                    const passwordConfirm = document.getElementById('register-password-confirm').value;
+                    
+                    if (password !== passwordConfirm) {
+                        if (authErrors) {
+                            authErrors.innerHTML = '<ul><li>Пароли не совпадают</li></ul>';
+                            authErrors.style.display = 'block';
+                        }
+                        return;
+                    }
+                    
+                    // Собираем данные формы
+                    const formData = new FormData(this);
+                    
+                    // Отправляем AJAX запрос
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Успешная регистрация - перенаправляем
+                            window.location.href = data.redirect;
+                        } else {
+                            // Показываем ошибки
+                            if (authErrors) {
+                                authErrors.innerHTML = '';
+                                if (data.errors && data.errors.length) {
+                                    const ul = document.createElement('ul');
+                                    data.errors.forEach(error => {
+                                        const li = document.createElement('li');
+                                        li.textContent = error;
+                                        ul.appendChild(li);
+                                    });
+                                    authErrors.appendChild(ul);
+                                    authErrors.style.display = 'block';
+                                } else {
+                                    authErrors.textContent = 'Произошла ошибка при регистрации. Пожалуйста, попробуйте снова.';
+                                    authErrors.style.display = 'block';
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        if (authErrors) {
+                            authErrors.textContent = 'Произошла ошибка при обработке запроса. Пожалуйста, попробуйте позже.';
+                            authErrors.style.display = 'block';
+                        }
+                    });
+                });
+            }
         });
     </script>
 </body>

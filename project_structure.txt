@@ -25,6 +25,9 @@
             ├── 0006_remove_article_image_remove_article_uploaded_file_and_more.py
             ├── __init__.py
         ├── models.py
+        ├── templatetags
+            ├── __init__.py
+            └── average.py
         ├── tests.py
         ├── urls.py
         └── views.py
@@ -34,7 +37,8 @@
         ├── apps.py
         ├── forms.py
         ├── migrations
-            └── __init__.py
+            ├── 0001_initial.py
+            ├── __init__.py
         ├── models.py
         ├── tests.py
         ├── urls.py
@@ -134,10 +138,12 @@
     ├── css
         ├── admin.css
         └── main.css
-    └── img
+    ├── img
         ├── eye-slash.png
         ├── eye.png
         └── logo.png
+    └── js
+        └── rating_comments.js
 ├── templates
     ├── admin_panel
         ├── article_form.html

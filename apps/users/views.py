@@ -1,7 +1,8 @@
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import JsonResponse
 from .forms import LoginForm, RegisterForm
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
@@ -19,14 +20,31 @@ def auth_view(request):
     if request.method == 'POST':
         mode = request.POST.get('mode', 'login')
 
+        # Проверяем, является ли запрос AJAX
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
         if mode == 'login':
             login_form = LoginForm(request, data=request.POST)
             if login_form.is_valid():
                 user = login_form.get_user()
                 login(request, user)
+                if is_ajax:
+                    return JsonResponse({'success': True, 'redirect': '/'})
                 return redirect('home')
             else:
-                # Покажи ошибку в модальном окне или на странице
+                # Формируем сообщения об ошибках
+                errors = []
+                for field, field_errors in login_form.errors.items():
+                    if field == '__all__':
+                        for error in field_errors:
+                            errors.append(error)
+                    else:
+                        errors.append(
+                            f"{login_form.fields[field].label}: {', '.join(field_errors)}")
+
+                if is_ajax:
+                    return JsonResponse({'success': False, 'errors': errors})
+
                 messages.error(request, "Неверный email или пароль.")
                 return redirect('home')
 
@@ -39,9 +57,24 @@ def auth_view(request):
                 # Укажи backend явно!
                 user.backend = 'django.contrib.auth.backends.ModelBackend'
                 login(request, user)
+
+                if is_ajax:
+                    return JsonResponse({'success': True, 'redirect': '/'})
                 return redirect('home')
             else:
-                # Покажи ошибку в модальном окне или на странице
+                # Формируем сообщения об ошибках
+                errors = []
+                for field, field_errors in register_form.errors.items():
+                    if field == '__all__':
+                        for error in field_errors:
+                            errors.append(error)
+                    else:
+                        errors.append(
+                            f"{register_form.fields[field].label}: {', '.join(field_errors)}")
+
+                if is_ajax:
+                    return JsonResponse({'success': False, 'errors': errors})
+
                 messages.error(
                     request, "Ошибка регистрации. Проверьте введённые данные.")
                 return redirect('home')

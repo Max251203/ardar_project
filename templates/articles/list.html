@@ -1,12 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Статьи{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Articles" %}{% endblock %}
 
 {% block content %}
 <div class="article-container" style="max-width: 1200px;">
     <div class="page-header">
-        <h1>Все статьи</h1>
+        <h1>{% trans "All articles" %}</h1>
         {% if user.is_authenticated and user.role != 'guest' %}
-        <a class="btn-create" href="{% url 'article_create' %}">Добавить статью</a>
+        <a class="btn-create" href="{% url 'article_create' %}">{% trans "Add article" %}</a>
         {% endif %}
     </div>
     
@@ -14,14 +15,14 @@
         <form method="get" id="searchForm">
             <div class="filter-row">
                 <div class="filter-group">
-                    <input type="text" name="q" placeholder="Поиск по названию" value="{{ search_query }}" class="search-input">
+                    <input type="text" name="q" placeholder="{% trans 'Search by title' %}" value="{{ search_query }}" class="search-input">
                 </div>
                 
                 <!-- Фильтр по языку -->
                 <div class="filter-group">
-                    <label>Язык:</label>
+                    <label>{% trans "Language:" %}</label>
                     <select name="language" class="language-select">
-                        <option value="">Все языки</option>
+                        <option value="">{% trans "All languages" %}</option>
                         <option value="ru" {% if language == 'ru' %}selected{% endif %}>Русский</option>
                         <option value="en" {% if language == 'en' %}selected{% endif %}>English</option>
                         <option value="hy" {% if language == 'hy' %}selected{% endif %}>Հայերեն</option>
@@ -29,18 +30,18 @@
                 </div>
                 
                 <div class="filter-group">
-                    <label>От:</label>
+                    <label>{% trans "From:" %}</label>
                     <input type="date" name="date_from" value="{{ date_from }}" class="date-input">
                 </div>
                 
                 <div class="filter-group">
-                    <label>До:</label>
+                    <label>{% trans "To:" %}</label>
                     <input type="date" name="date_to" value="{{ date_to }}" class="date-input">
                 </div>
                 
                 <div class="filter-actions">
-                    <button type="submit" class="btn-search">Найти</button>
-                    <button type="button" id="resetFilters" class="btn-reset">Сбросить</button>
+                    <button type="submit" class="btn-search">{% trans "Find" %}</button>
+                    <button type="button" id="resetFilters" class="btn-reset">{% trans "Reset" %}</button>
                 </div>
             </div>
         </form>
@@ -54,8 +55,8 @@
     {% if articles.paginator.num_pages > 1 %}
     <div class="pagination">
         {% if articles.has_previous %}
-        <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">&laquo; Первая</a>
-        <a href="?page={{ articles.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">&lsaquo; Предыдущая</a>
+        <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">&laquo; {% if LANGUAGE_CODE == "ru" %}Первая{% elif LANGUAGE_CODE == "en" %}First{% else %}Առաջին{% endif %}</a>
+        <a href="?page={{ articles.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">&lsaquo; {% if LANGUAGE_CODE == "ru" %}Предыдущая{% elif LANGUAGE_CODE == "en" %}Previous{% else %}Նախորդ{% endif %}</a>
         {% endif %}
         
         {% for num in articles.paginator.page_range %}
@@ -67,8 +68,8 @@
         {% endfor %}
         
         {% if articles.has_next %}
-        <a href="?page={{ articles.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">Следующая &rsaquo;</a>
-        <a href="?page={{ articles.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">Последняя &raquo;</a>
+        <a href="?page={{ articles.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">{% if LANGUAGE_CODE == "ru" %}Следующая{% elif LANGUAGE_CODE == "en" %}Next{% else %}Հաջորդ{% endif %} &rsaquo;</a>
+        <a href="?page={{ articles.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">{% if LANGUAGE_CODE == "ru" %}Последняя{% elif LANGUAGE_CODE == "en" %}Last{% else %}Վերջին{% endif %} &raquo;</a>
         {% endif %}
     </div>
     {% endif %}
@@ -199,22 +200,6 @@
     }
     
     .pagination-item {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 40px;
-        height: 40px;
-        padding: 0 10px;
-        background-color: var(--bg);
-        color: var(--text);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
-    
-        .pagination-item {
         display: inline-flex;
         align-items: center;
         justify-content: center;

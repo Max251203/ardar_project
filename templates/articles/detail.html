@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load i18n %}
 {% block title %}{{ article.title }}{% endblock %}
 
 {% block content %}
@@ -30,18 +31,18 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
                 <path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
             </svg>
-            <span>Прослушать статью</span>
+            <span>{% trans "Listen to article" %}</span>
         </div>
         <div class="player-options">
             <select id="voice-select" class="voice-select">
-                <option value="browser">Браузерная озвучка</option>
+                <option value="browser">{% trans "Browser speech" %}</option>
                 <option value="armtts">ArmTTS (армянский)</option>
             </select>
             <button id="generate-btn" class="generate-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
                     <path fill="currentColor" d="M8 5v14l11-7z"/>
                 </svg>
-                Сгенерировать аудио
+                {% trans "Generate audio" %}
             </button>
         </div>
         <div id="ra-container" class="audio-container" style="display: none;">
@@ -68,7 +69,7 @@
 
     <!-- ⭐️ AJAX Рейтинг -->
     <div class="article-rating js-rating-block" data-article-id="{{ article.id }}">
-        <h3>Ваша оценка</h3>
+        <h3>{% trans "Your rating" %}</h3>
         {% if user.is_authenticated %}
             <div class="star-select js-stars">
                 {% for i in "12345" %}
@@ -88,13 +89,13 @@
                 <button class="btn-delete-rating js-delete-own-rating" data-id="{{ user_rating.id }}">Удалить мою оценку</button>
             {% endif %}
         {% else %}
-            <p class="text-muted">⚠️ Войдите, чтобы оценить статью</p>
+            <p class="text-muted">⚠️ {% trans "Login to rate the article" %}</p>
         {% endif %}
         <div class="average-rating">
             {% if avg_rating %}
-                <p>Средняя оценка: <strong>{{ avg_rating|floatformat:1 }}</strong>/5 ({{ ratings.count }})</p>
+                <p>{% trans "Average rating:" %} <strong>{{ avg_rating|floatformat:1 }}</strong>/5 ({{ ratings.count }})</p>
             {% else %}
-                <p>Пока нет оценок</p>
+                <p>{% trans "No ratings yet" %}</p>
             {% endif %}
         </div>
         {% if user.is_superuser and ratings %}
@@ -116,15 +117,15 @@
 
     <!-- 💬 AJAX Комментарии -->
     <div class="article-comments js-comments-block" data-article-id="{{ article.id }}">
-        <h3>Комментарии (<span class="js-comments-count">{{ comments.count }}</span>)</h3>
+        <h3>{% trans "Comments" %} (<span class="js-comments-count">{{ comments.count }}</span>)</h3>
         {% if user.is_authenticated %}
             <div class="comment-form">
                 <textarea id="comment-text" class="input-field" rows="4"
-                        placeholder="Напишите ваш комментарий...">{% if user_comment %}{{ user_comment.text }}{% endif %}</textarea>
-                <button class="btn btn-primary js-submit-comment">💬 Отправить</button>
+                        placeholder="{% trans 'Write your comment...' %}">{% if user_comment %}{{ user_comment.text }}{% endif %}</textarea>
+                <button class="btn btn-primary js-submit-comment">💬 {% trans "Send" %}</button>
             </div>
         {% else %}
-            <p>⚠️ Войдите, чтобы оставить комментарий</p>
+            <p>⚠️ {% trans "Login to comment" %}</p>
         {% endif %}
         <ul class="comment-list js-comment-list">
             {% for comment in comments %}
@@ -144,14 +145,21 @@
                 {% endif %}
             </li>
             {% empty %}
-            <li class="text-muted">Пока нет комментариев</li>
+            <li class="text-muted">{% trans "No comments yet" %}</li>
             {% endfor %}
         </ul>
     </div>
 
     <div class="article-actions">
-        <a href="{% url 'article_list' %}" class="btn-back">← Назад к статьям</a>
+        <a href="{% url 'article_list' %}" class="btn-back">← {% trans "Back to articles" %}</a>
     </div>
+
+    <!-- Кнопка "Вверх" -->
+    <button id="backToTop" class="back-to-top" title="Вернуться к началу">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+        </svg>
+    </button>
 </div>
 
 {% block extra_scripts %}
@@ -186,6 +194,7 @@
     padding: 30px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     box-sizing: border-box;
+    position: relative; /* Для правильного позиционирования дочерних элементов */
 }
 
 .article-header {
@@ -801,15 +810,67 @@
     font-style: italic;
 }
 
+/* Кнопка "Вверх" */
+.back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
+    z-index: 100;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.back-to-top:hover {
+    background-color: var(--primary);
+    opacity: 0.9;
+}
+
+.back-to-top svg {
+    width: 24px;
+    height: 24px;
+}
+
 @media (max-width: 576px) {
     .article-container {
-        padding: 10px;
+        padding: 20px;
     }
+    
+    .article-title {
+        font-size: 24px;
+    }
+    
     .player-options {
         flex-direction: column;
     }
+    
     .star {
         font-size: 26px;
+    }
+    
+    .back-to-top {
+        bottom: 20px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
     }
 }
 </style>
@@ -1038,45 +1099,72 @@
         }
         
         // Обработчик кнопки генерации
-        generateBtn.addEventListener('click', function() {
-            const selectedVoice = voiceSelect.value;
-            
-            // Останавливаем текущую озвучку в любом случае
-            stopCurrentAudio();
-            
-            // Запоминаем выбранный тип озвучки
-            lastSelectedVoice = selectedVoice;
-            
-            if (selectedVoice === 'armtts') {
-                generateArmTTS();
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function() {
+                const selectedVoice = voiceSelect.value;
+                
+                // Останавливаем текущую озвучку в любом случае
+                stopCurrentAudio();
+                
+                // Запоминаем выбранный тип озвучки
+                lastSelectedVoice = selectedVoice;
+                
+                if (selectedVoice === 'armtts') {
+                    generateArmTTS();
+                } else {
+                    showReadAloud();
+                }
+            });
+        }
+        
+        // Обработчик изменения выбора озвучки
+        if (voiceSelect) {
+            voiceSelect.addEventListener('change', function() {
+                const selectedVoice = this.value;
+                
+                // Останавливаем текущую озвучку и сбрасываем плееры
+                stopCurrentAudio();
+                
+                // Полностью удаляем и пересоздаем контейнер ReadAloud
+                recreateReadAloudContainer();
+                
+                // Скрываем плееры при смене озвучки
+                raContainer.style.display = "none";
+                armttsContainer.style.display = "none";
+                
+                playerStatus.textContent = "Выбран вариант озвучки: " + this.options[this.selectedIndex].text;
+                playerStatus.className = "player-status";
+                
+                // Запоминаем выбранный тип озвучки
+                lastSelectedVoice = selectedVoice;
+            });
+        }
+        
+        // Инициализация
+        if (playerStatus) {
+            playerStatus.textContent = "Выберите вариант озвучки и нажмите 'Сгенерировать аудио'";
+        }
+        
+        // Кнопка "Вверх"
+        const backToTopButton = document.getElementById('backToTop');
+        
+        // Показываем кнопку при прокрутке вниз
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 300) {
+                backToTopButton.classList.add('visible');
             } else {
-                showReadAloud();
+                backToTopButton.classList.remove('visible');
             }
         });
         
-        // Обработчик изменения выбора озвучки
-        voiceSelect.addEventListener('change', function() {
-            const selectedVoice = this.value;
-            
-            // Останавливаем текущую озвучку и сбрасываем плееры
-            stopCurrentAudio();
-            
-            // Полностью удаляем и пересоздаем контейнер ReadAloud
-            recreateReadAloudContainer();
-            
-            // Скрываем плееры при смене озвучки
-            raContainer.style.display = "none";
-            armttsContainer.style.display = "none";
-            
-            playerStatus.textContent = "Выбран вариант озвучки: " + this.options[this.selectedIndex].text;
-            playerStatus.className = "player-status";
-            
-            // Запоминаем выбранный тип озвучки
-            lastSelectedVoice = selectedVoice;
+        // Прокрутка вверх при клике на кнопку
+        backToTopButton.addEventListener('click', function() {
+            // Плавная прокрутка вверх
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
         });
-        
-        // Инициализация
-        playerStatus.textContent = "Выберите вариант озвучки и нажмите 'Сгенерировать аудио'";
     });
 </script>
 {% endblock %}

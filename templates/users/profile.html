@@ -90,6 +90,15 @@
             {% endif %}
         </div>
     </div>
+
+    {% if request.user.is_superuser %}
+    <div class="profile-card">
+        <h2>Панель суперадминистратора</h2>
+        <div class="admin-actions">
+            <a href="{% url 'api_settings' %}" class="btn-action">Настройки API ключей</a>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <style>
@@ -169,23 +178,24 @@
         gap: 15px;
     }
     
-    .btn-save {
+    .btn-save,
+    .btn-action {
         padding: 12px 24px;
         background-color: var(--primary);
         color: white;
         border: none;
         border-radius: 6px;
         font-weight: 500;
+        font-size: 16px;
         cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
     }
     
-    .btn-action {
-        padding: 12px 24px;
-        background-color: var(--primary);
-        color: white;
+    .btn-save:hover,
+    .btn-action:hover {
+        opacity: 0.9;
         text-decoration: none;
-        border-radius: 6px;
-        font-weight: 500;
     }
     
     .search-box {

@@ -1,158 +1,178 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
-#, fuzzy
+# locale/hy/LC_MESSAGES/django.po
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: ardar\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-24 12:00+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"POT-Creation-Date: 2025-07-20 12:00+0000\n"
+"PO-Revision-Date: 2025-07-20 12:00+0000\n"
+"Last-Translator: Admin <admin@example.com>\n"
+"Language-Team: Armenian\n"
 "Language: hy\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-# Основные элементы навигации
+#: templates/base.html
 msgid "Home"
 msgstr "Գլխավոր"
 
+#: templates/base.html
 msgid "Articles"
 msgstr "Հոդվածներ"
 
+#: templates/base.html
 msgid "Admin Panel"
 msgstr "Ադմինիստրատորի վահանակ"
 
-msgid "Login / Register"
+#: templates/base.html
+msgid "Sign in / Register"
 msgstr "Մուտք / Գրանցում"
 
-msgid "Logout"
-msgstr "Ելք"
+#: templates/base.html
+msgid "Sign out"
+msgstr "Դուրս գալ"
 
-msgid "Profile"
-msgstr "Պրոֆիլ"
+#: templates/base.html
+msgid "Login"
+msgstr "Մուտք"
 
-# Заголовки страниц
-msgid "Article List"
-msgstr "Հոդվածների ցանկ"
+#: templates/base.html
+msgid "Register"
+msgstr "Գրանցվել"
 
-msgid "Article Details"
-msgstr "Հոդվածի մանրամասներ"
+#: templates/base.html
+msgid "Email:"
+msgstr "Էլ. փոստ:"
 
-msgid "Create Article"
-msgstr "Ստեղծել հոդված"
+#: templates/base.html
+msgid "Password:"
+msgstr "Գաղտնաբառ:"
 
-msgid "Edit Article"
-msgstr "Խմբագրել հոդվածը"
+#: templates/base.html
+msgid "Confirm password:"
+msgstr "Հաստատեք գաղտնաբառը:"
 
-msgid "User Profile"
-msgstr "Օգտատիրոջ պրոֆիլ"
+#: templates/base.html
+msgid "Name:"
+msgstr "Անուն:"
 
-msgid "Admin Dashboard"
-msgstr "Ադմինիստրատորի վահանակ"
+#: templates/base.html
+msgid "Forgot password?"
+msgstr "Մոռացե՞լ եք գաղտնաբառը:"
 
-# Кнопки и действия
-msgid "Save"
-msgstr "Պահպանել"
+#: templates/base.html
+msgid "or login with"
+msgstr "կամ մուտք գործեք"
 
-msgid "Cancel"
-msgstr "Չեղարկել"
+#: templates/base.html
+msgid "Sign in"
+msgstr "Մուտք"
 
-msgid "Delete"
-msgstr "Ջնջել"
+#: templates/core/home.html
+msgid "Blog for serious people"
+msgstr "Բլոգ լուրջ մարդկանց համար"
 
-msgid "Edit"
-msgstr "Խմբագրել"
+#: templates/core/home.html
+msgid "Discussion of socio-political topics. Here, anyone can become an author of an article or discuss other authors' publications."
+msgstr "Հասարակական-քաղաքական թեմաների քննարկում: Այստեղ յուրաքանչյուր ոք կարող է դառնալ հոդվածի հեղինակ կամ քննարկել այլ հեղինակների հրապարակումները:"
 
-msgid "Back"
-msgstr "Հետ"
+#: templates/core/home.html
+msgid "Latest articles"
+msgstr "Վերջին հոդվածները"
 
-msgid "Search"
-msgstr "Որոնել"
+#: templates/core/home.html
+msgid "No new articles"
+msgstr "Նոր հոդվածներ չկան"
 
+#: templates/core/home.html
+msgid "Terms of use and privacy"
+msgstr "Օգտագործման պայմաններ և գաղտնիություն"
+
+#: templates/articles/list.html
+msgid "All articles"
+msgstr "Բոլոր հոդվածները"
+
+#: templates/articles/list.html
+msgid "Add article"
+msgstr "Ավելացնել հոդված"
+
+#: templates/articles/list.html
+msgid "Search by title"
+msgstr "Որոնել ըստ վերնագրի"
+
+#: templates/articles/list.html
+msgid "Language:"
+msgstr "Լեզու:"
+
+#: templates/articles/list.html
+msgid "All languages"
+msgstr "Բոլոր լեզուները"
+
+#: templates/articles/list.html
+msgid "From:"
+msgstr "Սկսած:"
+
+#: templates/articles/list.html
+msgid "To:"
+msgstr "Մինչև:"
+
+#: templates/articles/list.html
+msgid "Find"
+msgstr "Գտնել"
+
+#: templates/articles/list.html
 msgid "Reset"
-msgstr "Վերականգնել"
+msgstr "Վերակայել"
 
-# Языки
-msgid "Russian"
-msgstr "Ռուսերեն"
+#: templates/articles/detail.html
+msgid "Listen to article"
+msgstr "Լսել հոդվածը"
 
-msgid "English"
-msgstr "Անգլերեն"
+#: templates/articles/detail.html
+msgid "Browser speech"
+msgstr "Բրաուզերի ձայնային ծառայություն"
 
-msgid "Armenian"
-msgstr "Հայերեն"
+#: templates/articles/detail.html
+msgid "Generate audio"
+msgstr "Ստեղծել աուդիո"
 
-# Статусы статей
-msgid "Pending"
-msgstr "Սպասում է"
+#: templates/articles/detail.html
+msgid "Your rating"
+msgstr "Ձեր գնահատականը"
 
-msgid "Approved"
-msgstr "Հաստատված"
+#: templates/articles/detail.html
+msgid "Login to rate the article"
+msgstr "Մուտք գործեք հոդվածը գնահատելու համար"
 
-# Формы
-msgid "Title"
-msgstr "Վերնագիր"
+#: templates/articles/detail.html
+msgid "Average rating:"
+msgstr "Միջին գնահատական:"
 
-msgid "Language"
-msgstr "Լեզու"
+#: templates/articles/detail.html
+msgid "No ratings yet"
+msgstr "Դեռ գնահատականներ չկան"
 
-msgid "Text"
-msgstr "Տեքստ"
-
-msgid "Email"
-msgstr "Էլ. փոստ"
-
-msgid "Password"
-msgstr "Գաղտնաբառ"
-
-msgid "Confirm Password"
-msgstr "Հաստատեք գաղտնաբառը"
-
-msgid "Name"
-msgstr "Անուն"
-
-# Комментарии и рейтинги
+#: templates/articles/detail.html
 msgid "Comments"
 msgstr "Մեկնաբանություններ"
 
-msgid "Add Comment"
-msgstr "Ավելացնել մեկնաբանություն"
+#: templates/articles/detail.html
+msgid "Write your comment..."
+msgstr "Գրեք ձեր մեկնաբանությունը..."
 
-msgid "Edit Comment"
-msgstr "Խմբագրել մեկնաբանությունը"
-
-msgid "Delete Comment"
-msgstr "Ջնջել մեկնաբանությունը"
-
-msgid "Rate Article"
-msgstr "Գնահատել հոդվածը"
-
-msgid "Your Rating"
-msgstr "Ձեր գնահատականը"
-
-msgid "Average Rating"
-msgstr "Միջին գնահատական"
-
-msgid "Total Ratings"
-msgstr "Ընդհանուր գնահատականներ"
-
-msgid "Submit"
+#: templates/articles/detail.html
+msgid "Send"
 msgstr "Ուղարկել"
 
-msgid "Change Rating"
-msgstr "Փոխել գնահատականը"
-
-msgid "Login to rate"
-msgstr "Մուտք գործեք գնահատելու համար"
-
+#: templates/articles/detail.html
 msgid "Login to comment"
 msgstr "Մուտք գործեք մեկնաբանելու համար"
 
+#: templates/articles/detail.html
 msgid "No comments yet"
 msgstr "Դեռ մեկնաբանություններ չկան"
+
+#: templates/articles/detail.html
+msgid "Back to articles"
+msgstr "Վերադառնալ հոդվածներին"
