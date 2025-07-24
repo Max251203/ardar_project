@@ -151,9 +151,13 @@ def admin_edit_user(request, user_id):
 
     user = get_object_or_404(User, id=user_id)
 
-    # Проверяем, что обычный админ не может редактировать суперадмина
-    if user.is_superuser and not request.user.is_superuser:
+    # Проверяем, что обычный админ не может редактировать суперадмина или другого админа
+    if not request.user.is_superuser and user.is_superuser:
         return HttpResponseForbidden("У вас нет прав для редактирования суперадминистратора")
+
+    # Проверяем, что обычный админ не может редактировать других админов (кроме себя)
+    if not request.user.is_superuser and user.role == 'admin' and user != request.user:
+        return HttpResponseForbidden("У вас нет прав для редактирования других администраторов")
 
     # Если пользователь редактирует себя, запрещаем менять роль
     is_self_edit = user == request.user
@@ -166,6 +170,10 @@ def admin_edit_user(request, user_id):
         # Проверяем, что пользователь не меняет свою роль
         if is_self_edit and role != user.role:
             return HttpResponseForbidden("Вы не можете изменить свою роль")
+
+        # Проверяем, что обычный админ не может назначить роль админа
+        if not request.user.is_superuser and role == 'admin' and user != request.user:
+            return HttpResponseForbidden("Только суперадминистратор может назначать роль администратора")
 
         if name and email and (is_self_edit or role in dict(User.ROLE_CHOICES)):
             user.name = name
@@ -187,9 +195,9 @@ def admin_change_role(request, user_id):
 
     user = get_object_or_404(User, id=user_id)
 
-    # Проверяем, что обычный админ не может менять роль суперадмина
-    if user.is_superuser and not request.user.is_superuser:
-        return HttpResponseForbidden("У вас нет прав для изменения роли суперадминистратора")
+    # Проверяем, что обычный админ не может менять роль суперадмина или другого админа
+    if (user.is_superuser or user.role == 'admin') and not request.user.is_superuser:
+        return HttpResponseForbidden("У вас нет прав для изменения роли администратора или суперадминистратора")
 
     # Проверяем, что пользователь не меняет свою роль
     if user == request.user:
@@ -197,6 +205,11 @@ def admin_change_role(request, user_id):
 
     if request.method == 'POST':
         new_role = request.POST.get('role')
+
+        # Проверяем, что обычный админ не может назначить роль админа
+        if not request.user.is_superuser and new_role == 'admin':
+            return HttpResponseForbidden("Только суперадминистратор может назначать роль администратора")
+
         if new_role in dict(User.ROLE_CHOICES):
             user.role = new_role
             user.save()
@@ -214,9 +227,9 @@ def admin_delete_user(request, user_id):
 
     user = get_object_or_404(User, id=user_id)
 
-    # Проверяем, что обычный админ не может удалить суперадмина
-    if user.is_superuser and not request.user.is_superuser:
-        return HttpResponseForbidden("У вас нет прав для удаления суперадминистратора")
+    # Проверяем, что обычный админ не может удалить суперадмина или другого админа
+    if (user.is_superuser or user.role == 'admin') and not request.user.is_superuser:
+        return HttpResponseForbidden("У вас нет прав для удаления администратора или суперадминистратора")
 
     # Проверяем, что пользователь не удаляет себя
     if user == request.user:
@@ -238,6 +251,10 @@ def admin_create_user(request):
         password = request.POST.get('password')
         role = request.POST.get('role')
 
+        # Проверяем, что обычный админ не может создать админа
+        if not request.user.is_superuser and role == 'admin':
+            return HttpResponseForbidden("Только суперадминистратор может создавать администраторов")
+
         if email and name and password and role in dict(User.ROLE_CHOICES):
             # Проверяем, что пользователь с таким email не существует
             if User.objects.filter(email=email).exists():
@@ -257,8 +274,9 @@ def admin_create_user(request):
 
     return render(request, 'admin_panel/user_create.html')
 
-
 # Утилиты
+
+
 def is_admin(request):
     return request.user.is_authenticated and (
         request.user.is_superuser or getattr(request.user, 'role', '') == 'admin')

@@ -44,13 +44,15 @@
                     {% else %}
                     <span class="role-{{ user.role }}">
                         {{ user.get_role_display }}
-                        {% if user != request.user and not user.is_superuser %}
+                        {% if user != request.user and not user.is_superuser and not user.role == 'admin' or request.user.is_superuser %}
                         <div class="role-selector">
                             <select onchange="changeRole(this, '{{ user.id }}')" class="role-select">
                                 <option value="guest" {% if user.role == "guest" %}selected{% endif %}>Гость</option>
                                 <option value="registered" {% if user.role == "registered" %}selected{% endif %}>Зарегистрированный</option>
                                 <option value="privileged" {% if user.role == "privileged" %}selected{% endif %}>Привилегированный</option>
+                                {% if request.user.is_superuser %}
                                 <option value="admin" {% if user.role == "admin" %}selected{% endif %}>Администратор</option>
+                                {% endif %}
                             </select>
                         </div>
                         {% endif %}
@@ -64,6 +66,8 @@
                     <span class="current-user">(Вы)</span>
                     {% elif user.is_superuser and not request.user.is_superuser %}
                     <span class="superadmin-notice">Нет доступа</span>
+                    {% elif user.role == 'admin' and not request.user.is_superuser and user != request.user %}
+                    <span class="admin-notice">Нет доступа</span>
                     {% else %}
                     <a href="{% url 'admin_edit_user' user.id %}" class="btn-edit" title="Редактировать">✏️</a>
                     <a href="{% url 'admin_delete_user' user.id %}" class="btn-delete" onclick="return confirm('Удалить пользователя?')" title="Удалить">🗑️</a>
@@ -158,6 +162,13 @@
         
         if (roleCell.textContent.includes('Суперадмин')) {
             alert('Нельзя изменить роль суперадминистратора');
+            return;
+        }
+        
+        // Проверяем, что обычный админ не пытается изменить роль другого админа
+        const isSuperAdmin = {{ request.user.is_superuser|yesno:"true,false" }};
+        if (!isSuperAdmin && roleCell.textContent.includes('Администратор')) {
+            alert('Нельзя изменить роль администратора');
             return;
         }
         

@@ -37,7 +37,9 @@
                     <option value="guest">Гость</option>
                     <option value="registered" selected>Зарегистрированный</option>
                     <option value="privileged">Привилегированный</option>
+                    {% if request.user.is_superuser %}
                     <option value="admin">Администратор</option>
+                    {% endif %}
                 </select>
             </div>
             
