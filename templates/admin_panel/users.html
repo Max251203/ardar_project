@@ -44,7 +44,7 @@
                     {% else %}
                     <span class="role-{{ user.role }}">
                         {{ user.get_role_display }}
-                        {% if user != request.user %}
+                        {% if user != request.user and not user.is_superuser %}
                         <div class="role-selector">
                             <select onchange="changeRole(this, '{{ user.id }}')" class="role-select">
                                 <option value="guest" {% if user.role == "guest" %}selected{% endif %}>Гость</option>
@@ -57,13 +57,16 @@
                     </span>
                     {% endif %}
                 </div>
-                                <div class="col-date">{{ user.date_joined|date:"d.m.Y" }}</div>
+                <div class="col-date">{{ user.date_joined|date:"d.m.Y" }}</div>
                 <div class="col-actions">
-                    {% if user != request.user %}
+                    {% if user == request.user %}
+                    <a href="{% url 'admin_edit_user' user.id %}" class="btn-edit" title="Редактировать">✏️</a>
+                    <span class="current-user">(Вы)</span>
+                    {% elif user.is_superuser and not request.user.is_superuser %}
+                    <span class="superadmin-notice">Нет доступа</span>
+                    {% else %}
                     <a href="{% url 'admin_edit_user' user.id %}" class="btn-edit" title="Редактировать">✏️</a>
                     <a href="{% url 'admin_delete_user' user.id %}" class="btn-delete" onclick="return confirm('Удалить пользователя?')" title="Удалить">🗑️</a>
-                    {% else %}
-                    <span class="current-user">(Вы)</span>
                     {% endif %}
                 </div>
             </div>
@@ -149,6 +152,15 @@
     }
 
     function changeRole(select, userId) {
+        // Проверяем, что пользователь не является суперадмином
+        const row = select.closest('.user-row');
+        const roleCell = row.querySelector('.col-role');
+        
+        if (roleCell.textContent.includes('Суперадмин')) {
+            alert('Нельзя изменить роль суперадминистратора');
+            return;
+        }
+        
         const newRole = select.value;
         
         // Создаем форму для отправки

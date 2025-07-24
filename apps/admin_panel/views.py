@@ -151,24 +151,33 @@ def admin_edit_user(request, user_id):
 
     user = get_object_or_404(User, id=user_id)
 
-    if user == request.user:
-        return HttpResponseForbidden("Нельзя редактировать себя")
+    # Проверяем, что обычный админ не может редактировать суперадмина
+    if user.is_superuser and not request.user.is_superuser:
+        return HttpResponseForbidden("У вас нет прав для редактирования суперадминистратора")
+
+    # Если пользователь редактирует себя, запрещаем менять роль
+    is_self_edit = user == request.user
 
     if request.method == 'POST':
         name = request.POST.get('name')
         email = request.POST.get('email')
         role = request.POST.get('role')
 
-        if name and email and role in dict(User.ROLE_CHOICES):
+        # Проверяем, что пользователь не меняет свою роль
+        if is_self_edit and role != user.role:
+            return HttpResponseForbidden("Вы не можете изменить свою роль")
+
+        if name and email and (is_self_edit or role in dict(User.ROLE_CHOICES)):
             user.name = name
             user.email = email
-            user.role = role
+            if not is_self_edit:
+                user.role = role
             user.save()
             messages.success(
                 request, f"Пользователь {user.email} успешно обновлен")
             return redirect('admin_users')
 
-    return render(request, 'admin_panel/user_form.html', {'user': user})
+    return render(request, 'admin_panel/user_form.html', {'user': user, 'is_self_edit': is_self_edit})
 
 
 @login_required
@@ -178,6 +187,11 @@ def admin_change_role(request, user_id):
 
     user = get_object_or_404(User, id=user_id)
 
+    # Проверяем, что обычный админ не может менять роль суперадмина
+    if user.is_superuser and not request.user.is_superuser:
+        return HttpResponseForbidden("У вас нет прав для изменения роли суперадминистратора")
+
+    # Проверяем, что пользователь не меняет свою роль
     if user == request.user:
         return HttpResponseForbidden("Вы не можете изменить свою роль")
 
@@ -196,9 +210,15 @@ def admin_change_role(request, user_id):
 @login_required
 def admin_delete_user(request, user_id):
     if not is_admin(request):
-        return HttpResponseForbidden()
+        return HttpResponseForbidden("Нет прав")
 
     user = get_object_or_404(User, id=user_id)
+
+    # Проверяем, что обычный админ не может удалить суперадмина
+    if user.is_superuser and not request.user.is_superuser:
+        return HttpResponseForbidden("У вас нет прав для удаления суперадминистратора")
+
+    # Проверяем, что пользователь не удаляет себя
     if user == request.user:
         return HttpResponseForbidden("Нельзя удалить себя")
 

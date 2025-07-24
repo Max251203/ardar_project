@@ -17,15 +17,16 @@
             {% csrf_token %}
             
             <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" value="{{ user.email }}" class="input-field" required>
-            </div>
-            
-            <div class="form-group">
                 <label for="name">Имя:</label>
                 <input type="text" id="name" name="name" value="{{ user.name }}" class="input-field" required>
             </div>
-            
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" value="{{ user.email }}" class="input-field" required>
+            </div>
+
+            {% if not is_self_edit %}
             <div class="form-group">
                 <label for="role">Роль:</label>
                 <select name="role" id="role" class="input-field">
@@ -35,6 +36,16 @@
                     <option value="admin" {% if user.role == "admin" %}selected{% endif %}>Администратор</option>
                 </select>
             </div>
+            {% else %}
+            <input type="hidden" name="role" value="{{ user.role }}">
+            <div class="form-group">
+                <label>Текущая роль:</label>
+                <div class="role-display">{{ user.get_role_display }}</div>
+                <div class="field-help">Вы не можете изменить свою роль</div>
+            </div>
+            {% endif %}
+            
+            
             
             <div class="form-actions">
                 <button type="submit" class="btn-save">Сохранить изменения</button>
@@ -95,6 +106,25 @@
         text-decoration: none;
         border-radius: 6px;
         font-weight: 500;
+    }
+
+    .role-display {
+        padding: 10px;
+        background-color: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+    }
+
+    .field-help {
+        margin-top: 5px;
+        font-size: 13px;
+        color: var(--text-light);
+    }
+
+    .superadmin-notice {
+        color: #ef4444;
+        font-style: italic;
     }
 </style>
 {% endblock %}
