@@ -83,7 +83,7 @@ def admin_edit_article(request, pk):
     form = ArticleForm(request.POST or None,
                        request.FILES or None, instance=article)
 
-    if form.is_valid():
+    if form.is_valid() and request.method == 'POST':
         article = form.save(commit=False)
 
         # Обработка загруженного изображения

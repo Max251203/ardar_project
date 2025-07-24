@@ -88,7 +88,6 @@ def article_detail(request, pk):
     return render(request, 'articles/detail.html', {'article': article})
 
 
-# apps/articles/views.py
 @login_required
 def article_create(request):
     """
@@ -126,6 +125,50 @@ def article_create(request):
         return redirect('article_detail', pk=article.pk)
 
     return render(request, 'admin_panel/article_form.html', {'form': form})
+
+
+def detect_language(text):
+    """
+    Определяет язык текста на основе анализа символов.
+    Поддерживаемые языки: русский (ru), английский (en), армянский (hy).
+    Возвращает код языка или None, если язык не определен.
+    """
+    import re
+
+    # Регулярные выражения для разных языков
+    armenian_regex = re.compile(r'[\u0530-\u058F]')
+    russian_regex = re.compile(r'[\u0400-\u04FF]')
+    english_regex = re.compile(r'[a-zA-Z]')
+    other_script_regex = re.compile(
+        r'[^\u0530-\u058F\u0400-\u04FFa-zA-Z0-9\s.,!?;:\'"()\-]')
+
+    # Подсчитываем количество символов каждого языка
+    armenian_count = len(armenian_regex.findall(text))
+    russian_count = len(russian_regex.findall(text))
+    english_count = len(english_regex.findall(text))
+    other_script_count = len(other_script_regex.findall(text))
+
+    # Общее количество символов (без пробелов и знаков препинания)
+    total_chars = armenian_count + russian_count + english_count + other_script_count
+
+    if total_chars == 0:
+        return None
+
+    # Если есть символы других письменностей (китайский, арабский и т.д.)
+    if other_script_count > 0 and other_script_count / total_chars > 0.1:
+        # Если более 10% символов - другие письменности, считаем язык неподдерживаемым
+        return None
+
+    # Определяем преобладающий язык (должен составлять не менее 60% текста)
+    if armenian_count > 0 and armenian_count / total_chars >= 0.6:
+        return 'hy'
+    elif russian_count > 0 and russian_count / total_chars >= 0.6:
+        return 'ru'
+    elif english_count > 0 and english_count / total_chars >= 0.6:
+        return 'en'
+    else:
+        # Если нет явного преобладания, возвращаем None
+        return None
 
 
 def extract_text_from_file(article, uploaded_file):
