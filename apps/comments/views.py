@@ -1,108 +1,109 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.contrib import messages
+# apps/comments/views.py
+
+from django.db.models import Avg
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.views.decorators.http import require_POST, require_http_methods
+from django.shortcuts import get_object_or_404
 from .models import Comment, Rating
-from .forms import CommentForm, RatingForm
 from apps.articles.models import Article
-from django.db import models
 
 
 @login_required
-def add_comment(request, article_id):
-    article = get_object_or_404(Article, id=article_id)
+@require_POST
+def ajax_submit_comment(request, article_id):
+    """
+    Создание или обновление комментария
+    """
+    article = get_object_or_404(Article, pk=article_id)
+    text = request.POST.get('text', '').strip()
 
-    # Проверяем, есть ли уже комментарий от этого пользователя
-    existing_comment = Comment.objects.filter(
-        article=article, author=request.user).first()
+    if not text:
+        return JsonResponse({'error': 'Комментарий не может быть пустым'}, status=400)
 
-    if request.method == 'POST':
-        form = CommentForm(request.POST, instance=existing_comment)
-        if form.is_valid():
-            comment = form.save(commit=False)
-            comment.article = article
-            comment.author = request.user
-            comment.save()
-            messages.success(request, "Комментарий добавлен")
-            return redirect('article_detail', pk=article_id)
-    else:
-        form = CommentForm(instance=existing_comment)
-
-    return render(request, 'comments/add_comment.html', {
-        'form': form,
-        'article': article,
-        'existing_comment': existing_comment
-    })
-
-
-@login_required
-def edit_comment(request, comment_id):
-    comment = get_object_or_404(Comment, id=comment_id, author=request.user)
-
-    if request.method == 'POST':
-        form = CommentForm(request.POST, instance=comment)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Комментарий обновлен")
-            return redirect('article_detail', pk=comment.article.id)
-    else:
-        form = CommentForm(instance=comment)
-
-    return render(request, 'comments/edit_comment.html', {
-        'form': form,
-        'comment': comment
-    })
-
-
-@login_required
-def delete_comment(request, comment_id):
-    comment = get_object_or_404(Comment, id=comment_id, author=request.user)
-    article_id = comment.article.id
-
-    if request.method == 'POST':
-        comment.delete()
-        messages.success(request, "Комментарий удален")
-        return redirect('article_detail', pk=article_id)
-
-    return render(request, 'comments/delete_comment.html', {
-        'comment': comment
-    })
-
-
-@login_required
-def rate_article(request, article_id):
-    article = get_object_or_404(Article, id=article_id)
-
-    # Проверяем, есть ли уже оценка от этого пользователя
-    rating, created = Rating.objects.get_or_create(
+    comment, created = Comment.objects.update_or_create(
         article=article,
-        user=request.user,
-        defaults={'value': 0}
+        author=request.user,
+        defaults={'text': text}
     )
 
-    if request.method == 'POST':
-        form = RatingForm(request.POST, instance=rating)
-        if form.is_valid():
-            form.save()
+    return JsonResponse({
+        'id': comment.id,
+        'text': comment.text,
+        'author': comment.author.name,
+        'date': comment.created_at.strftime('%d.%m.%Y %H:%M'),
+        'is_owner': True  # текущий пользователь всегда "владелец" при сохранении
+    })
 
-            # Пересчитываем средний рейтинг статьи
-            avg_rating = Rating.objects.filter(article=article).aggregate(
-                models.Avg('value'))['value__avg']
 
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': True,
-                    'avg_rating': avg_rating,
-                    'rating_count': Rating.objects.filter(article=article).count()
-                })
+@login_required
+@require_http_methods(["DELETE"])
+def ajax_delete_comment(request, comment_id):
+    comment = get_object_or_404(Comment, pk=comment_id)
 
-            messages.success(request, "Ваша оценка сохранена")
-            return redirect('article_detail', pk=article_id)
-    else:
-        form = RatingForm(instance=rating)
+    if request.user != comment.author and not request.user.is_superuser:
+        return HttpResponseForbidden("Нет доступа")
 
-    return render(request, 'comments/rate_article.html', {
-        'form': form,
-        'article': article,
-        'rating': rating
+    comment.delete()
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def ajax_submit_rating(request, article_id):
+    article = get_object_or_404(Article, pk=article_id)
+    value = request.POST.get('value')
+
+    try:
+        value = int(value)
+        assert 1 <= value <= 5
+    except (ValueError, AssertionError):
+        return HttpResponseBadRequest("Неверное значение рейтинга")
+
+    rating, created = Rating.objects.update_or_create(
+        article=article,
+        user=request.user,
+        defaults={'value': value}
+    )
+
+    avg = Rating.objects.filter(article=article).aggregate(
+        Avg('value'))['value__avg']
+    count = Rating.objects.filter(article=article).count()
+    ratings = Rating.objects.filter(article=article).select_related('user')
+
+    return JsonResponse({
+        'user_value': rating.value,
+        'avg': round(avg or 0, 1),
+        'count': count,
+        'ratings': [
+            {'id': r.id, 'user': r.user.name, 'value': r.value}
+            for r in ratings
+        ]
+    })
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def ajax_delete_rating(request, rating_id):
+    rating = get_object_or_404(Rating, pk=rating_id)
+    article = rating.article
+
+    if request.user != rating.user and not request.user.is_superuser:
+        return HttpResponseForbidden("Нет доступа")
+
+    rating.delete()
+
+    avg = Rating.objects.filter(article=article).aggregate(
+        Avg('value'))['value__avg']
+    count = Rating.objects.filter(article=article).count()
+    ratings = Rating.objects.filter(article=article).select_related('user')
+
+    return JsonResponse({
+        'success': True,
+        'avg': round(avg or 0, 1),
+        'count': count,
+        'ratings': [
+            {'id': r.id, 'user': r.user.name, 'value': r.value}
+            for r in ratings
+        ]
     })

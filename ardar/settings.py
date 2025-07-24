@@ -32,7 +32,8 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.articles',
     'apps.admin_panel',
-    'apps.legal',  # Добавляем новое приложение
+    'apps.legal',
+    'apps.comments',  # Добавьте эту строку
 
     'django.contrib.sites',
     'allauth',

@@ -17,6 +17,7 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
     path('google_login/', RedirectView.as_view(
         url='/accounts/google/login/?process=login'), name='google_login'),
+    path('comments/', include('apps.comments.urls')),
 ]
 
 if settings.DEBUG:

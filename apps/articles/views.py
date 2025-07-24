@@ -1,3 +1,8 @@
+# apps/articles/views.py
+from django.http import HttpResponseForbidden
+from apps.comments.forms import CommentForm
+from apps.articles.models import Article
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 import re
@@ -13,6 +18,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from .forms import ArticleForm
 from .models import Article
+from apps.comments.models import Comment, Rating
+from apps.comments.forms import CommentForm, RatingForm
+from django.db.models import Avg
 from gtts import gTTS
 from docx import Document
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
@@ -73,10 +81,11 @@ def article_list(request):
 
 def article_detail(request, pk):
     """
-    Детальный просмотр статьи с проверкой доступа к неопубликованным
+    Детальный просмотр статьи с комментариями и рейтингом
     """
     article = get_object_or_404(Article, pk=pk)
 
+    # Проверка доступа к неопубликованной статье
     if not article.is_approved:
         if not request.user.is_authenticated or (
             request.user != article.author and
@@ -85,7 +94,61 @@ def article_detail(request, pk):
         ):
             return render(request, 'core/403.html', status=403)
 
-    return render(request, 'articles/detail.html', {'article': article})
+    # Получаем оценку текущего пользователя
+    user_rating = None
+    if request.user.is_authenticated:
+        user_rating = Rating.objects.filter(
+            article=article, user=request.user).first()
+
+    # Средний рейтинг
+    avg_rating = Rating.objects.filter(
+        article=article).aggregate(Avg('value'))['value__avg']
+
+    # Все оценки
+    ratings = Rating.objects.filter(article=article).select_related('user')
+
+    # Комментарии
+    comments = Comment.objects.filter(article=article).order_by('-created_at')
+
+    # Один комментарий от текущего пользователя (если есть)
+    user_comment = None
+    if request.user.is_authenticated:
+        user_comment = Comment.objects.filter(
+            article=article, author=request.user).first()
+
+    # Обработка формы комментария
+    comment_form = None
+    if request.user.is_authenticated:
+        if request.method == 'POST':
+            if user_comment:
+                # Обновление существующего комментария
+                comment_form = CommentForm(request.POST, instance=user_comment)
+            else:
+                # Добавление нового комментария
+                comment_form = CommentForm(request.POST)
+
+            if comment_form.is_valid():
+                comment = comment_form.save(commit=False)
+                comment.article = article
+                comment.author = request.user
+                comment.save()
+                return redirect('article_detail', pk=article.pk)
+        else:
+            # Предзаполнение формы
+            if user_comment:
+                comment_form = CommentForm(instance=user_comment)
+            else:
+                comment_form = CommentForm()
+
+    return render(request, 'articles/detail.html', {
+        'article': article,
+        'user_rating': user_rating,
+        'avg_rating': avg_rating,
+        'ratings': ratings,
+        'comments': comments,
+        'user_comment': user_comment,
+        'comment_form': comment_form
+    })
 
 
 @login_required
@@ -238,6 +301,7 @@ def process_file(request):
     try:
         if ext == '.txt':
             text = uploaded_file.read().decode('utf-8')
+        # apps/articles/views.py (продолжение)
         elif ext == '.docx':
             # Сохраняем файл временно
             temp_path = os.path.join('media', 'temp', uploaded_file.name)

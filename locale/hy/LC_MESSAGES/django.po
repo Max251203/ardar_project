@@ -1,283 +1,158 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: ardar 1.0\n"
+"Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-24 04:18+0300\n"
-"PO-Revision-Date: 2025-07-24 04:18+0300\n"
-"Last-Translator: YOUR NAME <EMAIL@ADDRESS>\n"
-"Language-Team: Armenian\n"
+"POT-Creation-Date: 2025-07-24 12:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: hy\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+# Основные элементы навигации
 msgid "Home"
 msgstr "Գլխավոր"
 
 msgid "Articles"
 msgstr "Հոդվածներ"
 
-msgid "Login"
-msgstr "Մուտք"
+msgid "Admin Panel"
+msgstr "Ադմինիստրատորի վահանակ"
 
-msgid "Register"
-msgstr "Գրանցվել"
-
-msgid "Profile"
-msgstr "Պրոֆիլ"
+msgid "Login / Register"
+msgstr "Մուտք / Գրանցում"
 
 msgid "Logout"
 msgstr "Ելք"
 
-msgid "Admin"
-msgstr "Ադմին"
+msgid "Profile"
+msgstr "Պրոֆիլ"
 
-msgid "Add article"
-msgstr "Ավելացնել հոդված"
+# Заголовки страниц
+msgid "Article List"
+msgstr "Հոդվածների ցանկ"
 
-msgid "Edit article"
+msgid "Article Details"
+msgstr "Հոդվածի մանրամասներ"
+
+msgid "Create Article"
+msgstr "Ստեղծել հոդված"
+
+msgid "Edit Article"
 msgstr "Խմբագրել հոդվածը"
 
-msgid "Delete article"
-msgstr "Ջնջել հոդվածը"
+msgid "User Profile"
+msgstr "Օգտատիրոջ պրոֆիլ"
 
-msgid "Comments"
-msgstr "Մեկնաբանություններ"
+msgid "Admin Dashboard"
+msgstr "Ադմինիստրատորի վահանակ"
 
-msgid "Rating"
-msgstr "Վարկանիշ"
-
-msgid "Search"
-msgstr "Որոնում"
-
+# Кнопки и действия
 msgid "Save"
 msgstr "Պահպանել"
 
 msgid "Cancel"
 msgstr "Չեղարկել"
 
-msgid "Password"
-msgstr "Գաղտնաբառ"
-
-msgid "Repeat password"
-msgstr "Կրկնել գաղտնաբառը"
-
-msgid "Forgot password?"
-msgstr "Մոռացե՞լ եք գաղտնաբառը"
-
-msgid "Change password"
-msgstr "Փոխել գաղտնաբառը"
-
-msgid "Create article"
-msgstr "Ստեղծել հոդված"
-
-msgid "My articles"
-msgstr "Իմ հոդվածները"
-
-msgid "No articles yet."
-msgstr "Դեռ հոդվածներ չկան։"
-
-msgid "Published"
-msgstr "Հրապարակված է"
-
-msgid "Pending moderation"
-msgstr "Սպասում է հաստատման"
-
-msgid "Edit"
-msgstr "Խմբագրել"
-
 msgid "Delete"
 msgstr "Ջնջել"
 
-msgid "Save changes"
-msgstr "Պահպանել փոփոխությունները"
-
-msgid "Add comment"
-msgstr "Ավելացնել մեկնաբանություն"
-
-msgid "Your comment"
-msgstr "Ձեր մեկնաբանությունը"
-
-msgid "Submit"
-msgstr "Ուղարկել"
+msgid "Edit"
+msgstr "Խմբագրել"
 
 msgid "Back"
 msgstr "Հետ"
 
-msgid "Next"
-msgstr "Հաջորդ"
+msgid "Search"
+msgstr "Որոնել"
 
-msgid "Previous"
-msgstr "Նախորդ"
+msgid "Reset"
+msgstr "Վերականգնել"
 
-msgid "Page"
-msgstr "Էջ"
-
-msgid "of"
-msgstr "ից"
-
-msgid "Language"
-msgstr "Լեզու"
+# Языки
+msgid "Russian"
+msgstr "Ռուսերեն"
 
 msgid "English"
 msgstr "Անգլերեն"
 
-msgid "Russian"
-msgstr "Ռուսերեն"
-
 msgid "Armenian"
 msgstr "Հայերեն"
 
-msgid "Social accounts"
-msgstr "Սոցիալական հաշիվներ"
+# Статусы статей
+msgid "Pending"
+msgstr "Սպասում է"
 
-msgid "Connect accounts"
-msgstr "Կապել հաշիվներ"
+msgid "Approved"
+msgstr "Հաստատված"
 
-msgid "Disconnect"
-msgstr "Անջատել"
+# Формы
+msgid "Title"
+msgstr "Վերնագիր"
 
-msgid "No comments yet."
-msgstr "Դեռ մեկնաբանություններ չկան։"
+msgid "Language"
+msgstr "Լեզու"
 
-msgid "You have no articles yet. Create your first one!"
-msgstr "Դուք դեռ հոդված չունեք։ Ստեղծեք առաջինը։"
-
-msgid "Search by title..."
-msgstr "Որոնել ըստ վերնագրի..."
-
-msgid "Save profile"
-msgstr "Պահպանել պրոֆիլը"
-
-msgid "Change"
-msgstr "Փոխել"
-
-msgid "Current password"
-msgstr "Ներկայիս գաղտնաբառը"
-
-msgid "New password"
-msgstr "Նոր գաղտնաբառ"
-
-msgid "Confirm new password"
-msgstr "Հաստատել նոր գաղտնաբառը"
-
-msgid "Password changed successfully"
-msgstr "Գաղտնաբառը հաջողությամբ փոխվեց"
-
-msgid "Profile updated successfully"
-msgstr "Պրոֆիլը հաջողությամբ թարմացվեց"
-
-msgid "Invalid email or password"
-msgstr "Սխալ էլ. փոստ կամ գաղտնաբառ"
-
-msgid "Registration successful"
-msgstr "Գրանցումը հաջողությամբ ավարտվեց"
+msgid "Text"
+msgstr "Տեքստ"
 
 msgid "Email"
 msgstr "Էլ. փոստ"
 
+msgid "Password"
+msgstr "Գաղտնաբառ"
+
+msgid "Confirm Password"
+msgstr "Հաստատեք գաղտնաբառը"
+
 msgid "Name"
 msgstr "Անուն"
 
-msgid "Repeat for confirmation"
-msgstr "Կրկնել հաստատման համար"
+# Комментарии и рейтинги
+msgid "Comments"
+msgstr "Մեկնաբանություններ"
 
-msgid "This field is required."
-msgstr "Այս դաշտը պարտադիր է։"
+msgid "Add Comment"
+msgstr "Ավելացնել մեկնաբանություն"
 
-msgid "Enter a valid email address."
-msgstr "Մուտքագրեք վավեր էլ. փոստի հասցե։"
+msgid "Edit Comment"
+msgstr "Խմբագրել մեկնաբանությունը"
 
-msgid "Enter a valid value."
-msgstr "Մուտքագրեք վավեր արժեք։"
+msgid "Delete Comment"
+msgstr "Ջնջել մեկնաբանությունը"
 
-msgid "Enter a valid URL."
-msgstr "Մուտքագրեք վավեր URL։"
+msgid "Rate Article"
+msgstr "Գնահատել հոդվածը"
 
-msgid "Enter a valid integer."
-msgstr "Մուտքագրեք ամբողջ թիվ։"
+msgid "Your Rating"
+msgstr "Ձեր գնահատականը"
 
-msgid "Enter a valid date."
-msgstr "Մուտքագրեք վավեր ամսաթիվ։"
+msgid "Average Rating"
+msgstr "Միջին գնահատական"
 
-msgid "Enter a valid time."
-msgstr "Մուտքագրեք վավեր ժամանակ։"
-
-msgid "Enter a valid date/time."
-msgstr "Մուտքագրեք վավեր ամսաթիվ/ժամանակ։"
-
-msgid "Enter a valid duration."
-msgstr "Մուտքագրեք վավեր տևողություն։"
-
-msgid "Upload a valid image. The file you uploaded was either not an image or a corrupted image."
-msgstr "Վերբեռնեք վավեր պատկեր։ Ձեր վերբեռնած ֆայլը պատկեր չէ կամ վնասված է։"
-
-msgid "Clear"
-msgstr "Մաքրել"
-
-msgid "Currently"
-msgstr "Ներկայումս"
-
-msgid "Unknown"
-msgstr "Անհայտ"
-
-msgid "Yes"
-msgstr "Այո"
-
-msgid "No"
-msgstr "Ոչ"
-
-msgid "Back to articles"
-msgstr "Վերադառնալ հոդվածներին"
-
-msgid "Read more"
-msgstr "Կարդալ ավելին"
-
-msgid "Pending moderation"
-msgstr "Սպասում է հաստատման"
-
-msgid "Published"
-msgstr "Հրապարակված է"
-
-msgid "Add"
-msgstr "Ավելացնել"
-
-msgid "Edit"
-msgstr "Խմբագրել"
-
-msgid "Delete"
-msgstr "Ջնջել"
-
-msgid "Save changes"
-msgstr "Պահպանել փոփոխությունները"
+msgid "Total Ratings"
+msgstr "Ընդհանուր գնահատականներ"
 
 msgid "Submit"
 msgstr "Ուղարկել"
 
-msgid "Cancel"
-msgstr "Չեղարկել"
+msgid "Change Rating"
+msgstr "Փոխել գնահատականը"
 
-msgid "Next"
-msgstr "Հաջորդ"
+msgid "Login to rate"
+msgstr "Մուտք գործեք գնահատելու համար"
 
-msgid "Previous"
-msgstr "Նախորդ"
+msgid "Login to comment"
+msgstr "Մուտք գործեք մեկնաբանելու համար"
 
-msgid "Page"
-msgstr "Էջ"
-
-msgid "of"
-msgstr "ից"
-
-msgid "Language"
-msgstr "Լեզու"
-
-msgid "English"
-msgstr "Անգլերեն"
-
-msgid "Russian"
-msgstr "Ռուսերեն"
-
-msgid "Armenian"
-msgstr "Հայերեն"
+msgid "No comments yet"
+msgstr "Դեռ մեկնաբանություններ չկան"

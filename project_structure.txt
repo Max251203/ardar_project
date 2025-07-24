@@ -22,6 +22,7 @@
             ├── 0003_article_uploaded_file_alter_article_text.py
             ├── 0004_remove_article_audio_alter_article_text.py
             ├── 0005_alter_article_text.py
+            ├── 0006_remove_article_image_remove_article_uploaded_file_and_more.py
             ├── __init__.py
         ├── models.py
         ├── tests.py
@@ -31,10 +32,12 @@
         ├── __init__.py
         ├── admin.py
         ├── apps.py
+        ├── forms.py
         ├── migrations
             └── __init__.py
         ├── models.py
         ├── tests.py
+        ├── urls.py
         └── views.py
     ├── core
         ├── __init__.py
@@ -108,7 +111,22 @@
 ├── docker
     ├── Dockerfile
     └── docker-compose.yml
+├── locale
+    ├── en
+        └── LC_MESSAGES
+            ├── django.mo
+            └── django.po
+    ├── hy
+        └── LC_MESSAGES
+            ├── django.mo
+            └── django.po
+    └── ru
+        └── LC_MESSAGES
+            ├── django.mo
+            └── django.po
 ├── manage.py
+├── media
+    └── temp
 ├── prob.py
 ├── project_structure.txt
 ├── requirements.txt
@@ -136,12 +154,31 @@
             └── article_cards.html
         └── list.html
     ├── base.html
+    ├── comments
+        ├── add_comment.html
+        └── rate_article.html
     ├── core
         ├── 403.html
         └── home.html
     ├── legal
         ├── edit_legal_page.html
         └── legal_page.html
+    ├── socialaccount
+        ├── authentication_error.html
+        ├── base.html
+        ├── connections.html
+        ├── login.html
+        └── signup.html
+    ├── users
+        ├── password_change.html
+        ├── password_change_done.html
+        ├── password_reset.html
+        ├── password_reset_complete.html
+        ├── password_reset_confirm.html
+        ├── password_reset_done.htm
+        ├── password_reset_email.html
+        ├── password_reset_subject.txt
+        └── profile.html
     └── widgets
         └── image_input.html
 └── venv
@@ -646,6 +683,15 @@
                 ├── features.py
                 ├── py.typed
                 └── report.py
+            ├── PyJWT-2.10.1.dist-info
+                ├── AUTHORS.rst
+                ├── INSTALLER
+                ├── LICENSE
+                ├── METADATA
+                ├── RECORD
+                ├── REQUESTED
+                ├── WHEEL
+                └── top_level.txt
             ├── PyPDF2
                 ├── __init__.py
                 ├── _cmap.py
@@ -692,6 +738,7 @@
                 ├── metadata.json
                 ├── pbr.json
                 └── top_level.txt
+            ├── _cffi_backend.cp312-win_amd64.pyd
             ├── allauth
                 ├── __init__.py
                 ├── account
@@ -948,6 +995,10 @@
                             ├── django.mo
                             └── django.po
                     ├── hu
+                        └── LC_MESSAGES
+                            ├── django.mo
+                            └── django.po
+                    ├── hy
                         └── LC_MESSAGES
                             ├── django.mo
                             └── django.po
@@ -2283,6 +2334,37 @@
                 ├── WHEEL
                 ├── licenses
                     └── LICENSE
+                └── top_level.txt
+            ├── cffi
+                ├── __init__.py
+                ├── _cffi_errors.h
+                ├── _cffi_include.h
+                ├── _embedding.h
+                ├── _imp_emulation.py
+                ├── _shimmed_dist_utils.py
+                ├── api.py
+                ├── backend_ctypes.py
+                ├── cffi_opcode.py
+                ├── commontypes.py
+                ├── cparser.py
+                ├── error.py
+                ├── ffiplatform.py
+                ├── lock.py
+                ├── model.py
+                ├── parse_c_type.h
+                ├── pkgconfig.py
+                ├── recompiler.py
+                ├── setuptools_ext.py
+                ├── vengine_cpy.py
+                ├── vengine_gen.py
+                └── verifier.py
+            ├── cffi-1.17.1.dist-info
+                ├── INSTALLER
+                ├── LICENSE
+                ├── METADATA
+                ├── RECORD
+                ├── WHEEL
+                ├── entry_points.txt
                 └── top_level.txt
             ├── chardet
                 ├── __init__.py
@@ -3934,6 +4016,131 @@
                 ├── middleware.py
                 ├── py.typed
                 └── signals.py
+            ├── cryptography
+                ├── __about__.py
+                ├── __init__.py
+                ├── exceptions.py
+                ├── fernet.py
+                ├── hazmat
+                    ├── __init__.py
+                    ├── _oid.py
+                    ├── backends
+                        ├── __init__.py
+                        └── openssl
+                            ├── __init__.py
+                            └── backend.py
+                    ├── bindings
+                        ├── __init__.py
+                        ├── _rust
+                            ├── __init__.pyi
+                            ├── _openssl.pyi
+                            ├── asn1.pyi
+                            ├── exceptions.pyi
+                            ├── ocsp.pyi
+                            ├── openssl
+                                ├── __init__.pyi
+                                ├── aead.pyi
+                                ├── ciphers.pyi
+                                ├── cmac.pyi
+                                ├── dh.pyi
+                                ├── dsa.pyi
+                                ├── ec.pyi
+                                ├── ed25519.pyi
+                                ├── ed448.pyi
+                                ├── hashes.pyi
+                                ├── hmac.pyi
+                                ├── kdf.pyi
+                                ├── keys.pyi
+                                ├── poly1305.pyi
+                                ├── rsa.pyi
+                                ├── x25519.pyi
+                                └── x448.pyi
+                            ├── pkcs12.pyi
+                            ├── pkcs7.pyi
+                            ├── test_support.pyi
+                            └── x509.pyi
+                        ├── _rust.pyd
+                        └── openssl
+                            ├── __init__.py
+                            ├── _conditional.py
+                            └── binding.py
+                    ├── decrepit
+                        ├── __init__.py
+                        └── ciphers
+                            ├── __init__.py
+                            └── algorithms.py
+                    └── primitives
+                        ├── __init__.py
+                        ├── _asymmetric.py
+                        ├── _cipheralgorithm.py
+                        ├── _serialization.py
+                        ├── asymmetric
+                            ├── __init__.py
+                            ├── dh.py
+                            ├── dsa.py
+                            ├── ec.py
+                            ├── ed25519.py
+                            ├── ed448.py
+                            ├── padding.py
+                            ├── rsa.py
+                            ├── types.py
+                            ├── utils.py
+                            ├── x25519.py
+                            └── x448.py
+                        ├── ciphers
+                            ├── __init__.py
+                            ├── aead.py
+                            ├── algorithms.py
+                            ├── base.py
+                            └── modes.py
+                        ├── cmac.py
+                        ├── constant_time.py
+                        ├── hashes.py
+                        ├── hmac.py
+                        ├── kdf
+                            ├── __init__.py
+                            ├── argon2.py
+                            ├── concatkdf.py
+                            ├── hkdf.py
+                            ├── kbkdf.py
+                            ├── pbkdf2.py
+                            ├── scrypt.py
+                            └── x963kdf.py
+                        ├── keywrap.py
+                        ├── padding.py
+                        ├── poly1305.py
+                        ├── serialization
+                            ├── __init__.py
+                            ├── base.py
+                            ├── pkcs12.py
+                            ├── pkcs7.py
+                            └── ssh.py
+                        └── twofactor
+                            ├── __init__.py
+                            ├── hotp.py
+                            └── totp.py
+                ├── py.typed
+                ├── utils.py
+                └── x509
+                    ├── __init__.py
+                    ├── base.py
+                    ├── certificate_transparency.py
+                    ├── extensions.py
+                    ├── general_name.py
+                    ├── name.py
+                    ├── ocsp.py
+                    ├── oid.py
+                    └── verification.py
+            ├── cryptography-45.0.5.dist-info
+                ├── INSTALLER
+                ├── METADATA
+                ├── RECORD
+                ├── REQUESTED
+                ├── WHEEL
+                └── licenses
+                    ├── LICENSE
+                    ├── LICENSE.APACHE
+                    └── LICENSE.BSD
             ├── debug_toolbar
                 ├── __init__.py
                 ├── _stubs.py
@@ -3974,6 +4181,10 @@
                             ├── django.mo
                             └── django.po
                     ├── he
+                        └── LC_MESSAGES
+                            ├── django.mo
+                            └── django.po
+                    ├── hy
                         └── LC_MESSAGES
                             ├── django.mo
                             └── django.po
@@ -5658,6 +5869,10 @@
                                     ├── django.mo
                                     └── django.po
                             ├── hu
+                                └── LC_MESSAGES
+                                    ├── django.mo
+                                    └── django.po
+                            ├── hy
                                 └── LC_MESSAGES
                                     ├── django.mo
                                     └── django.po
@@ -10616,6 +10831,20 @@
                 ├── __init__.py
                 ├── context_processors.py
                 └── js.py
+            ├── jwt
+                ├── __init__.py
+                ├── algorithms.py
+                ├── api_jwk.py
+                ├── api_jws.py
+                ├── api_jwt.py
+                ├── exceptions.py
+                ├── help.py
+                ├── jwk_set_cache.py
+                ├── jwks_client.py
+                ├── py.typed
+                ├── types.py
+                ├── utils.py
+                └── warnings.py
             ├── langdetect
                 ├── __init__.py
                 ├── detector.py
@@ -10946,6 +11175,107 @@
                 ├── translator.py
                 ├── utils.py
                 └── widgets.py
+            ├── oauthlib
+                ├── __init__.py
+                ├── common.py
+                ├── oauth1
+                    ├── __init__.py
+                    └── rfc5849
+                        ├── __init__.py
+                        ├── endpoints
+                            ├── __init__.py
+                            ├── access_token.py
+                            ├── authorization.py
+                            ├── base.py
+                            ├── pre_configured.py
+                            ├── request_token.py
+                            ├── resource.py
+                            └── signature_only.py
+                        ├── errors.py
+                        ├── parameters.py
+                        ├── request_validator.py
+                        ├── signature.py
+                        └── utils.py
+                ├── oauth2
+                    ├── __init__.py
+                    ├── rfc6749
+                        ├── __init__.py
+                        ├── clients
+                            ├── __init__.py
+                            ├── backend_application.py
+                            ├── base.py
+                            ├── legacy_application.py
+                            ├── mobile_application.py
+                            ├── service_application.py
+                            └── web_application.py
+                        ├── endpoints
+                            ├── __init__.py
+                            ├── authorization.py
+                            ├── base.py
+                            ├── introspect.py
+                            ├── metadata.py
+                            ├── pre_configured.py
+                            ├── resource.py
+                            ├── revocation.py
+                            └── token.py
+                        ├── errors.py
+                        ├── grant_types
+                            ├── __init__.py
+                            ├── authorization_code.py
+                            ├── base.py
+                            ├── client_credentials.py
+                            ├── implicit.py
+                            ├── refresh_token.py
+                            └── resource_owner_password_credentials.py
+                        ├── parameters.py
+                        ├── request_validator.py
+                        ├── tokens.py
+                        └── utils.py
+                    └── rfc8628
+                        ├── __init__.py
+                        ├── clients
+                            ├── __init__.py
+                            └── device.py
+                        ├── endpoints
+                            ├── __init__.py
+                            ├── device_authorization.py
+                            └── pre_configured.py
+                        ├── errors.py
+                        ├── grant_types
+                            ├── __init__.py
+                            └── device_code.py
+                        └── request_validator.py
+                ├── openid
+                    ├── __init__.py
+                    └── connect
+                        ├── __init__.py
+                        └── core
+                            ├── __init__.py
+                            ├── endpoints
+                                ├── __init__.py
+                                ├── pre_configured.py
+                                └── userinfo.py
+                            ├── exceptions.py
+                            ├── grant_types
+                                ├── __init__.py
+                                ├── authorization_code.py
+                                ├── base.py
+                                ├── dispatchers.py
+                                ├── hybrid.py
+                                ├── implicit.py
+                                └── refresh_token.py
+                            ├── request_validator.py
+                            └── tokens.py
+                ├── signals.py
+                └── uri_validate.py
+            ├── oauthlib-3.3.1.dist-info
+                ├── INSTALLER
+                ├── METADATA
+                ├── RECORD
+                ├── WHEEL
+                ├── licenses
+                    └── LICENSE
+                └── top_level.txt
             ├── olefile
                 ├── CONTRIBUTORS.txt
                 ├── LICENSE.txt
@@ -11932,6 +12262,33 @@
                 ├── REQUESTED
                 ├── WHEEL
                 └── top_level.txt
+            ├── pycparser
+                ├── __init__.py
+                ├── _ast_gen.py
+                ├── _build_tables.py
+                ├── _c_ast.cfg
+                ├── ast_transforms.py
+                ├── c_ast.py
+                ├── c_generator.py
+                ├── c_lexer.py
+                ├── c_parser.py
+                ├── lextab.py
+                ├── ply
+                    ├── __init__.py
+                    ├── cpp.py
+                    ├── ctokens.py
+                    ├── lex.py
+                    ├── yacc.py
+                    └── ygen.py
+                ├── plyparser.py
+                └── yacctab.py
+            ├── pycparser-2.22.dist-info
+                ├── INSTALLER
+                ├── LICENSE
+                ├── METADATA
+                ├── RECORD
+                ├── WHEEL
+                └── top_level.txt
             ├── pycryptodome-3.23.0.dist-info
                 ├── AUTHORS.rst
                 ├── INSTALLER
@@ -12007,6 +12364,31 @@
                 ├── licenses
                     └── LICENSE
                 └── top_level.txt
+            ├── requests_oauthlib
+                ├── __init__.py
+                ├── compliance_fixes
+                    ├── __init__.py
+                    ├── douban.py
+                    ├── ebay.py
+                    ├── facebook.py
+                    ├── fitbit.py
+                    ├── instagram.py
+                    ├── mailchimp.py
+                    ├── plentymarkets.py
+                    ├── slack.py
+                    └── weibo.py
+                ├── oauth1_auth.py
+                ├── oauth1_session.py
+                ├── oauth2_auth.py
+                └── oauth2_session.py
+            ├── requests_oauthlib-2.0.0.dist-info
+                ├── INSTALLER
+                ├── LICENSE
+                ├── METADATA
+                ├── RECORD
+                ├── REQUESTED
+                ├── WHEEL
+                └── top_level.txt
             ├── rest_framework
                 ├── __init__.py
                 ├── apps.py
@@ -12076,7 +12458,8 @@
                             └── django.mo
                     ├── en
                         └── LC_MESSAGES
-                            └── django.mo
+                            ├── django.mo
+                            └── django.po
                     ├── en_AU
                         └── LC_MESSAGES
                             └── django.mo
@@ -12121,7 +12504,8 @@
                             └── django.mo
                     ├── hy
                         └── LC_MESSAGES
-                            └── django.mo
+                            ├── django.mo
+                            └── django.po
                     ├── id
                         └── LC_MESSAGES
                             └── django.mo
@@ -12175,7 +12559,8 @@
                             └── django.mo
                     ├── ru
                         └── LC_MESSAGES
-                            └── django.mo
+                            ├── django.mo
+                            └── django.po
                     ├── ru_RU
                         └── LC_MESSAGES
                             └── django.mo
