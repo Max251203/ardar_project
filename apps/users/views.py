@@ -9,10 +9,12 @@ from django.conf import settings
 User = get_user_model()
 
 
+User = get_user_model()
+
+
 def auth_view(request):
     """
     Обрабатывает POST-запросы для входа и регистрации.
-    Больше не рендерит шаблон, так как авторизация происходит через модальное окно.
     """
     if request.method == 'POST':
         mode = request.POST.get('mode', 'login')
@@ -23,6 +25,10 @@ def auth_view(request):
                 user = login_form.get_user()
                 login(request, user)
                 return redirect('home')
+            else:
+                # Покажи ошибку в модальном окне или на странице
+                messages.error(request, "Неверный email или пароль.")
+                return redirect('home')
 
         elif mode == 'register':
             register_form = RegisterForm(request.POST)
@@ -30,7 +36,14 @@ def auth_view(request):
                 user = register_form.save(commit=False)
                 user.set_password(register_form.cleaned_data['password'])
                 user.save()
+                # Укажи backend явно!
+                user.backend = 'django.contrib.auth.backends.ModelBackend'
                 login(request, user)
+                return redirect('home')
+            else:
+                # Покажи ошибку в модальном окне или на странице
+                messages.error(
+                    request, "Ошибка регистрации. Проверьте введённые данные.")
                 return redirect('home')
 
     # Если запрос не POST или форма невалидна, перенаправляем на главную
