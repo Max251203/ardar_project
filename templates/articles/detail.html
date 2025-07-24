@@ -5,6 +5,9 @@
 
 {% block content %}
 <div class="article-container">
+    {% if user.is_superuser %}
+    <div data-is-superadmin="true" style="display:none;"></div>
+    {% endif %}
     <div class="article-header">
         <h1 class="article-title">{{ article.title }}</h1>
         <div class="article-meta">

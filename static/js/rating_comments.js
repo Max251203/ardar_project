@@ -21,7 +21,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const label = ratingBlock.querySelector('.js-rating-label');
         const articleId = ratingBlock.dataset.articleId;
         const avgElem = document.querySelector('.average-rating');
-        const allRatingsBlock = document.querySelector('.all-ratings ul');
+        
+        // Получаем существующий блок всех оценок или null, если его нет
+        let allRatingsContainer = document.querySelector('.all-ratings');
+        let allRatingsBlock = allRatingsContainer ? allRatingsContainer.querySelector('ul') : null;
 
         function setStars(value) {
             stars.forEach(s => {
@@ -45,6 +48,79 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function clearStarsHovered() {
             stars.forEach(s => s.classList.remove('hovered'));
+        }
+
+        // Проверка, является ли пользователь суперадмином
+        function isSuperAdmin() {
+            return document.querySelector('[data-is-superadmin="true"]') !== null;
+        }
+
+        // Создаем кнопку удаления оценки, если её нет
+        function createDeleteButton(ratingId) {
+            // Проверяем, существует ли уже кнопка удаления
+            let deleteBtn = ratingBlock.querySelector('.js-delete-own-rating');
+            
+            // Если кнопки нет, создаем новую
+            if (!deleteBtn) {
+                deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn-delete-rating js-delete-own-rating';
+                deleteBtn.dataset.id = ratingId;
+                deleteBtn.textContent = 'Удалить мою оценку';
+                
+                // Добавляем кнопку после рейтинга
+                const ratingInfo = ratingBlock.querySelector('.rating-info');
+                if (ratingInfo) {
+                    ratingInfo.after(deleteBtn);
+                } else {
+                    // Если нет .rating-info, добавляем после звёзд
+                    const starSelect = ratingBlock.querySelector('.star-select');
+                    if (starSelect) {
+                        starSelect.after(deleteBtn);
+                    }
+                }
+                
+                // Привязываем обработчик события
+                bindOwnDeleteBtn();
+            } else {
+                // Если кнопка уже существует, обновляем её ID
+                deleteBtn.dataset.id = ratingId;
+            }
+            
+            return deleteBtn;
+        }
+
+        // Удаляем кнопку удаления своей оценки
+        function removeDeleteButton() {
+            const deleteBtn = ratingBlock.querySelector('.js-delete-own-rating');
+            if (deleteBtn) {
+                deleteBtn.remove();
+            }
+        }
+
+        // Создать блок "Все оценки" для суперадмина
+        function createAllRatingsBlock() {
+            // Проверяем, не существует ли уже блок
+            if (!allRatingsContainer) {
+                // Создаем контейнер
+                allRatingsContainer = document.createElement('div');
+                allRatingsContainer.className = 'all-ratings';
+                
+                // Заголовок
+                const heading = document.createElement('h4');
+                heading.textContent = 'Все оценки:';
+                
+                // Список
+                allRatingsBlock = document.createElement('ul');
+                
+                // Собираем структуру
+                allRatingsContainer.appendChild(heading);
+                allRatingsContainer.appendChild(allRatingsBlock);
+                
+                // Добавляем в блок рейтинга
+                ratingBlock.appendChild(allRatingsContainer);
+            }
+            
+            return allRatingsBlock;
         }
 
         // Наведение и клик
@@ -73,16 +149,67 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(data => {
                     setStars(data.user_value || 0);
                     clearStarsHovered();
+                    
+                    // Обновляем текст оценки
                     if (label) {
                         label.innerHTML = data.user_value
                             ? `Ваша оценка: <strong>${data.user_value}</strong>/5`
                             : `Оцените от 1 до 5 звёзд.`;
                     }
+                    
+                    // Обновляем среднюю оценку
                     if (avgElem && data.avg !== undefined && data.count !== undefined) {
                         avgElem.innerHTML = `<p>Средняя оценка: <strong>${data.avg}</strong>/5 (${data.count})</p>`;
                     }
-                    updateAllRatingsFromData(data);
+                    
+                    // Создаем кнопку удаления, если её нет и пользователь оставил оценку
+                    if (data.user_value) {
+                        // Находим ID своей оценки
+                        let userRatingId = null;
+                        if (data.ratings && data.ratings.length) {
+                            // Ищем свою оценку в списке
+                            data.ratings.forEach(rating => {
+                                if (rating.is_current_user) {
+                                    userRatingId = rating.id;
+                                }
+                            });
+                            
+                            // Если не нашли по флагу, берем последнюю оценку
+                            if (!userRatingId && data.ratings.length > 0) {
+                                // Предполагаем, что последняя оценка - наша
+                                userRatingId = data.ratings[data.ratings.length - 1].id;
+                            }
+                        }
+                        
+                        if (userRatingId) {
+                            createDeleteButton(userRatingId);
+                        }
+                    } else {
+                        // Если нет оценки, удаляем кнопку удаления
+                        removeDeleteButton();
+                    }
+                    
+                    // Для суперадмина - обновляем список всех оценок
+                    if (isSuperAdmin()) {
+                        if (data.ratings && data.ratings.length) {
+                            // Получаем или создаем блок всех оценок
+                            createAllRatingsBlock();
+                            updateAllRatingsFromData(data);
+                            
+                            // Показываем блок, если он был скрыт
+                            if (allRatingsContainer) {
+                                allRatingsContainer.style.display = 'block';
+                            }
+                        } else {
+                            // Если оценок нет, скрываем блок
+                            if (allRatingsContainer) {
+                                allRatingsContainer.style.display = 'none';
+                            }
+                        }
+                    }
+                    
                     bindOwnDeleteBtn(); // обновить обработчик своей кнопки
+                    bindDeleteRating(); // обновить обработчики кнопок удаления в списке
                 })
                 .catch(err => {
                     alert('Ошибка при оценке: ' + err.message);
@@ -92,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // 🗑️ Удаление оценки (суперадмин)
         function bindDeleteRating() {
-            ratingBlock.querySelectorAll('.js-delete-rating').forEach(btn => {
+            document.querySelectorAll('.js-delete-rating').forEach(btn => {
                 btn.onclick = function (e) {
                     e.preventDefault();
                     const ratingId = this.dataset.id;
@@ -107,16 +234,25 @@ document.addEventListener('DOMContentLoaded', function () {
                         return res.json();
                     })
                     .then(data => {
-                        setStars(0);
-                        clearStarsHovered();
-                        if (label) {
-                            label.innerHTML = `Оцените от 1 до 5 звёзд.`;
+                        // Проверяем, была ли удалена наша оценка
+                        const ownDeleteBtn = document.querySelector('.js-delete-own-rating');
+                        if (ownDeleteBtn && ownDeleteBtn.dataset.id === ratingId) {
+                            // Если удалили свою оценку, сбрасываем звезды и удаляем кнопку
+                            setStars(0);
+                            clearStarsHovered();
+                            if (label) {
+                                label.innerHTML = `Оцените от 1 до 5 звёзд.`;
+                            }
+                            removeDeleteButton();
                         }
+                        
+                        // Обновляем среднюю оценку
                         if (avgElem && data.avg !== undefined && data.count !== undefined) {
                             avgElem.innerHTML = `<p>Средняя оценка: <strong>${data.avg}</strong>/5 (${data.count})</p>`;
                         }
+                        
+                        // Обновляем список всех оценок
                         updateAllRatingsFromData(data);
-                        bindOwnDeleteBtn();
                     })
                     .catch(err => alert('Ошибка удаления оценки: ' + err.message));
                 };
@@ -141,16 +277,25 @@ document.addEventListener('DOMContentLoaded', function () {
                         return res.json();
                     })
                     .then(data => {
+                        // Сбрасываем звезды
                         setStars(0);
                         clearStarsHovered();
                         if (label) {
                             label.innerHTML = `Оцените от 1 до 5 звёзд.`;
                         }
+                        
+                        // Обновляем среднюю оценку
                         if (avgElem && data.avg !== undefined && data.count !== undefined) {
                             avgElem.innerHTML = `<p>Средняя оценка: <strong>${data.avg}</strong>/5 (${data.count})</p>`;
                         }
-                        updateAllRatingsFromData(data);
-                        ownDeleteBtn.remove();
+                        
+                        // Обновляем список всех оценок, если пользователь суперадмин
+                        if (isSuperAdmin()) {
+                            updateAllRatingsFromData(data);
+                        }
+                        
+                        // Удаляем кнопку удаления
+                        removeDeleteButton();
                     })
                     .catch(err => alert('Ошибка удаления вашей оценки: ' + err.message));
                 };
@@ -159,19 +304,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Обновление списка оценок (для суперадмина) — из ответа
         function updateAllRatingsFromData(data) {
-            if (!allRatingsBlock) return;
-            allRatingsBlock.innerHTML = '';
-            if (data.ratings && data.ratings.length) {
-                data.ratings.forEach(rating => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `${rating.user} — ${rating.value}/5 <a href="#" class="btn-delete-rating text-danger js-delete-rating" data-id="${rating.id}" title="Удалить оценку">✖️</a>`;
-                    allRatingsBlock.appendChild(li);
-                });
-            } else {
-                allRatingsBlock.innerHTML = '<li>Нет ни одной оценки</li>';
+            // Проверяем, является ли пользователь суперадмином
+            if (!isSuperAdmin()) return;
+            
+            // Если нет оценок, скрываем блок и выходим
+            if (!data.ratings || data.ratings.length === 0) {
+                if (allRatingsContainer) {
+                    allRatingsContainer.style.display = 'none';
+                }
+                return;
             }
+            
+            // Получаем или создаем блок для всех оценок
+            const ratingsListElement = createAllRatingsBlock();
+            
+            // Показываем блок
+            if (allRatingsContainer) {
+                allRatingsContainer.style.display = 'block';
+            }
+            
+            // Очищаем список оценок
+            ratingsListElement.innerHTML = '';
+            
+            // Заполняем список оценок
+            data.ratings.forEach(rating => {
+                const li = document.createElement('li');
+                li.innerHTML = `${rating.user} — ${rating.value}/5 <a href="#" class="btn-delete-rating text-danger js-delete-rating" data-id="${rating.id}" title="Удалить оценку">✖️</a>`;
+                ratingsListElement.appendChild(li);
+            });
+            
+            // Привязываем обработчики событий к кнопкам удаления
             bindDeleteRating();
         }
+
+        // Инициализация обработчиков
         bindDeleteRating();
         bindOwnDeleteBtn();
     }
@@ -196,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 fetch(`/comments/api/comments/${articleId}/submit/`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
+                                                'Content-Type': 'application/x-www-form-urlencoded',
                         'X-CSRFToken': csrftoken
                     },
                     body: `text=${encodeURIComponent(text)}`
