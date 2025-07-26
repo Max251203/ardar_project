@@ -28,6 +28,23 @@ def livestream_list(request):
 
 
 @login_required
+def livestream_list_ajax(request):
+    rooms = LivestreamRoom.objects.filter(
+        is_active=True).order_by('-started_at')
+    data = []
+    for room in rooms:
+        data.append({
+            'id': room.id,
+            'name': room.name,
+            'platform': room.get_platform_display(),
+            'host': room.host.name,
+            'started_at': room.started_at.strftime('%d.%m.%Y %H:%M'),
+            'description': room.description,
+        })
+    return JsonResponse({'rooms': data})
+
+
+@login_required
 def create_livestream(request):
     if not (request.user.is_superuser or getattr(request.user, 'role', '') in ['admin', 'privileged']):
         messages.error(request, "У вас нет прав для создания трансляций")
@@ -49,13 +66,20 @@ def create_livestream(request):
 def livestream_room(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
     is_host = (request.user == room.host)
-    LivestreamParticipant.objects.get_or_create(room=room, user=request.user)
+    part, created = LivestreamParticipant.objects.get_or_create(
+        room=room, user=request.user)
+    if part.is_kicked and not part.waiting_approval:
+        part.waiting_approval = True
+        part.save()
+        return render(request, 'livestream/kicked.html', {'room': room})
+    if part.waiting_approval and not is_host:
+        return render(request, 'livestream/waiting_approval.html', {'room': room})
     if room.platform == 'agora':
         app_id = SiteSettings.get_setting('AGORA_APP_ID')
         return render(request, 'livestream/room_agora.html', {
             'room': room,
             'app_id': app_id,
-            'channel_id': room.channel_id,  # <--- ВАЖНО!
+            'channel_id': room.channel_id,
             'is_host': is_host,
             'user_id': str(request.user.id),
             'user_name': request.user.name
@@ -127,7 +151,9 @@ def livestream_chat(request, room_id):
 def livestream_users(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
     participants = LivestreamParticipant.objects.filter(
-        room=room).select_related('user')
+        room=room, is_kicked=False)
+    waiting = LivestreamParticipant.objects.filter(
+        room=room, waiting_approval=True)
     users = []
     for p in participants:
         users.append({
@@ -137,7 +163,10 @@ def livestream_users(request, room_id):
             'is_speaker': p.is_speaker,
             'is_host': p.user == room.host,
         })
-    return JsonResponse({'users': users})
+    waiting_list = []
+    for p in waiting:
+        waiting_list.append({'id': p.user.id, 'name': p.user.name})
+    return JsonResponse({'users': users, 'waiting': waiting_list})
 
 
 @login_required
@@ -145,6 +174,12 @@ def livestream_invite(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
     if request.user != room.host:
         return JsonResponse({'error': 'Нет прав'}, status=403)
+    if request.method == 'POST':
+        user_id = int(request.POST.get('user_id'))
+        user = User.objects.get(id=user_id)
+        LivestreamInvite.objects.get_or_create(
+            room=room, invited_user=user, invited_by=request.user)
+        return JsonResponse({'ok': True})
     q = request.GET.get('q', '')
     users = User.objects.filter(name__icontains=q).exclude(
         id__in=LivestreamParticipant.objects.filter(room=room).values('user_id'))[:10]
@@ -157,7 +192,27 @@ def livestream_kick(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
     if request.user != room.host:
         return JsonResponse({'error': 'Нет прав'}, status=403)
-    LivestreamParticipant.objects.filter(room=room, user_id=user_id).delete()
+    part = LivestreamParticipant.objects.filter(
+        room=room, user_id=user_id).first()
+    if part:
+        part.is_kicked = True
+        part.waiting_approval = False
+        part.save()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+@login_required
+def livestream_approve(request, room_id, user_id):
+    room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
+    if request.user != room.host:
+        return JsonResponse({'error': 'Нет прав'}, status=403)
+    part = LivestreamParticipant.objects.filter(
+        room=room, user_id=user_id).first()
+    if part:
+        part.is_kicked = False
+        part.waiting_approval = False
+        part.save()
     return JsonResponse({'ok': True})
 
 
@@ -185,6 +240,6 @@ def livestream_grant(request, room_id, user_id):
     p = LivestreamParticipant.objects.filter(
         room=room, user_id=user_id).first()
     if p:
-        p.is_speaker = True
+        p.is_speaker = not p.is_speaker
         p.save()
     return JsonResponse({'ok': True})

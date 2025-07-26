@@ -36,6 +36,8 @@ class LivestreamParticipant(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
     is_muted = models.BooleanField(default=False)
     is_speaker = models.BooleanField(default=False)
+    is_kicked = models.BooleanField(default=False)
+    waiting_approval = models.BooleanField(default=False)
 
 
 class LivestreamChatMessage(models.Model):

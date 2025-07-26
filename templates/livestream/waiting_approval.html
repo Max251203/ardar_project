@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="waiting-message">
+    <h2>Ожидание одобрения ведущего</h2>
+    <p>Пожалуйста, дождитесь, пока ведущий разрешит вам вернуться в трансляцию.</p>
+</div>
+<script>
+setInterval(function() {
+    window.location.reload();
+}, 5000);
+</script>
+{% endblock %}
