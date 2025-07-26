@@ -176,3 +176,6 @@ msgstr "Пока нет комментариев"
 #: templates/articles/detail.html
 msgid "Back to articles"
 msgstr "Назад к статьям"
+
+msgid "Livestreams"
+msgstr "Трансляции"

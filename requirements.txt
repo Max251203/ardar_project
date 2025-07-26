@@ -31,3 +31,5 @@ django-debug-toolbar
 
 
 django-ckeditor>=6.0.0
+
+py-agora-token-builder==1.0.0

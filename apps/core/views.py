@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 from django.utils import translation
-from .forms import APIKeyForm
+from .forms import APIKeyForm, AgoraAPIForm
 from .models import SiteSettings
 
 
@@ -34,35 +34,66 @@ def api_settings(request):
     if not request.user.is_superuser:
         return HttpResponseForbidden("Доступ запрещен. Требуются права суперадминистратора.")
 
-    # Получаем текущий ключ ArmTTS или используем значение по умолчанию
-    default_key = '1e8d32c7c3msh767635ff925bcd7p13000fjsn07bbb0ccda3f'
-    try:
-        # Пробуем получить существующую настройку
-        current_key = SiteSettings.get_setting('ARMTTS_API_KEY', default_key)
-    except:
-        # Если возникла ошибка (например, таблица не существует), используем значение по умолчанию
-        current_key = default_key
+    # Импортируем формы
+    from .forms import APIKeyForm, AgoraAPIForm
+
+    # Получаем текущие настройки
+    armtts_key = SiteSettings.get_setting(
+        'ARMTTS_API_KEY', '1e8d32c7c3msh767635ff925bcd7p13000fjsn07bbb0ccda3f')
+    agora_app_id = SiteSettings.get_setting(
+        'AGORA_APP_ID', '830a676dd3c642a2b939f313aabce70a')
+    agora_app_certificate = SiteSettings.get_setting(
+        'AGORA_APP_CERTIFICATE', 'c73861255a2d4e3891cd8ba922e142d5')
+    agora_token_expire = SiteSettings.get_setting('AGORA_TOKEN_EXPIRE', '3600')
 
     if request.method == 'POST':
-        form = APIKeyForm(request.POST)
-        if form.is_valid():
-            new_key = form.cleaned_data['armtts_api_key']
-            try:
-                # Создаем или обновляем настройку
-                SiteSettings.set_setting(
-                    'ARMTTS_API_KEY',
-                    new_key,
-                    'API ключ для сервиса ArmTTS'
-                )
-                messages.success(request, "API ключ успешно обновлен")
-            except Exception as e:
-                messages.error(
-                    request, f"Ошибка при сохранении ключа: {str(e)}")
+        # Обрабатываем обе формы
+        armtts_form = APIKeyForm(request.POST)
+        agora_form = AgoraAPIForm(request.POST)
+
+        if 'save_armtts' in request.POST and armtts_form.is_valid():
+            # Сохраняем ArmTTS API ключ
+            SiteSettings.set_setting(
+                'ARMTTS_API_KEY',
+                armtts_form.cleaned_data['armtts_api_key'],
+                'API ключ для сервиса ArmTTS'
+            )
+            messages.success(request, "API ключ ArmTTS успешно обновлен")
+            return redirect('api_settings')
+
+        elif 'save_agora' in request.POST and agora_form.is_valid():
+            # Сохраняем Agora API настройки
+            SiteSettings.set_setting(
+                'AGORA_APP_ID',
+                agora_form.cleaned_data['agora_app_id'],
+                'Agora APP ID для видеотрансляций'
+            )
+            SiteSettings.set_setting(
+                'AGORA_APP_CERTIFICATE',
+                agora_form.cleaned_data['agora_app_certificate'],
+                'Agora APP Certificate для видеотрансляций'
+            )
+            SiteSettings.set_setting(
+                'AGORA_TOKEN_EXPIRE',
+                str(agora_form.cleaned_data['agora_token_expire']),
+                'Время жизни токена Agora в секундах'
+            )
+            messages.success(request, "Настройки Agora успешно обновлены")
             return redirect('api_settings')
     else:
-        form = APIKeyForm(initial={'armtts_api_key': current_key})
+        # Инициализируем формы текущими значениями
+        armtts_form = APIKeyForm(initial={'armtts_api_key': armtts_key})
+        agora_form = AgoraAPIForm(initial={
+            'agora_app_id': agora_app_id,
+            'agora_app_certificate': agora_app_certificate,
+            'agora_token_expire': agora_token_expire
+        })
 
     return render(request, 'core/api_settings.html', {
-        'form': form,
-        'current_key': current_key
+        'form': armtts_form,  # Для обратной совместимости
+        'agora_form': agora_form,
+        'armtts_key': armtts_key,
+        'agora_app_id': agora_app_id,
+        'agora_app_certificate': agora_app_certificate,
+        'agora_token_expire': agora_token_expire
     })

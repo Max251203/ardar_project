@@ -176,3 +176,6 @@ msgstr "Դեռ մեկնաբանություններ չկան"
 #: templates/articles/detail.html
 msgid "Back to articles"
 msgstr "Վերադառնալ հոդվածներին"
+
+msgid "Livestreams"
+msgstr "Հեռարձակումներ"

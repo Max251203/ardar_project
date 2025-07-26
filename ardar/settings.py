@@ -17,6 +17,12 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+AGORA = {
+    'APP_ID': '830a676dd3c642a2b939f313aabce70a',
+    'APP_CERTIFICATE': 'c73861255a2d4e3891cd8ba922e142d5',
+    'TOKEN_EXPIRE_TIME': 3600,  # 1 час
+}
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -34,6 +40,7 @@ INSTALLED_APPS = [
     'apps.admin_panel',
     'apps.legal',
     'apps.comments',  # Добавьте эту строку
+    'apps.livestream',
 
     'django.contrib.sites',
     'allauth',

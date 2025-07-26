@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+{% block title %}{{ room.get_type_display }}: {{ room.name }}{% endblock %}
+
+{% block content %}
+<div class="livestream-container">
+    <div class="livestream-header">
+        <h1>{{ room.get_type_display }}: {{ room.name }}</h1>
+        <div class="livestream-meta">
+            <span class="livestream-host">Ведущий: {{ room.host.name }}{% if is_host %} (Вы){% endif %}</span>
+            <span class="livestream-date">Начало: {{ room.started_at|date:"d.m.Y H:i" }}</span>
+            <span class="livestream-type">Тип: {{ room.get_type_display }}</span>
+        </div>
+        {% if room.description %}
+        <div class="livestream-description">
+            {{ room.description }}
+        </div>
+        {% endif %}
+        
+        {% if is_host %}
+        <div class="host-notice">
+            <p>Вы являетесь ведущим этой трансляции. Вы можете управлять настройками и завершить её в любой момент.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="video-container">
+        <div id="agora-video"></div>
+        <div class="video-controls">
+            <button id="mic-btn" class="control-btn" title="Включить/выключить микрофон">
+                <i class="mic-icon">🎤</i>
+            </button>
+            <button id="camera-btn" class="control-btn" title="Включить/выключить камеру">
+                <i class="camera-icon">📹</i>
+            </button>
+            <button id="leave-btn" class="control-btn leave" title="Покинуть трансляцию">
+                <i class="leave-icon">❌</i> Выйти
+            </button>
+        </div>
+    </div>
+    
+    <div class="controls-help">
+        <h3>Управление трансляцией</h3>
+        <div class="controls-grid">
+            <div class="control-item">
+                <div class="control-icon">🎤</div>
+                <div class="control-desc">Включить/выключить микрофон</div>
+            </div>
+            <div class="control-item">
+                <div class="control-icon">📹</div>
+                <div class="control-desc">Включить/выключить камеру</div>
+            </div>
+            <div class="control-item">
+                <div class="control-icon">❌</div>
+                <div class="control-desc">Покинуть трансляцию</div>
+            </div>
+        </div>
+    </div>
+    
+    {% if is_host %}
+    <div class="host-controls">
+        <a href="{% url 'end_livestream' room.name %}" class="btn-end" onclick="return confirm('Вы уверены, что хотите завершить трансляцию?')">Завершить трансляцию</a>
+    </div>
+    {% endif %}
+    
+    <div class="switch-container">
+        <p>Если у вас возникли проблемы с Agora, попробуйте альтернативный вариант:</p>
+        <a href="{% url 'livestream_room' room.name %}" class="btn-switch">Переключиться на Jitsi</a>
+    </div>
+</div>
+
+<script src="https://cdn.agora.io/sdk/release/AgoraRTC_N.js"></script>
+<script>
+    // Конфигурация Agora
+    const appId = "{{ app_id }}";
+    const channel = "{{ room.name }}";
+    const uid = parseInt("{{ user_id }}");
+    const userName = "{{ user_name }}";
+    const isHost = {{ is_host|yesno:"true,false" }};
+    const roomType = "{{ room.type }}";
+    
+    // Элементы управления
+    const micBtn = document.getElementById('mic-btn');
+    const cameraBtn = document.getElementById('camera-btn');
+    const leaveBtn = document.getElementById('leave-btn');
+    
+    // Состояние
+    let localTracks = {
+        audioTrack: null,
+        videoTrack: null
+    };
+    let localTrackState = {
+        audioTrackMuted: false,
+        videoTrackMuted: false
+    };
+    let remoteUsers = {};
+    let client;
+    
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', async function() {
+        // Создаем клиент Agora
+        client = AgoraRTC.createClient({ mode: roomType === 'broadcast' ? 'live' : 'rtc', codec: 'vp8' });
+        
+        // Устанавливаем роль (только для режима broadcast)
+        if (roomType === 'broadcast') {
+            client.setClientRole(isHost ? 'host' : 'audience');
+        }
+        
+        try {
+            // Подключаемся к каналу без токена (как в старом проекте)
+            await client.join(appId, channel, null, uid);
+            
+            // Если это ведущий или конференция, создаем локальные треки
+            if (isHost || roomType === 'conference') {
+                // Создаем аудио и видео треки
+                [localTracks.audioTrack, localTracks.videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+                
+                // Создаем элемент для локального видео
+                const playerContainer = document.createElement('div');
+                playerContainer.id = `user-${uid}`;
+                playerContainer.classList.add('video-player');
+                playerContainer.innerHTML = `<div class="user-name">${userName} (Вы)</div>`;
+                document.getElementById('agora-video').append(playerContainer);
+                
+                // Воспроизводим локальное видео
+                localTracks.videoTrack.play(`user-${uid}`);
+                
+                // Публикуем треки
+                await client.publish([localTracks.audioTrack, localTracks.videoTrack]);
+                
+                console.log("Локальные треки опубликованы");
+            } else {
+                // Если это зритель в режиме broadcast, скрываем кнопки микрофона и камеры
+                micBtn.style.display = 'none';
+                cameraBtn.style.display = 'none';
+            }
+        } catch (error) {
+            console.error("Ошибка при подключении:", error);
+            alert(`Ошибка при подключении: ${error.message}`);
+        }
+        
+        // Обработчики кнопок
+        micBtn.addEventListener('click', toggleMic);
+        cameraBtn.addEventListener('click', toggleCamera);
+        leaveBtn.addEventListener('click', leaveStream);
+        
+        // Обработчики событий
+        client.on('user-published', handleUserPublished);
+        client.on('user-unpublished', handleUserUnpublished);
+    });
+    
+    // Обработка публикации треков другими пользователями
+    async function handleUserPublished(user, mediaType) {
+        // Подписываемся на треки пользователя
+        await client.subscribe(user, mediaType);
+        console.log(`Подписка на ${mediaType} пользователя ${user.uid}`);
+        
+        // Если это видео, создаем элемент для него
+        if (mediaType === 'video') {
+            // Если элемент для этого пользователя еще не создан
+            if (!document.getElementById(`user-${user.uid}`)) {
+                const playerContainer = document.createElement('div');
+                playerContainer.id = `user-${user.uid}`;
+                playerContainer.classList.add('video-player');
+                playerContainer.innerHTML = `<div class="user-name">Пользователь ${user.uid}</div>`;
+                document.getElementById('agora-video').append(playerContainer);
+            }
+            
+            // Воспроизводим видео
+            user.videoTrack.play(`user-${user.uid}`);
+        }
+        
+        // Если это аудио, воспроизводим его
+        if (mediaType === 'audio') {
+            user.audioTrack.play();
+        }
+        
+        // Сохраняем пользователя
+        remoteUsers[user.uid] = user;
+    }
+    
+    // Обработка отключения треков другими пользователями
+    function handleUserUnpublished(user, mediaType) {
+        console.log(`Пользователь ${user.uid} прекратил публикацию ${mediaType}`);
+        
+        // Если пользователь отключил видео, удаляем его элемент
+        if (mediaType === 'video') {
+            const playerContainer = document.getElementById(`user-${user.uid}`);
+            if (playerContainer) {
+                playerContainer.remove();
+            }
+        }
+        
+        // Удаляем пользователя из списка, если он отключился полностью
+        if (!user.hasAudio && !user.hasVideo) {
+            delete remoteUsers[user.uid];
+        }
+    }
+    
+    // Включение/выключение микрофона
+    async function toggleMic() {
+        if (!localTracks.audioTrack) return;
+        
+        if (localTrackState.audioTrackMuted) {
+            // Включаем микрофон
+            await localTracks.audioTrack.setMuted(false);
+            localTrackState.audioTrackMuted = false;
+            micBtn.classList.remove('muted');
+            micBtn.querySelector('.mic-icon').textContent = '🎤';
+        } else {
+            // Выключаем микрофон
+            await localTracks.audioTrack.setMuted(true);
+            localTrackState.audioTrackMuted = true;
+            micBtn.classList.add('muted');
+            micBtn.querySelector('.mic-icon').textContent = '🔇';
+        }
+    }
+    
+    // Включение/выключение камеры
+    async function toggleCamera() {
+        if (!localTracks.videoTrack) return;
+        
+        if (localTrackState.videoTrackMuted) {
+            // Включаем камеру
+            await localTracks.videoTrack.setMuted(false);
+            localTrackState.videoTrackMuted = false;
+            cameraBtn.classList.remove('muted');
+            cameraBtn.querySelector('.camera-icon').textContent = '📹';
+        } else {
+            // Выключаем камеру
+            await localTracks.videoTrack.setMuted(true);
+            localTrackState.videoTrackMuted = true;
+            cameraBtn.classList.add('muted');
+            cameraBtn.querySelector('.camera-icon').textContent = '🚫';
+        }
+    }
+    
+    // Выход из трансляции
+    async function leaveStream() {
+        // Останавливаем и освобождаем локальные треки
+        for (const trackName in localTracks) {
+            const track = localTracks[trackName];
+            if (track) {
+                track.stop();
+                track.close();
+                localTracks[trackName] = null;
+            }
+        }
+        
+        // Отключаемся от канала
+        await client.leave();
+        
+        // Перенаправляем на список трансляций
+        window.location.href = "{% url 'livestream_list' %}";
+    }
+</script>
+
+<style>
+    .livestream-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .livestream-header {
+        margin-bottom: 20px;
+    }
+    
+    .livestream-header h1 {
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+    
+    .livestream-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 10px;
+        font-size: 14px;
+        color: var(--text-light);
+    }
+    
+    .livestream-host {
+        font-weight: 500;
+    }
+    
+    .livestream-description {
+        margin-top: 10px;
+        padding: 10px;
+        background-color: var(--bg);
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    
+    .host-notice {
+        margin-top: 15px;
+        padding: 10px 15px;
+        background-color: #e0f2fe;
+        border-left: 4px solid #0ea5e9;
+        color: #0c4a6e;
+        border-radius: 4px;
+    }
+    
+    .video-container {
+        background-color: #1a1a1a;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    
+    #agora-video {
+        width: 100%;
+        min-height: 500px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 10px;
+        padding: 10px;
+    }
+    
+        .video-player {
+        position: relative;
+        background-color: #2a2a2a;
+        border-radius: 6px;
+        overflow: hidden;
+        aspect-ratio: 16/9;
+    }
+    
+    .user-name {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background-color: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .video-controls {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        padding: 15px;
+        background-color: #2a2a2a;
+    }
+    
+    .control-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: none;
+        background-color: #444;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    
+    .control-btn:hover {
+        background-color: #555;
+    }
+    
+    .control-btn.muted {
+        background-color: #e53e3e;
+    }
+    
+    .control-btn.leave {
+        width: auto;
+        border-radius: 25px;
+        padding: 0 20px;
+        background-color: #e53e3e;
+    }
+    
+    .controls-help {
+        margin: 30px 0;
+        padding: 20px;
+        background-color: var(--bg);
+        border-radius: 10px;
+    }
+    
+    .controls-help h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        text-align: center;
+    }
+    
+    .controls-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 20px;
+    }
+    
+    .control-item {
+        text-align: center;
+        padding: 15px;
+        background-color: var(--card);
+        border-radius: 8px;
+        transition: transform 0.2s;
+    }
+    
+    .control-item:hover {
+        transform: translateY(-3px);
+    }
+    
+    .control-icon {
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+    
+    .control-desc {
+        font-size: 14px;
+        color: var(--text);
+    }
+    
+    .host-controls {
+        margin-top: 20px;
+        text-align: center;
+    }
+    
+    .btn-end {
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #e53e3e;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+    
+    .switch-container {
+        margin-top: 30px;
+        padding: 15px;
+        background-color: #fff7ed;
+        border-left: 4px solid #f59e0b;
+        color: #92400e;
+        border-radius: 4px;
+        text-align: center;
+    }
+    
+    .btn-switch {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 8px 16px;
+        background-color: #f59e0b;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    @media (max-width: 768px) {
+        #agora-video {
+            grid-template-columns: 1fr;
+        }
+        
+        .video-controls {
+            flex-wrap: wrap;
+        }
+        
+        .controls-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .controls-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

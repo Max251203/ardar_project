@@ -176,3 +176,6 @@ msgstr "No comments yet"
 #: templates/articles/detail.html
 msgid "Back to articles"
 msgstr "Back to articles"
+
+msgid "Livestreams"
+msgstr "Livestreams"

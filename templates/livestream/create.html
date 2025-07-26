@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Создание трансляции{% endblock %}
+
+{% block content %}
+<div class="article-container" style="max-width: 800px;">
+    <div class="page-header">
+        <h1>Создание трансляции</h1>
+    </div>
+    
+    <div class="create-form-container">
+        <form method="post" class="create-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="type">Тип трансляции:</label>
+                <select name="type" id="type" class="input-field">
+                    <option value="broadcast">Прямой эфир</option>
+                    <option value="conference">Конференция</option>
+                </select>
+                <div class="field-help">
+                    <p><strong>Прямой эфир</strong> - только вы (ведущий) можете транслировать видео и аудио, остальные могут только смотреть.</p>
+                    <p><strong>Конференция</strong> - все участники могут включать видео и аудио.</p>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Описание (необязательно):</label>
+                <textarea name="description" id="description" class="input-field" rows="4" placeholder="Укажите тему трансляции или другую полезную информацию для участников"></textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">Создать трансляцию</button>
+                <a href="{% url 'livestream_list' %}" class="btn-cancel">Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+<style>
+    .create-form-container {
+        background-color: var(--card);
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .create-form {
+        margin-top: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+    
+    .input-field {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 15px;
+        background-color: var(--bg);
+        color: var(--text);
+    }
+    
+    .field-help {
+        margin-top: 8px;
+        font-size: 14px;
+        color: var(--text-light);
+    }
+    
+    .field-help p {
+        margin: 5px 0;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+    }
+    
+    .btn-submit {
+        padding: 12px 24px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    
+    .btn-cancel {
+        padding: 12px 24px;
+        background-color: #e5e7eb;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
