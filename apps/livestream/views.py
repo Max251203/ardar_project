@@ -1,3 +1,4 @@
+from agora_token_builder import RtcTokenBuilder
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseForbidden
@@ -52,12 +53,9 @@ def create_livestream(request):
 
 @login_required
 def livestream_room(request, room_name):
-    """Страница трансляции с Jitsi Meet"""
+    # Jitsi
     room = get_object_or_404(LivestreamRoom, name=room_name, is_active=True)
-
-    # Определяем, является ли пользователь ведущим
     is_host = (request.user == room.host)
-
     return render(request, 'livestream/room.html', {
         'room': room,
         'is_host': is_host,
@@ -67,17 +65,10 @@ def livestream_room(request, room_name):
 
 @login_required
 def livestream_room_agora(request, room_name):
-    """Страница трансляции с Agora"""
+    # Agora
     room = get_object_or_404(LivestreamRoom, name=room_name, is_active=True)
-
-    # Получаем APP_ID из настроек
     app_id = SiteSettings.get_setting('AGORA_APP_ID')
-    if not app_id:
-        app_id = '830a676dd3c642a2b939f313aabce70a'  # Дефолтный ID из старого проекта
-
-    # Определяем, является ли пользователь ведущим
     is_host = (request.user == room.host)
-
     return render(request, 'livestream/room_agora.html', {
         'room': room,
         'app_id': app_id,
@@ -89,25 +80,21 @@ def livestream_room_agora(request, room_name):
 
 @login_required
 def generate_token(request):
-    """Генерация токена для Agora"""
     channel = request.GET.get('channel')
-    uid = request.GET.get('uid')
+    uid = int(request.GET.get('uid', 0))
+    role = int(request.GET.get('role', 1))  # 1 = publisher, 2 = subscriber
 
-    if not channel or not uid:
-        return JsonResponse({'error': 'Missing parameters'}, status=400)
-
-    # Получаем настройки из базы данных
     app_id = SiteSettings.get_setting('AGORA_APP_ID')
     app_certificate = SiteSettings.get_setting('AGORA_APP_CERTIFICATE')
+    expire = int(SiteSettings.get_setting('AGORA_TOKEN_EXPIRE', '3600'))
 
-    # Если настройки не найдены, используем дефолтные из старого проекта
-    if not app_id:
-        app_id = '830a676dd3c642a2b939f313aabce70a'
-    if not app_certificate:
-        app_certificate = 'c73861255a2d4e3891cd8ba922e142d5'
+    current_ts = int(time.time())
+    privilege_expired_ts = current_ts + expire
 
-    # Просто возвращаем пустой токен, так как мы используем null в client.join
-    return JsonResponse({'token': None})
+    token = RtcTokenBuilder.buildTokenWithUid(
+        app_id, app_certificate, channel, uid, role, privilege_expired_ts
+    )
+    return JsonResponse({'token': token})
 
 
 @login_required

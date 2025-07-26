@@ -24,9 +24,9 @@
     </div>
     
     <div class="video-container">
-        <iframe 
-            src="https://meet.jit.si/{{ room.name }}?config.prejoinPageEnabled=false&userInfo.displayName={{ user_name }}" 
-            allow="camera; microphone; fullscreen; display-capture; autoplay" 
+        <iframe
+            src="https://meet.jit.si/{{ room.name }}?config.disableDeepLinking=true&config.prejoinPageEnabled=false&userInfo.displayName={{ user_name }}"
+            allow="camera; microphone; fullscreen; display-capture; autoplay"
             style="width:100%; height:600px; border:0;">
         </iframe>
     </div>
