@@ -53,6 +53,8 @@ def auth_view(request):
             if register_form.is_valid():
                 user = register_form.save(commit=False)
                 user.set_password(register_form.cleaned_data['password'])
+                # Устанавливаем роль 'registered' для новых пользователей
+                user.role = 'registered'
                 user.save()
                 # Укажи backend явно!
                 user.backend = 'django.contrib.auth.backends.ModelBackend'

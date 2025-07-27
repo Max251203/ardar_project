@@ -20,4 +20,6 @@ urlpatterns = [
     path('approve/<int:room_id>/<int:user_id>/',
          views.livestream_approve, name='livestream_approve'),
     path('users/<int:room_id>/', views.livestream_users, name='livestream_users'),
+    path('check_status/<int:room_id>/',
+         views.check_user_status, name='check_user_status'),
 ]

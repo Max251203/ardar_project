@@ -3,7 +3,7 @@
 {% block content %}
 <div class="livestream-main">
     <div class="video-block">
-        <div id="agora-video" class="video-area"></div>
+        <div id="agora-video" class="video-area {% if room.type == 'broadcast' %}broadcast-mode{% endif %}"></div>
         <div class="video-controls">
             <button id="mic-btn" class="control-btn" title="Включить/выключить микрофон">
                 <i class="mic-icon">🎤</i>
@@ -11,23 +11,27 @@
             <button id="camera-btn" class="control-btn" title="Включить/выключить камеру">
                 <i class="camera-icon">📹</i>
             </button>
+            <button id="return-word-btn" class="control-btn return-word" style="display: none;" title="Вернуть слово ведущему">
+                <i class="return-icon">🔙</i> Вернуть слово
+            </button>
             <button id="leave-btn" class="control-btn leave" title="Покинуть трансляцию">
                 <i class="leave-icon">❌</i> Выйти
             </button>
+            {% if is_host %}
+            <a href="{% url 'end_livestream' room.id %}" class="control-btn end" onclick="return confirm('Вы уверены, что хотите завершить трансляцию?')">
+                <i class="end-icon">⏹️</i> Завершить
+            </a>
+            {% endif %}
         </div>
         <div class="status-bar" id="status-bar">
-            {% if is_host %}
-                <span class="status-host">Вы — ведущий</span>
-            {% else %}
-                <span class="status-viewer">Вы — участник</span>
-            {% endif %}
-            <span id="host-status"></span>
+            <span id="speaker-status"></span>
         </div>
     </div>
     <div class="side-panel">
         <div class="users-panel">
             <div class="users-header">
                 <input type="text" id="invite-search" placeholder="Поиск пользователя..." autocomplete="off">
+                <div id="invite-results" class="invite-results"></div>
             </div>
             <div class="users-list" id="users-list"></div>
         </div>
@@ -35,16 +39,11 @@
             <div class="chat-messages" id="chat-messages"></div>
             <form id="chat-form" class="chat-form">
                 <input type="text" id="chat-input" placeholder="Сообщение..." autocomplete="off">
-                <button type="submit">Отправить</button>
+                <button type="submit" class="send-btn">Отправить</button>
             </form>
         </div>
     </div>
 </div>
-{% if is_host %}
-<div class="host-controls" style="margin-top: 20px; text-align: center;">
-    <a href="{% url 'end_livestream' room.id %}" class="btn-end" onclick="return confirm('Вы уверены, что хотите завершить трансляцию?')">Завершить трансляцию</a>
-</div>
-{% endif %}
 <div id="custom-alert" class="custom-alert" style="display:none;"></div>
 <script src="https://cdn.agora.io/sdk/release/AgoraRTC_N.js"></script>
 <script>
@@ -58,118 +57,427 @@ let token = "";
 let localTracks = { audioTrack: null, videoTrack: null };
 let localTrackState = { audioTrackMuted: false, videoTrackMuted: false };
 let remoteUsers = {};
+let currentSpeakerId = null;
+let client = null;
+let allUsers = []; // Для хранения всех пользователей
+let amISpeaker = false; // Флаг, являюсь ли я спикером
+let lastStatusCheck = 0; // Время последней проверки статуса
+let statusCheckInterval = null; // Интервал проверки статуса
 
-function showCustomAlert(msg) {
+function showCustomAlert(msg, type = 'info') {
     let alertDiv = document.getElementById('custom-alert');
     alertDiv.innerHTML = msg;
+    alertDiv.className = 'custom-alert ' + type;
     alertDiv.style.display = 'block';
-    setTimeout(() => { alertDiv.style.display = 'none'; }, 3000);
+    setTimeout(() => { alertDiv.style.display = 'none'; }, 3500);
+}
+
+function showVideo(uid, label, isSpeaker) {
+    let container = document.getElementById(`user-${uid}`);
+    
+    // Получаем правильное имя пользователя
+    let displayName = label;
+    if (uid === parseInt("{{ room.host.id }}")) {
+        displayName = "{{ room.host.name }} (Ведущий)";
+    } else if (uid === parseInt("{{ user_id }}")) {
+        displayName = "{{ user_name }} (Вы)";
+    } else {
+        // Пытаемся найти имя в списке пользователей
+        const userName = getUserName(uid);
+        if (userName) {
+            displayName = userName;
+        }
+    }
+    
+    if (!container) {
+        container = document.createElement('div');
+        container.id = `user-${uid}`;
+        container.className = 'video-player';
+        if (isSpeaker || (roomType === 'broadcast' && uid === parseInt("{{ room.host.id }}"))) {
+            container.classList.add('speaking');
+        }
+        
+        container.innerHTML = `
+            <div class="user-name">
+                ${displayName}
+                <div class="user-icons" id="icons-${uid}"></div>
+            </div>
+            <div id="video-box-${uid}" class="video-box"></div>
+        `;
+        document.getElementById('agora-video').append(container);
+    } else if (isSpeaker || (roomType === 'broadcast' && uid === parseInt("{{ room.host.id }}"))) {
+        container.classList.add('speaking');
+    } else if (roomType === 'conference') {
+        container.classList.remove('speaking');
+    }
+    
+    // Обновляем статус говорящего
+    if (isSpeaker && uid !== parseInt("{{ room.host.id }}")) {
+        document.getElementById('speaker-status').innerHTML = `Сейчас говорит: <b>${displayName}</b>`;
+    } else if (roomType === 'broadcast' && uid === parseInt("{{ room.host.id }}")) {
+        document.getElementById('speaker-status').innerHTML = `Ведущий: <b>${displayName}</b>`;
+    }
+    
+    // Показываем/скрываем кнопку "Вернуть слово"
+    updateReturnWordButton();
+}
+
+function updateReturnWordButton() {
+    const returnWordBtn = document.getElementById('return-word-btn');
+    if (!returnWordBtn) return;
+    
+    // Показываем кнопку только если я спикер и не ведущий
+    if (amISpeaker && !isHost) {
+        returnWordBtn.style.display = 'block';
+    } else {
+        returnWordBtn.style.display = 'none';
+    }
+}
+
+function updateUserIcons(uid, isMuted, hasVideo) {
+    const iconsContainer = document.getElementById(`icons-${uid}`);
+    if (iconsContainer) {
+        let html = '';
+        if (isMuted) {
+            html += '<span class="icon-muted" title="Микрофон выключен">🔇</span>';
+        } else {
+            html += '<span class="icon-mic" title="Микрофон включен">🎤</span>';
+        }
+        
+        if (!hasVideo) {
+            html += '<span class="icon-no-video" title="Камера выключена">🚫</span>';
+        } else {
+            html += '<span class="icon-video" title="Камера включена">📹</span>';
+        }
+        
+        iconsContainer.innerHTML = html;
+    }
+}
+
+function removeVideo(uid) {
+    const container = document.getElementById(`user-${uid}`);
+    if (container) container.remove();
+    
+    // Если это был говорящий, очищаем статус
+    if (currentSpeakerId === uid) {
+        document.getElementById('speaker-status').innerHTML = '';
+        currentSpeakerId = null;
+    }
+}
+
+// Функция для проверки статуса пользователя
+function checkUserStatus() {
+    const now = Date.now();
+    // Проверяем не чаще чем раз в 3 секунды
+    if (now - lastStatusCheck < 3000) return;
+    
+    lastStatusCheck = now;
+    
+    fetch("/livestream/check_status/{{ room.id }}/?t=" + now)
+        .then(response => response.json())
+        .then(data => {
+            if (data.is_kicked) {
+                // Если пользователя исключили
+                showCustomAlert("Вы были исключены из трансляции", "error");
+                
+                // Останавливаем все треки и покидаем комнату
+                for (const trackName in localTracks) {
+                    const track = localTracks[trackName];
+                    if (track) {
+                        track.stop();
+                        track.close();
+                        localTracks[trackName] = null;
+                    }
+                }
+                
+                if (client) {
+                    client.leave().then(() => {
+                        window.location.href = "{% url 'livestream_list' %}";
+                    }).catch(error => {
+                        window.location.href = "{% url 'livestream_list' %}";
+                    });
+                } else {
+                    window.location.href = "{% url 'livestream_list' %}";
+                }
+            } else if (data.waiting_approval) {
+                // Если пользователь ожидает одобрения
+                showCustomAlert("Ожидание одобрения ведущего...", "info");
+                
+                // Останавливаем все треки и показываем экран ожидания
+                for (const trackName in localTracks) {
+                    const track = localTracks[trackName];
+                    if (track) {
+                        track.stop();
+                        track.close();
+                        localTracks[trackName] = null;
+                    }
+                }
+                
+                                // Показываем экран ожидания
+                document.querySelector('.livestream-main').innerHTML = `
+                    <div class="waiting-screen">
+                        <h2>Ожидание одобрения ведущего</h2>
+                        <p>Пожалуйста, дождитесь, пока ведущий разрешит вам вернуться в трансляцию.</p>
+                        <div class="loader"></div>
+                        <div id="status-message" class="status-message"></div>
+                    </div>
+                `;
+                
+                // Продолжаем проверять статус
+                setTimeout(checkUserStatus, 3000);
+            } else if (data.approved && document.querySelector('.waiting-screen')) {
+                // Если пользователя одобрили и он на экране ожидания
+                showCustomAlert("Вы были одобрены! Перезагрузка страницы...", "success");
+                window.location.reload();
+            }
+            
+            // Проверяем, завершена ли трансляция
+            if (data.room_ended) {
+                showCustomAlert("Трансляция завершена ведущим", "info");
+                
+                // Останавливаем все треки и покидаем комнату
+                for (const trackName in localTracks) {
+                    const track = localTracks[trackName];
+                    if (track) {
+                        track.stop();
+                        track.close();
+                        localTracks[trackName] = null;
+                    }
+                }
+                
+                if (client) {
+                    client.leave().then(() => {
+                        window.location.href = "{% url 'livestream_list' %}";
+                    }).catch(error => {
+                        window.location.href = "{% url 'livestream_list' %}";
+                    });
+                } else {
+                    window.location.href = "{% url 'livestream_list' %}";
+                }
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка проверки статуса:", error);
+        });
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
-    const role = isHost ? 1 : 2;
-    const response = await fetch("{% url 'generate_token' %}?channel=" + channel + "&uid=" + uid + "&role=" + role);
-    const data = await response.json();
-    token = data.token;
+    try {
+        const role = isHost ? 1 : 2;
+        const response = await fetch("{% url 'generate_token' %}?channel=" + channel + "&uid=" + uid + "&role=" + role);
+        const data = await response.json();
+        token = data.token;
 
-    const client = AgoraRTC.createClient({ mode: roomType === 'broadcast' ? 'live' : 'rtc', codec: 'vp8' });
-    if (roomType === 'broadcast') {
-        client.setClientRole(isHost ? 'host' : 'audience');
-    }
-    await client.join(appId, channel, token, uid);
-
-    if (isHost || roomType === 'conference') {
-        [localTracks.audioTrack, localTracks.videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-        showVideo(uid, userName + " (Вы)");
-        localTracks.videoTrack.play(`video-box-${uid}`);
-        await client.publish([localTracks.audioTrack, localTracks.videoTrack]);
-    } else {
-        document.getElementById('mic-btn').style.display = 'none';
-        document.getElementById('camera-btn').style.display = 'none';
-    }
-
-    document.getElementById('mic-btn').addEventListener('click', async function() {
-        if (!localTracks.audioTrack) return;
-        if (localTrackState.audioTrackMuted) {
-            await localTracks.audioTrack.setMuted(false);
-            localTrackState.audioTrackMuted = false;
-            this.classList.remove('muted');
-            this.querySelector('.mic-icon').textContent = '🎤';
-        } else {
-            await localTracks.audioTrack.setMuted(true);
-            localTrackState.audioTrackMuted = true;
-            this.classList.add('muted');
-            this.querySelector('.mic-icon').textContent = '🔇';
+        client = AgoraRTC.createClient({ mode: roomType === 'broadcast' ? 'live' : 'rtc', codec: 'vp8' });
+        
+        if (roomType === 'broadcast') {
+            client.setClientRole(isHost ? 'host' : 'audience');
         }
-    });
+        
+        await client.join(appId, channel, token, uid);
+        showCustomAlert("Вы присоединились к трансляции", "success");
 
-    document.getElementById('camera-btn').addEventListener('click', async function() {
-        if (!localTracks.videoTrack) return;
-        if (localTrackState.videoTrackMuted) {
-            await localTracks.videoTrack.setMuted(false);
-            localTrackState.videoTrackMuted = false;
-            this.classList.remove('muted');
-            this.querySelector('.camera-icon').textContent = '📹';
+        if (isHost || roomType === 'conference') {
+            try {
+                [localTracks.audioTrack, localTracks.videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+                showVideo(uid, userName + " (Вы)", isHost);
+                localTracks.videoTrack.play(`video-box-${uid}`);
+                updateUserIcons(uid, localTrackState.audioTrackMuted, !localTrackState.videoTrackMuted);
+                await client.publish([localTracks.audioTrack, localTracks.videoTrack]);
+            } catch (error) {
+                console.error("Ошибка при создании локальных треков:", error);
+                showCustomAlert("Не удалось получить доступ к камере или микрофону. Проверьте разрешения браузера.", "error");
+                
+                // Пробуем создать только аудио трек, если видео не доступно
+                try {
+                    localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                    showVideo(uid, userName + " (Вы)", isHost);
+                    updateUserIcons(uid, localTrackState.audioTrackMuted, false);
+                    await client.publish([localTracks.audioTrack]);
+                } catch (audioError) {
+                    console.error("Ошибка при создании аудио трека:", audioError);
+                    showCustomAlert("Не удалось получить доступ к микрофону. Вы будете только наблюдать.", "warning");
+                    showVideo(uid, userName + " (Вы)", false);
+                }
+            }
         } else {
-            await localTracks.videoTrack.setMuted(true);
-            localTrackState.videoTrackMuted = true;
-            this.classList.add('muted');
-            this.querySelector('.camera-icon').textContent = '🚫';
+            document.getElementById('mic-btn').style.display = 'none';
+            document.getElementById('camera-btn').style.display = 'none';
+            showVideo(uid, userName + " (Вы)", false);
         }
-    });
 
-    document.getElementById('leave-btn').addEventListener('click', async function() {
-        for (const trackName in localTracks) {
-            const track = localTracks[trackName];
-            if (track) {
-                track.stop();
-                track.close();
-                localTracks[trackName] = null;
+        document.getElementById('mic-btn').addEventListener('click', async function() {
+            if (!localTracks.audioTrack) return;
+            if (localTrackState.audioTrackMuted) {
+                await localTracks.audioTrack.setMuted(false);
+                localTrackState.audioTrackMuted = false;
+                this.classList.remove('muted');
+                this.querySelector('.mic-icon').textContent = '🎤';
+                updateUserIcons(uid, false, !localTrackState.videoTrackMuted);
+            } else {
+                await localTracks.audioTrack.setMuted(true);
+                localTrackState.audioTrackMuted = true;
+                this.classList.add('muted');
+                this.querySelector('.mic-icon').textContent = '🔇';
+                updateUserIcons(uid, true, !localTrackState.videoTrackMuted);
+            }
+        });
+
+        document.getElementById('camera-btn').addEventListener('click', async function() {
+            if (!localTracks.videoTrack) return;
+            if (localTrackState.videoTrackMuted) {
+                await localTracks.videoTrack.setMuted(false);
+                localTrackState.videoTrackMuted = false;
+                this.classList.remove('muted');
+                this.querySelector('.camera-icon').textContent = '📹';
+                updateUserIcons(uid, localTrackState.audioTrackMuted, true);
+            } else {
+                await localTracks.videoTrack.setMuted(true);
+                localTrackState.videoTrackMuted = true;
+                this.classList.add('muted');
+                this.querySelector('.camera-icon').textContent = '🚫';
+                updateUserIcons(uid, localTrackState.audioTrackMuted, false);
+            }
+        });
+
+        document.getElementById('return-word-btn').addEventListener('click', function() {
+            returnWord();
+        });
+
+        document.getElementById('leave-btn').addEventListener('click', async function() {
+            for (const trackName in localTracks) {
+                const track = localTracks[trackName];
+                if (track) {
+                    track.stop();
+                    track.close();
+                    localTracks[trackName] = null;
+                }
+            }
+            await client.leave();
+            window.location.href = "{% url 'livestream_list' %}";
+        });
+
+        client.on('user-published', async (user, mediaType) => {
+            await client.subscribe(user, mediaType);
+            
+            if (mediaType === 'video') {
+                const isSpeaker = roomType === 'broadcast' && user.uid !== uid && isUserSpeaker(user.uid);
+                const isRoomHost = user.uid === parseInt("{{ room.host.id }}");
+                showVideo(user.uid, getUserName(user.uid) || user.uid, isSpeaker || isRoomHost);
+                user.videoTrack.play(`video-box-${user.uid}`);
+                updateUserIcons(user.uid, !user.hasAudio, true);
+            }
+            
+            if (mediaType === 'audio') {
+                user.audioTrack.play();
+                updateUserIcons(user.uid, false, user.hasVideo);
+                
+                // Если это трансляция и пользователь является спикером, показываем его как говорящего
+                if (roomType === 'broadcast' && user.uid !== uid && isUserSpeaker(user.uid)) {
+                    currentSpeakerId = user.uid;
+                    const container = document.getElementById(`user-${user.uid}`);
+                    if (container) container.classList.add('speaking');
+                    document.getElementById('speaker-status').innerHTML = `Сейчас говорит: <b>${getUserName(user.uid) || user.uid}</b>`;
+                }
+            }
+            
+            remoteUsers[user.uid] = user;
+        });
+
+        client.on('user-unpublished', (user, mediaType) => {
+            if (mediaType === 'video') {
+                updateUserIcons(user.uid, !user.hasAudio, false);
+            }
+            
+            if (mediaType === 'audio') {
+                updateUserIcons(user.uid, true, user.hasVideo);
+                
+                // Если это был говорящий, очищаем статус
+                if (currentSpeakerId === user.uid) {
+                    document.getElementById('speaker-status').innerHTML = '';
+                    currentSpeakerId = null;
+                    const container = document.getElementById(`user-${user.uid}`);
+                    if (container) container.classList.remove('speaking');
+                }
+            }
+            
+            if (!user.hasAudio && !user.hasVideo) {
+                removeVideo(user.uid);
+                delete remoteUsers[user.uid];
+            }
+        });
+        
+        client.on('user-left', (user) => {
+            removeVideo(user.uid);
+            delete remoteUsers[user.uid];
+            
+            // Если ушел ведущий, показываем уведомление
+            if (user.uid === parseInt("{{ room.host.id }}")) {
+                showCustomAlert("Ведущий покинул трансляцию", "warning");
+                // Проверяем, не завершена ли трансляция
+                checkUserStatus();
+            }
+        });
+        
+        // Обработка ошибок
+        client.on('exception', (event) => {
+            console.warn(`Agora Exception: ${event.code}, ${event.msg}`);
+            if (event.code === 1001) {
+                showCustomAlert("Проблема с сетевым подключением. Пытаемся восстановить...", "warning");
+            }
+        });
+        
+        // Обработка отключения
+        client.on('connection-state-change', (state) => {
+            console.log(`Connection state changed to: ${state}`);
+            if (state === 'DISCONNECTED') {
+                showCustomAlert("Соединение потеряно. Перезагрузите страницу.", "error");
+            } else if (state === 'RECONNECTING') {
+                showCustomAlert("Переподключение...", "warning");
+            } else if (state === 'CONNECTED') {
+                showCustomAlert("Соединение восстановлено", "success");
+            }
+        });
+
+    } catch (error) {
+        console.error("Ошибка при инициализации трансляции:", error);
+        showCustomAlert("Не удалось подключиться к трансляции: " + error.message, "error");
+    }
+
+    // Функция для получения имени пользователя по ID
+    function getUserName(userId) {
+        for (let user of allUsers) {
+            if (user.id === userId) {
+                return user.name;
             }
         }
-        await client.leave();
-        window.location.href = "{% url 'livestream_list' %}";
-    });
-
-    client.on('user-published', async (user, mediaType) => {
-        await client.subscribe(user, mediaType);
-        if (mediaType === 'video') {
-            showVideo(user.uid, user.userAccount || user.uid);
-            user.videoTrack.play(`video-box-${user.uid}`);
-        }
-        if (mediaType === 'audio') {
-            user.audioTrack.play();
-        }
-        remoteUsers[user.uid] = user;
-    });
-
-    client.on('user-unpublished', (user, mediaType) => {
-        if (mediaType === 'video') {
-            removeVideo(user.uid);
-        }
-        if (!user.hasAudio && !user.hasVideo) {
-            delete remoteUsers[user.uid];
-        }
-    });
-
-    function showVideo(uid, label) {
-        let container = document.getElementById(`user-${uid}`);
-        if (!container) {
-            container = document.createElement('div');
-            container.id = `user-${uid}`;
-            container.classList.add('video-player');
-            container.innerHTML = `<div class="user-name">${label}</div><div id="video-box-${uid}" class="video-box"></div>`;
-            document.getElementById('agora-video').append(container);
-        }
+        return null;
     }
-    function removeVideo(uid) {
-        const container = document.getElementById(`user-${uid}`);
-        if (container) container.remove();
+
+    // Функция для возврата слова ведущему
+    function returnWord() {
+        fetch("/livestream/grant/{{ room.id }}/" + uid + "/", {
+            method: 'POST', 
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        })
+        .then(response => {
+            if (response.ok) {
+                amISpeaker = false;
+                updateReturnWordButton();
+                showCustomAlert("Вы вернули слово ведущему", "success");
+            } else {
+                showCustomAlert("Не удалось вернуть слово", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка возврата слова:", error);
+            showCustomAlert("Ошибка при возврате слова", "error");
+        });
     }
 
     // Чат
     function loadChat() {
-        fetch("{% url 'livestream_chat' room.id %}")
+        fetch("/livestream/chat/{{ room.id }}/")
             .then(r => r.json())
             .then(data => {
                 const chat = document.getElementById('chat-messages');
@@ -181,14 +489,23 @@ document.addEventListener('DOMContentLoaded', async function() {
                     chat.appendChild(div);
                 });
                 chat.scrollTop = chat.scrollHeight;
+            })
+            .catch(error => {
+                console.error("Ошибка загрузки чата:", error);
             });
     }
+    
     document.getElementById('chat-form').onsubmit = function(e) {
         e.preventDefault();
         const input = document.getElementById('chat-input');
         const text = input.value.trim();
         if (!text) return;
-        fetch("{% url 'livestream_chat' room.id %}", {
+        
+        const button = this.querySelector('button');
+        button.disabled = true;
+        button.textContent = 'Отправка...';
+        
+        fetch("/livestream/chat/{{ room.id }}/", {
             method: 'POST',
             headers: {'X-CSRFToken': '{{ csrf_token }}'},
             body: new URLSearchParams({text})
@@ -197,128 +514,902 @@ document.addEventListener('DOMContentLoaded', async function() {
         .then(msg => {
             input.value = '';
             loadChat();
+            button.disabled = false;
+            button.textContent = 'Отправить';
+        })
+        .catch(error => {
+            console.error("Ошибка отправки сообщения:", error);
+            showCustomAlert("Не удалось отправить сообщение", "error");
+            button.disabled = false;
+            button.textContent = 'Отправить';
         });
     };
+    
     setInterval(loadChat, 3000);
     loadChat();
 
     // Список пользователей
+    function isUserSpeaker(userId) {
+        // Проверяем, является ли пользователь спикером по данным с сервера
+        for (let user of allUsers) {
+            if (user.id === userId && user.is_speaker) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     function loadUsers() {
-        fetch("{% url 'livestream_users' room.id %}")
+        fetch("/livestream/users/{{ room.id }}/")
             .then(r => r.json())
             .then(data => {
+                // Сохраняем полный список пользователей
+                allUsers = data.users;
+                
+                // Проверяем, являюсь ли я спикером
+                for (let user of allUsers) {
+                    if (user.id === uid) {
+                        amISpeaker = user.is_speaker;
+                        break;
+                    }
+                }
+                
+                // Обновляем кнопку "Вернуть слово"
+                updateReturnWordButton();
+                
+                // Получаем текущий поисковый запрос
+                const searchQuery = document.getElementById('invite-search').value.trim().toLowerCase();
+                
+                                // Фильтруем пользователей по поисковому запросу
+                let filteredUsers = allUsers;
+                if (searchQuery) {
+                    filteredUsers = allUsers.filter(user => 
+                        user.name.toLowerCase().includes(searchQuery)
+                    );
+                }
+                
                 const users = document.getElementById('users-list');
                 users.innerHTML = '';
-                data.users.forEach(u => {
-                    let html = `<div class="user-row"><span>${u.name}`;
-                    if (u.is_host) html += ' <b>(Ведущий)</b>';
-                    if (u.is_speaker) html += ' <i>(Говорит)</i>';
-                    if (u.is_muted) html += ' <i>(Микрофон выкл.)</i>';
-                    html += '</span>';
-                    if (isHost && !u.is_host) {
-                        html += `<button onclick="kickUser(${u.id})">Выгнать</button>
-                                 <button onclick="muteUser(${u.id})">${u.is_muted ? 'Включить' : 'Выключить'} микрофон</button>`;
-                        if (roomType === 'broadcast') {
-                            html += `<button onclick="grantUser(${u.id})">${u.is_speaker ? 'Забрать слово' : 'Дать слово'}</button>`;
-                        }
+                
+                // Сначала отображаем ведущего
+                filteredUsers.forEach(u => {
+                    if (u.is_host) {
+                        renderUserRow(u, users);
                     }
-                    html += '</div>';
-                    users.innerHTML += html;
                 });
-                // waiting approval
-                if (isHost && data.waiting.length) {
+                
+                // Затем спикеров
+                filteredUsers.forEach(u => {
+                    if (!u.is_host && u.is_speaker) {
+                        renderUserRow(u, users);
+                    }
+                });
+                
+                // Затем остальных пользователей
+                filteredUsers.forEach(u => {
+                    if (!u.is_host && !u.is_speaker) {
+                        renderUserRow(u, users);
+                    }
+                });
+                
+                // Обрабатываем ожидающих одобрения
+                if (isHost && data.waiting && data.waiting.length) {
                     data.waiting.forEach(u => {
-                        let html = `<div class="user-row waiting">
-                            <span>${u.name} просится обратно</span>
-                            <button onclick="approveUser(${u.id})">Одобрить</button>
-                        </div>`;
-                        users.innerHTML += html;
+                        const waitingRow = document.createElement('div');
+                        waitingRow.className = 'user-row waiting';
+                        waitingRow.innerHTML = `
+                            <span class="waiting-user">${u.name} просится в трансляцию</span>
+                            <div class="user-actions">
+                                <button onclick="approveUser(${u.id})" class="btn-approve">Одобрить</button>
+                                <button onclick="rejectUser(${u.id})" class="btn-reject">Отклонить</button>
+                            </div>
+                        `;
+                        users.appendChild(waitingRow);
+                        
+                        // Показываем уведомление о новом запросе
+                        showCustomAlert(`Пользователь ${u.name} просится в трансляцию`, "info");
                     });
                 }
+                
+                // Обновляем статус говорящего, если он изменился
+                updateSpeakerStatus(data.users);
+                
+                // Обновляем видео контейнеры
+                updateVideoContainers();
+                
+                // Проверяем статус пользователя
+                checkUserStatus();
+            })
+            .catch(error => {
+                console.error("Ошибка загрузки списка пользователей:", error);
             });
     }
-    setInterval(loadUsers, 3000);
+    
+    function renderUserRow(user, container) {
+        const row = document.createElement('div');
+        row.className = 'user-row';
+        row.dataset.userId = user.id;
+        row.dataset.isSpeaker = user.is_speaker;
+        
+        let userIcons = '';
+        if (user.is_host) {
+            userIcons += '<span class="icon-host" title="Ведущий">👑</span>';
+        }
+        if (user.is_speaker) {
+            userIcons += '<span class="icon-speaker" title="Говорит">🎙️</span>';
+        }
+        if (user.is_muted) {
+            userIcons += '<span class="icon-muted" title="Микрофон выключен">🔇</span>';
+        }
+        
+        let html = `<span class="user-name-row">${user.name} ${userIcons}</span>`;
+        
+        // Добавляем кнопки управления для ведущего
+        if (isHost && user.id !== uid) {
+            html += `<div class="user-actions">`;
+            
+            if (roomType === 'broadcast') {
+                html += `<button onclick="grantUser(${user.id})" class="${user.is_speaker ? 'btn-revoke' : 'btn-grant'}">${user.is_speaker ? 'Забрать слово' : 'Дать слово'}</button>`;
+            }
+            
+            html += `<button onclick="muteUser(${user.id})" class="btn-mute">${user.is_muted ? 'Включить' : 'Выключить'} микрофон</button>`;
+            html += `<button onclick="kickUser(${user.id})" class="btn-kick">Исключить</button>`;
+            html += `</div>`;
+        }
+        
+        row.innerHTML = html;
+        container.appendChild(row);
+    }
+    
+    function updateSpeakerStatus(users) {
+        let speakerName = null;
+        let speakerId = null;
+        let hostId = parseInt("{{ room.host.id }}");
+        
+        users.forEach(u => {
+            if (u.is_speaker && u.id !== hostId) {
+                speakerName = u.name;
+                speakerId = u.id;
+            }
+        });
+        
+        // Обновляем статус говорящего
+        if (speakerName && speakerId !== currentSpeakerId) {
+            document.getElementById('speaker-status').innerHTML = `Сейчас говорит: <b>${speakerName}</b>`;
+            currentSpeakerId = speakerId;
+        } else if (!speakerName && currentSpeakerId && currentSpeakerId !== hostId) {
+            // Если нет спикера, но есть ведущий, показываем его
+            const host = users.find(u => u.is_host);
+            if (host) {
+                document.getElementById('speaker-status').innerHTML = `Ведущий: <b>${host.name}</b>`;
+            } else {
+                document.getElementById('speaker-status').innerHTML = '';
+            }
+            currentSpeakerId = null;
+        }
+    }
+    
+    function updateVideoContainers() {
+        const videoArea = document.getElementById('agora-video');
+        const videoPlayers = videoArea.querySelectorAll('.video-player');
+        
+        if (roomType === 'broadcast') {
+            // В режиме трансляции показываем только ведущего или спикера на весь экран
+            videoPlayers.forEach(player => {
+                const userId = parseInt(player.id.replace('user-', ''));
+                const isRoomHost = userId === parseInt("{{ room.host.id }}");
+                const isSpeaker = isUserSpeaker(userId);
+                
+                if (isRoomHost || isSpeaker) {
+                    player.classList.add('speaking');
+                } else {
+                    player.classList.remove('speaking');
+                }
+            });
+        } else {
+            // В режиме конференции показываем всех участников
+            videoPlayers.forEach(player => {
+                player.classList.remove('speaking');
+            });
+        }
+    }
+    
+    // Запускаем первую загрузку пользователей
     loadUsers();
+    // Устанавливаем интервал обновления списка пользователей
+    setInterval(loadUsers, 3000);
+    
+    // Функции управления пользователями
     window.kickUser = function(id) {
-        fetch("{% url 'livestream_kick' room.id 0 %}".replace('/0/', '/' + id + '/'), {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}}).then(() => {
-            loadUsers();
-            showCustomAlert("Пользователь исключён!");
+        fetch("/livestream/kick/{{ room.id }}/" + id + "/", {
+            method: 'POST', 
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        })
+        .then(response => {
+            if (response.ok) {
+                loadUsers();
+                showCustomAlert("Пользователь исключён", "success");
+                
+                // Если исключили нас, перенаправляем на список трансляций
+                if (id == uid) {
+                    showCustomAlert("Вы были исключены из трансляции", "error");
+                    setTimeout(() => {
+                        window.location.href = "{% url 'livestream_list' %}";
+                    }, 2000);
+                }
+            } else {
+                showCustomAlert("Не удалось исключить пользователя", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка исключения пользователя:", error);
+            showCustomAlert("Ошибка при исключении пользователя", "error");
+        });
+    };
+    
+    window.muteUser = function(id) {
+        fetch("/livestream/mute/{{ room.id }}/" + id + "/", {
+            method: 'POST', 
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        })
+        .then(response => {
+            if (response.ok) {
+                loadUsers();
+                showCustomAlert("Статус микрофона изменен", "success");
+            } else {
+                showCustomAlert("Не удалось изменить статус микрофона", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка изменения статуса микрофона:", error);
+            showCustomAlert("Ошибка при изменении статуса микрофона", "error");
+        });
+    };
+    
+    window.grantUser = function(id) {
+        fetch("/livestream/grant/{{ room.id }}/" + id + "/", {
+            method: 'POST', 
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        })
+        .then(response => {
+            if (response.ok) {
+                loadUsers();
+                showCustomAlert("Статус спикера изменен", "success");
+                
+                // Если это я получил/потерял слово
+                if (id == uid) {
+                    amISpeaker = !amISpeaker;
+                    updateReturnWordButton();
+                    
+                    if (amISpeaker) {
+                        showCustomAlert("Вам дали слово! Теперь вы можете говорить.", "success");
+                    } else {
+                        showCustomAlert("У вас забрали слово.", "info");
+                    }
+                }
+            } else {
+                showCustomAlert("Не удалось изменить статус спикера", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка изменения статуса спикера:", error);
+            showCustomAlert("Ошибка при изменении статуса спикера", "error");
+        });
+    };
+    
+    window.approveUser = function(id) {
+        fetch("/livestream/approve/{{ room.id }}/" + id + "/", {
+            method: 'POST', 
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        })
+        .then(response => {
+            if (response.ok) {
+                loadUsers();
+                showCustomAlert("Пользователь одобрен", "success");
+            } else {
+                showCustomAlert("Не удалось одобрить пользователя", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка одобрения пользователя:", error);
+            showCustomAlert("Ошибка при одобрении пользователя", "error");
+        });
+    };
+    
+    window.rejectUser = function(id) {
+        kickUser(id);
+    };
+
+    // Поиск и приглашение пользователей
+    const inviteSearch = document.getElementById('invite-search');
+    const inviteResults = document.getElementById('invite-results');
+    
+    if (inviteSearch) {
+        // Обработчик поиска пользователей для приглашения
+        if (isHost) {
+            let searchTimeout;
+            
+            inviteSearch.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                const query = this.value.trim();
+                
+                if (query.length < 2) {
+                    inviteResults.innerHTML = '';
+                    loadUsers(); // Обновляем список пользователей при очистке поиска
+                    return;
+                }
+                
+                searchTimeout = setTimeout(() => {
+                    fetch("/livestream/invite/{{ room.id }}/?q=" + encodeURIComponent(query))
+                        .then(r => r.json())
+                        .then(data => {
+                            inviteResults.innerHTML = '';
+                            
+                            if (data.results && data.results.length) {
+                                data.results.forEach(u => {
+                                    const userItem = document.createElement('div');
+                                    userItem.className = 'invite-user';
+                                    userItem.innerHTML = `
+                                        <span>${u.name}</span>
+                                        <button onclick="inviteUser(${u.id}, this)">Пригласить</button>
+                                    `;
+                                    inviteResults.appendChild(userItem);
+                                });
+                            } else {
+                                inviteResults.innerHTML = '<div class="no-results">Пользователи не найдены</div>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Ошибка поиска пользователей:", error);
+                            inviteResults.innerHTML = '<div class="no-results error">Ошибка поиска</div>';
+                        });
+                }, 300);
+            });
+        } else {
+            // Для обычных пользователей - просто фильтрация списка
+            inviteSearch.addEventListener('input', function() {
+                loadUsers(); // Обновляем список с учетом поискового запроса
+            });
+        }
+        
+        // Скрываем результаты при клике вне поля поиска
+        document.addEventListener('click', function(e) {
+            if (e.target !== inviteSearch && !inviteResults.contains(e.target)) {
+                inviteResults.innerHTML = '';
+            }
         });
     }
-    window.muteUser = function(id) {
-        fetch("{% url 'livestream_mute' room.id 0 %}".replace('/0/', '/' + id + '/'), {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}}).then(loadUsers);
-    }
-    window.grantUser = function(id) {
-        fetch("{% url 'livestream_grant' room.id 0 %}".replace('/0/', '/' + id + '/'), {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}}).then(loadUsers);
-    }
-    window.approveUser = function(id) {
-        fetch("{% url 'livestream_approve' room.id 0 %}".replace('/0/', '/' + id + '/'), {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}}).then(loadUsers);
-    }
-
-    // Приглашения
-    document.getElementById('invite-search').oninput = function() {
-        const q = this.value;
-        fetch("{% url 'livestream_invite' room.id %}?q=" + encodeURIComponent(q))
-            .then(r => r.json())
-            .then(data => {
-                const res = document.getElementById('invite-results');
-                res.innerHTML = '';
-                data.results.forEach(u => {
-                    const btn = document.createElement('button');
-                    btn.textContent = 'Пригласить';
-                    btn.onclick = function() {
-                        fetch("{% url 'livestream_invite' room.id %}", {
-                            method: 'POST',
-                            headers: {'X-CSRFToken': '{{ csrf_token }}'},
-                            body: new URLSearchParams({user_id: u.id})
-                        }).then(() => { btn.textContent = 'Приглашён'; btn.disabled = true; });
-                    };
-                    res.innerHTML += `<div>${u.name} </div>`;
-                    res.lastChild.appendChild(btn);
-                });
-            });
+    
+    window.inviteUser = function(userId, button) {
+        button.disabled = true;
+        button.textContent = 'Отправка...';
+        
+        fetch("/livestream/invite/{{ room.id }}/", {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+            body: new URLSearchParams({user_id: userId})
+        })
+        .then(response => {
+            if (response.ok) {
+                button.textContent = 'Приглашен';
+                showCustomAlert("Приглашение отправлено", "success");
+            } else {
+                button.textContent = 'Ошибка';
+                button.disabled = false;
+                showCustomAlert("Не удалось отправить приглашение", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка отправки приглашения:", error);
+            button.textContent = 'Ошибка';
+            button.disabled = false;
+            showCustomAlert("Ошибка при отправке приглашения", "error");
+        });
     };
 });
 </script>
 <style>
-.livestream-main { display: flex; gap: 20px; }
-.video-block { flex: 2; min-width: 600px; }
-.video-area { width: 100%; height: 400px; background: #222; border-radius: 10px; margin-bottom: 10px; }
-.video-player { position: relative; background-color: #2a2a2a; border-radius: 6px; overflow: hidden; aspect-ratio: 16/9; margin-bottom: 10px; }
-.video-box { width: 100%; height: 240px; background: #111; border-radius: 8px; overflow: hidden; }
-.user-name { position: absolute; bottom: 10px; left: 10px; background-color: rgba(0,0,0,0.6); color: white; padding: 5px 10px; border-radius: 4px; font-size: 14px; }
-.video-controls { display: flex; gap: 10px; margin-bottom: 10px; }
-.control-btn { padding: 10px 18px; border-radius: 6px; border: none; background: #2563eb; color: #fff; font-size: 18px; cursor: pointer; }
-.control-btn.leave { background: #ef4444; }
-.control-btn.muted { background: #aaa; }
-.status-bar { margin-bottom: 10px; }
-.status-host { color: #2563eb; font-weight: bold; }
-.status-viewer { color: #aaa; }
-.side-panel { flex: 1; min-width: 350px; max-width: 400px; display: flex; flex-direction: column; gap: 20px; }
-.users-panel { background: var(--card); border-radius: 8px; padding: 10px; height: 250px; display: flex; flex-direction: column; }
-.users-header { margin-bottom: 8px; }
-.users-list { flex: 1; overflow-y: auto; }
-.user-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.user-row button { font-size: 13px; padding: 4px 10px; border-radius: 4px; border: none; background: #2563eb; color: #fff; cursor: pointer; height: 32px; min-width: 90px; margin-right: 4px; display: inline-block; vertical-align: middle; }
-.user-row button:last-child { margin-right: 0; }
-.user-row .kick-btn { background: #ef4444; }
-.user-row .kick-btn:hover { background: #b91c1c; }
-.user-row .grant-btn { background: #10b981; }
-.user-row .grant-btn:hover { background: #047857; }
-.user-row .mute-btn { background: #f59e0b; }
-.user-row .mute-btn:hover { background: #b45309; }
-.user-row .waiting { color: #f59e0b; font-style: italic; }
-.invite-panel { margin-top: 8px; }
-#invite-search { width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border); }
-#invite-results div { margin-bottom: 5px; }
-.chat-panel { background: var(--card); border-radius: 8px; padding: 10px; height: 250px; display: flex; flex-direction: column; }
-.chat-messages { flex: 1; overflow-y: auto; margin-bottom: 10px; }
-.chat-message { margin-bottom: 5px; }
-.chat-time { color: #aaa; font-size: 11px; margin-left: 5px; }
-.chat-form { display: flex; gap: 5px; }
-#chat-input { flex: 1; padding: 6px; border-radius: 4px; border: 1px solid var(--border); }
-.btn-end { display: inline-block; padding: 12px 24px; background-color: #e53e3e; color: white; border-radius: 6px; font-weight: 500; }
-.custom-alert { position: fixed; top: 30px; left: 50%; transform: translateX(-50%); background: #ef4444; color: #fff; padding: 18px 32px; border-radius: 8px; font-size: 18px; z-index: 9999; box-shadow: 0 2px 12px rgba(0,0,0,0.2); animation: fadeInOut 2.5s; }
-@keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
+.livestream-main {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.video-block {
+    flex: 2;
+    min-width: 600px;
+}
+
+.video-area {
+    width: 100%;
+    min-height: 400px;
+    background: #222;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-gap: 10px;
+    padding: 10px;
+    overflow: hidden;
+}
+
+.video-area.broadcast-mode {
+    display: block;
+}
+
+.video-area.broadcast-mode .video-player:not(.speaking) {
+    display: none;
+}
+
+.video-area.broadcast-mode .video-player.speaking {
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    box-shadow: 0 0 0 3px #f59e0b;
+    z-index: 10;
+}
+
+.video-player {
+    position: relative;
+    background-color: #2a2a2a;
+    border-radius: 6px;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    transition: all 0.3s ease;
+}
+
+.video-box {
+    width: 100%;
+    height: 100%;
+    background: #111;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.user-name {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background-color: rgba(0,0,0,0.6);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.user-icons {
+    display: flex;
+    gap: 5px;
+    margin-left: 5px;
+}
+
+.video-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.control-btn {
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: none;
+    background: #2563eb;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 120px;
+    max-width: 200px;
+    text-align: center;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.control-btn.leave {
+    background: #ef4444;
+}
+
+.control-btn.end {
+    background: #7e22ce;
+}
+
+.control-btn.return-word {
+    background: #f59e0b;
+}
+
+.control-btn.muted {
+    background: #aaa;
+}
+
+.status-bar {
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: var(--card);
+    border-radius: 6px;
+    font-size: 16px;
+    min-height: 44px;
+}
+
+.side-panel {
+    flex: 1;
+    min-width: 300px;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.users-panel {
+    background: var(--card);
+    border-radius: 8px;
+    padding: 15px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.users-header {
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.users-header input {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background-color: var(--bg);
+    color: var(--text);
+}
+
+.invite-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 5px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.invite-user {
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.invite-user:last-child {
+    border-bottom: none;
+}
+
+.invite-user button {
+    padding: 4px 8px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.invite-user button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.no-results {
+    padding: 10px;
+    text-align: center;
+    color: var(--text-light);
+}
+
+.no-results.error {
+    color: #ef4444;
+}
+
+.users-list {
+    flex: 1;
+    overflow-y: auto;
+    margin-right: -5px;
+    padding-right: 5px;
+    width: 100%;
+}
+
+.user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background-color: var(--bg);
+    transition: background-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.user-row:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+
+.user-row.waiting {
+    background-color: #fff7ed;
+    border: 1px dashed #f59e0b;
+}
+
+.waiting-user {
+    color: #b45309;
+    font-weight: 500;
+}
+
+.user-name-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}
+
+.user-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.user-actions button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+    background-color: var(--primary);
+    color: white;
+    height: 32px;
+}
+
+.user-actions .btn-kick {
+    background-color: #ef4444;
+}
+
+.user-actions .btn-mute {
+    background-color: #f59e0b;
+}
+
+.user-actions .btn-grant {
+    background-color: #10b981;
+}
+
+.user-actions .btn-revoke {
+    background-color: #6b7280;
+}
+
+.user-actions .btn-approve {
+    background-color: #10b981;
+}
+
+.user-actions .btn-reject {
+    background-color: #ef4444;
+}
+
+.icon-host {
+    color: #f59e0b;
+}
+
+.icon-speaker {
+    color: #10b981;
+}
+
+.icon-muted {
+    color: #ef4444;
+}
+
+.icon-mic {
+    color: #10b981;
+}
+
+.icon-video {
+    color: #3b82f6;
+}
+
+.icon-no-video {
+    color: #6b7280;
+}
+
+.chat-panel {
+    background: var(--card);
+    border-radius: 8px;
+    padding: 15px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding-right: 5px;
+    width: 100%;
+}
+
+.chat-message {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background-color: var(--bg);
+    border-radius: 6px;
+    font-size: 14px;
+    word-break: break-word;
+}
+
+.chat-time {
+    color: var(--text-light);
+    font-size: 11px;
+    margin-left: 5px;
+}
+
+.chat-form {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.chat-form input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background-color: var(--bg);
+    color: var(--text);
+}
+
+.send-btn {
+    padding: 0 15px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 100px;
+    white-space: nowrap;
+    height: 40px;
+    font-size: 14px;
+}
+
+.custom-alert {
+    position: fixed;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-size: 16px;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: fadeInOut 3.5s;
+    max-width: 80%;
+    text-align: center;
+}
+
+.custom-alert.info {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.custom-alert.success {
+    background-color: #10b981;
+    color: white;
+}
+
+.custom-alert.warning {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.custom-alert.error {
+    background-color: #ef4444;
+    color: white;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    10% { opacity: 1; transform: translate(-50%, 0); }
+    90% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+.waiting-screen {
+    background-color: var(--card);
+    border-radius: 10px;
+    padding: 30px;
+    text-align: center;
+    max-width: 600px;
+    margin: 50px auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.waiting-screen h2 {
+    margin-top: 0;
+    color: var(--primary);
+    margin-bottom: 20px;
+}
+.waiting-screen p {
+    margin-bottom: 30px;
+    font-size: 16px;
+    line-height: 1.5;
+}
+.loader {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border);
+    border-radius: 50%;
+    border-top-color: var(--primary);
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .livestream-main {
+        flex-direction: column;
+    }
+    .video-block {
+        min-width: 100%;
+    }
+    .side-panel {
+        max-width: 100%;
+        flex-direction: row;
+    }
+    .users-panel, .chat-panel {
+        flex: 1;
+        height: 400px;
+    }
+}
+@media (max-width: 768px) {
+    .side-panel {
+        flex-direction: column;
+    }
+    .video-area {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+    .user-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .user-actions {
+        margin-top: 10px;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+@media (max-width: 576px) {
+    .video-controls {
+        flex-wrap: wrap;
+    }
+    .control-btn {
+        flex: 1;
+        min-width: 100px;
+    }
+}
 </style>
 {% endblock %}

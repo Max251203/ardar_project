@@ -2,16 +2,16 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib import messages
-from .models import LivestreamRoom, LivestreamParticipant, LivestreamChatMessage, LivestreamInvite
-from .forms import LivestreamRoomForm
-from apps.core.models import SiteSettings
-from django.contrib.auth import get_user_model
 from django.views.decorators.http import require_POST
-from django.utils.timesince import timesince
+from django.contrib.auth import get_user_model
+from .models import LivestreamRoom, LivestreamParticipant, LivestreamChatMessage, LivestreamInvite
+from apps.core.models import SiteSettings
 import time
+from agora_token_builder import RtcTokenBuilder
 import random
 import string
-from agora_token_builder import RtcTokenBuilder
+from .forms import LivestreamRoomForm
+from django.utils.timesince import timesince
 
 User = get_user_model()
 
@@ -66,16 +66,30 @@ def create_livestream(request):
 def livestream_room(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
     is_host = (request.user == room.host)
-    part, created = LivestreamParticipant.objects.get_or_create(
-        room=room, user=request.user)
-    if part.is_kicked and not part.waiting_approval:
-        part.waiting_approval = True
-        part.save()
-        return render(request, 'livestream/kicked.html', {'room': room})
-    if part.waiting_approval and not is_host:
+
+    # Проверяем, не исключен ли пользователь
+    participant, created = LivestreamParticipant.objects.get_or_create(
+        room=room, user=request.user
+    )
+
+    # Если пользователь исключен и не ожидает одобрения, устанавливаем флаг ожидания
+    if participant.is_kicked and not participant.waiting_approval:
+        participant.waiting_approval = True
+        participant.save()
+
+    # Если пользователь ведущий, он всегда может войти
+    if is_host:
+        participant.waiting_approval = False
+        participant.is_kicked = False
+        participant.save()
+
+    # Если пользователь ожидает одобрения и не ведущий, показываем страницу ожидания
+    if participant.waiting_approval and not is_host:
         return render(request, 'livestream/waiting_approval.html', {'room': room})
+
+    app_id = SiteSettings.get_setting('AGORA_APP_ID')
+
     if room.platform == 'agora':
-        app_id = SiteSettings.get_setting('AGORA_APP_ID')
         return render(request, 'livestream/room_agora.html', {
             'room': room,
             'app_id': app_id,
@@ -150,10 +164,17 @@ def livestream_chat(request, room_id):
 @login_required
 def livestream_users(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
+
+    # Получаем активных участников (не исключенных)
     participants = LivestreamParticipant.objects.filter(
-        room=room, is_kicked=False)
+        room=room, is_kicked=False, waiting_approval=False
+    ).select_related('user')
+
+    # Получаем ожидающих одобрения
     waiting = LivestreamParticipant.objects.filter(
-        room=room, waiting_approval=True)
+        room=room, waiting_approval=True
+    ).select_related('user')
+
     users = []
     for p in participants:
         users.append({
@@ -163,23 +184,52 @@ def livestream_users(request, room_id):
             'is_speaker': p.is_speaker,
             'is_host': p.user == room.host,
         })
+
     waiting_list = []
     for p in waiting:
         waiting_list.append({'id': p.user.id, 'name': p.user.name})
+
     return JsonResponse({'users': users, 'waiting': waiting_list})
 
 
 @login_required
+def check_user_status(request, room_id):
+    room = get_object_or_404(LivestreamRoom, id=room_id)
+
+    # Проверяем статус пользователя
+    participant, created = LivestreamParticipant.objects.get_or_create(
+        room=room, user=request.user
+    )
+
+    # Проверяем, завершена ли трансляция
+    room_ended = not room.is_active
+
+    return JsonResponse({
+        'is_kicked': participant.is_kicked,
+        'waiting_approval': participant.waiting_approval,
+        'approved': not participant.is_kicked and not participant.waiting_approval,
+        'room_ended': room_ended,
+        # Добавляем временную метку для предотвращения кэширования
+        'timestamp': int(time.time())
+    })
+
+
+@require_POST
+@login_required
 def livestream_invite(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-    if request.user != room.host:
+
+    # Проверяем, что запрос от ведущего
+    if request.user != room.host and not request.user.is_superuser:
         return JsonResponse({'error': 'Нет прав'}, status=403)
+
     if request.method == 'POST':
         user_id = int(request.POST.get('user_id'))
         user = User.objects.get(id=user_id)
         LivestreamInvite.objects.get_or_create(
             room=room, invited_user=user, invited_by=request.user)
         return JsonResponse({'ok': True})
+
     q = request.GET.get('q', '')
     users = User.objects.filter(name__icontains=q).exclude(
         id__in=LivestreamParticipant.objects.filter(room=room).values('user_id'))[:10]
@@ -190,56 +240,96 @@ def livestream_invite(request, room_id):
 @login_required
 def livestream_kick(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-    if request.user != room.host:
+
+    # Проверяем, что запрос от ведущего
+    if request.user != room.host and not request.user.is_superuser:
         return JsonResponse({'error': 'Нет прав'}, status=403)
-    part = LivestreamParticipant.objects.filter(
-        room=room, user_id=user_id).first()
-    if part:
-        part.is_kicked = True
-        part.waiting_approval = False
-        part.save()
-    return JsonResponse({'ok': True})
+
+    # Находим участника
+    participant = get_object_or_404(
+        LivestreamParticipant, room=room, user_id=user_id)
+
+    # Исключаем участника
+    participant.is_kicked = True
+    participant.waiting_approval = False
+    participant.is_speaker = False  # Убираем статус спикера при исключении
+    participant.save()
+
+    return JsonResponse({'success': True})
 
 
 @require_POST
 @login_required
 def livestream_approve(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-    if request.user != room.host:
+
+    # Проверяем, что запрос от ведущего
+    if request.user != room.host and not request.user.is_superuser:
         return JsonResponse({'error': 'Нет прав'}, status=403)
-    part = LivestreamParticipant.objects.filter(
-        room=room, user_id=user_id).first()
-    if part:
-        part.is_kicked = False
-        part.waiting_approval = False
-        part.save()
-    return JsonResponse({'ok': True})
+
+    # Находим участника
+    participant = get_object_or_404(
+        LivestreamParticipant, room=room, user_id=user_id)
+
+    # Одобряем участника
+    participant.is_kicked = False
+    participant.waiting_approval = False
+    participant.save()
+
+    return JsonResponse({'success': True})
 
 
 @require_POST
 @login_required
 def livestream_mute(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-    if request.user != room.host:
+
+    # Проверяем, что запрос от ведущего
+    if request.user != room.host and not request.user.is_superuser:
         return JsonResponse({'error': 'Нет прав'}, status=403)
-    p = LivestreamParticipant.objects.filter(
-        room=room, user_id=user_id).first()
-    if p:
-        p.is_muted = not p.is_muted
-        p.save()
-    return JsonResponse({'ok': True})
+
+    # Находим участника
+    participant = get_object_or_404(
+        LivestreamParticipant, room=room, user_id=user_id)
+
+    # Меняем статус микрофона
+    participant.is_muted = not participant.is_muted
+    participant.save()
+
+    return JsonResponse({'success': True})
 
 
 @require_POST
 @login_required
 def livestream_grant(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-    if request.user != room.host:
+
+    # Проверяем, что запрос от ведущего или от самого пользователя (для возврата слова)
+    if request.user != room.host and request.user.id != user_id and not request.user.is_superuser:
         return JsonResponse({'error': 'Нет прав'}, status=403)
-    LivestreamParticipant.objects.filter(room=room).update(is_speaker=False)
-    p = LivestreamParticipant.objects.filter(
-        room=room, user_id=user_id).first()
-    if p:
-        p.is_speaker = not p.is_speaker
-        p.save()
-    return JsonResponse({'ok': True})
+
+    # Если пользователь возвращает слово сам
+    if request.user.id == user_id:
+        participant = get_object_or_404(
+            LivestreamParticipant, room=room, user=request.user)
+        participant.is_speaker = False
+        participant.save()
+        return JsonResponse({'success': True})
+
+    # Если ведущий дает или забирает слово
+    participant = get_object_or_404(
+        LivestreamParticipant, room=room, user_id=user_id)
+
+    # Если пользователь уже спикер, забираем слово
+    if participant.is_speaker:
+        participant.is_speaker = False
+    else:
+        # Сначала убираем статус спикера у всех остальных
+        LivestreamParticipant.objects.filter(
+            room=room).update(is_speaker=False)
+        # Затем даем слово выбранному пользователю
+        participant.is_speaker = True
+
+    participant.save()
+
+    return JsonResponse({'success': True})
