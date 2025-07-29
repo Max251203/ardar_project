@@ -5,8 +5,8 @@
     <p>Пожалуйста, дождитесь, пока ведущий разрешит вам вернуться в трансляцию.</p>
     <div class="loader"></div>
     <div id="status-message" class="status-message"></div>
+    <button id="cancel-waiting" class="btn-cancel">Отменить заявку</button>
 </div>
-
 <style>
 .waiting-screen {
     background-color: var(--card);
@@ -17,19 +17,16 @@
     margin: 50px auto;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-
 .waiting-screen h2 {
     margin-top: 0;
     color: var(--primary);
     margin-bottom: 20px;
 }
-
 .waiting-screen p {
     margin-bottom: 30px;
     font-size: 16px;
     line-height: 1.5;
 }
-
 .loader {
     display: inline-block;
     width: 50px;
@@ -39,52 +36,69 @@
     border-top-color: var(--primary);
     animation: spin 1s linear infinite;
 }
-
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 .status-message {
     margin-top: 20px;
     font-size: 14px;
     color: var(--text-light);
     min-height: 20px;
 }
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.btn-cancel {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #e5e7eb;
+    color: #374151;
+    border-radius: 6px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
 }
 </style>
-
 <script>
-// Функция для проверки статуса
 function checkStatus() {
     fetch("/livestream/check_status/{{ room.id }}/?t=" + Date.now())
         .then(response => response.json())
         .then(data => {
             if (!data.waiting_approval && !data.is_kicked) {
-                // Если пользователь одобрен, перенаправляем на страницу трансляции
                 document.getElementById('status-message').textContent = "Вы одобрены! Перенаправление...";
                 window.location.href = "/livestream/room/{{ room.id }}/";
             } else if (data.is_kicked) {
-                // Если пользователь исключен, перенаправляем на список трансляций
-                document.getElementById('status-message').textContent = "Вы были исключены из трансляции. Перенаправление...";
-                window.location.href = "{% url 'livestream_list' %}";
+                document.getElementById('status-message').textContent = "Вам отказано во входе ведущим.";
+                localStorage.setItem('kicked_from_room', '1');
+                setTimeout(function() {
+                    window.location.href = "{% url 'livestream_list' %}";
+                }, 1500);
             } else if (data.room_ended) {
-                // Если трансляция завершена
                 document.getElementById('status-message').textContent = "Трансляция завершена. Перенаправление...";
-                window.location.href = "{% url 'livestream_list' %}";
-            }
-            // Если всё еще ожидает, продолжаем проверять через 3 секунды
-            else {
+                localStorage.setItem('stream_ended', '1');
+                setTimeout(function() {
+                    window.location.href = "{% url 'livestream_list' %}";
+                }, 1500);
+            } else {
                 setTimeout(checkStatus, 3000);
             }
         })
         .catch(error => {
-            console.error("Ошибка проверки статуса:", error);
-            // При ошибке пробуем снова через 5 секунд
             setTimeout(checkStatus, 5000);
         });
 }
-
-// Запускаем первую проверку
 checkStatus();
+
+document.getElementById('cancel-waiting').onclick = function() {
+    fetch("/livestream/cancel_waiting/{{ room.id }}/", {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            localStorage.setItem('waiting_cancelled', '1');
+            window.location.href = "{% url 'livestream_list' %}";
+        }
+    });
+};
 </script>
 {% endblock %}

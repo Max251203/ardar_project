@@ -11,13 +11,16 @@
             <button id="camera-btn" class="control-btn" title="Включить/выключить камеру">
                 <i class="camera-icon">📹</i>
             </button>
+            <button id="hand-btn" class="control-btn" style="display: none;" title="Поднять руку">
+                <i class="hand-icon">✋</i> Поднять руку
+            </button>
             <button id="return-word-btn" class="control-btn return-word" style="display: none;" title="Вернуть слово ведущему">
                 <i class="return-icon">🔙</i> Вернуть слово
             </button>
             <button id="leave-btn" class="control-btn leave" title="Покинуть трансляцию">
                 <i class="leave-icon">❌</i> Выйти
             </button>
-            {% if is_host %}
+            {% if is_host or user.role == 'admin' or user.is_superuser %}
             <a href="{% url 'end_livestream' room.id %}" class="control-btn end" onclick="return confirm('Вы уверены, что хотите завершить трансляцию?')">
                 <i class="end-icon">⏹️</i> Завершить
             </a>
@@ -45,6 +48,7 @@
     </div>
 </div>
 <div id="custom-alert" class="custom-alert" style="display:none;"></div>
+<div id="pending-dialog" class="pending-dialog" style="display:none;"></div>
 <script src="https://cdn.agora.io/sdk/release/AgoraRTC_N.js"></script>
 <script>
 const appId = "{{ app_id }}";
@@ -59,10 +63,12 @@ let localTrackState = { audioTrackMuted: false, videoTrackMuted: false };
 let remoteUsers = {};
 let currentSpeakerId = null;
 let client = null;
-let allUsers = []; // Для хранения всех пользователей
-let amISpeaker = false; // Флаг, являюсь ли я спикером
-let lastStatusCheck = 0; // Время последней проверки статуса
-let statusCheckInterval = null; // Интервал проверки статуса
+let allUsers = [];
+let amISpeaker = false;
+let canEnableMic = true;
+let canEnableCamera = true;
+let handRaised = false;
+let statusCheckInterval = null;
 
 function showCustomAlert(msg, type = 'info') {
     let alertDiv = document.getElementById('custom-alert');
@@ -122,18 +128,6 @@ function showVideo(uid, label, isSpeaker) {
     updateReturnWordButton();
 }
 
-function updateReturnWordButton() {
-    const returnWordBtn = document.getElementById('return-word-btn');
-    if (!returnWordBtn) return;
-    
-    // Показываем кнопку только если я спикер и не ведущий
-    if (amISpeaker && !isHost) {
-        returnWordBtn.style.display = 'block';
-    } else {
-        returnWordBtn.style.display = 'none';
-    }
-}
-
 function updateUserIcons(uid, isMuted, hasVideo) {
     const iconsContainer = document.getElementById(`icons-${uid}`);
     if (iconsContainer) {
@@ -165,101 +159,80 @@ function removeVideo(uid) {
     }
 }
 
-// Функция для проверки статуса пользователя
+function getUserName(userId) {
+    for (let user of allUsers) {
+        if (user.id === userId) {
+            return user.name;
+        }
+    }
+    return null;
+}
+
+function updateReturnWordButton() {
+    const returnWordBtn = document.getElementById('return-word-btn');
+    if (!returnWordBtn) return;
+    
+    // Показываем кнопку только если я спикер и не ведущий
+    if (amISpeaker && !isHost) {
+        returnWordBtn.style.display = 'block';
+    } else {
+        returnWordBtn.style.display = 'none';
+    }
+}
+
+function updateMicCameraButtons() {
+    const micBtn = document.getElementById('mic-btn');
+    const cameraBtn = document.getElementById('camera-btn');
+    if (!canEnableMic) {
+        micBtn.disabled = true;
+        micBtn.classList.add('muted');
+        micBtn.title = "Ведущий запретил включать микрофон";
+    } else {
+        micBtn.disabled = false;
+        micBtn.classList.remove('muted');
+        micBtn.title = "Включить/выключить микрофон";
+    }
+    if (!canEnableCamera) {
+        cameraBtn.disabled = true;
+        cameraBtn.classList.add('muted');
+        cameraBtn.title = "Ведущий запретил включать камеру";
+    } else {
+        cameraBtn.disabled = false;
+        cameraBtn.classList.remove('muted');
+        cameraBtn.title = "Включить/выключить камеру";
+    }
+}
+
+function updateHandButton() {
+    const handBtn = document.getElementById('hand-btn');
+    if (roomType === 'broadcast' && !isHost && !amISpeaker) {
+        handBtn.style.display = 'inline-block';
+        handBtn.innerHTML = handRaised ? '<i class="hand-icon">✋</i> Опустить руку' : '<i class="hand-icon">✋</i> Поднять руку';
+    } else {
+        handBtn.style.display = 'none';
+    }
+}
+
 function checkUserStatus() {
-    const now = Date.now();
-    // Проверяем не чаще чем раз в 3 секунды
-    if (now - lastStatusCheck < 3000) return;
-    
-    lastStatusCheck = now;
-    
-    fetch("/livestream/check_status/{{ room.id }}/?t=" + now)
+    fetch("/livestream/check_status/{{ room.id }}/?t=" + Date.now())
         .then(response => response.json())
         .then(data => {
+            canEnableMic = data.can_enable_mic;
+            canEnableCamera = data.can_enable_camera;
+            handRaised = data.hand_raised;
+            updateMicCameraButtons();
+            updateHandButton();
             if (data.is_kicked) {
-                // Если пользователя исключили
-                showCustomAlert("Вы были исключены из трансляции", "error");
-                
-                // Останавливаем все треки и покидаем комнату
-                for (const trackName in localTracks) {
-                    const track = localTracks[trackName];
-                    if (track) {
-                        track.stop();
-                        track.close();
-                        localTracks[trackName] = null;
-                    }
-                }
-                
-                if (client) {
-                    client.leave().then(() => {
-                        window.location.href = "{% url 'livestream_list' %}";
-                    }).catch(error => {
-                        window.location.href = "{% url 'livestream_list' %}";
-                    });
-                } else {
-                    window.location.href = "{% url 'livestream_list' %}";
-                }
-            } else if (data.waiting_approval) {
-                // Если пользователь ожидает одобрения
-                showCustomAlert("Ожидание одобрения ведущего...", "info");
-                
-                // Останавливаем все треки и показываем экран ожидания
-                for (const trackName in localTracks) {
-                    const track = localTracks[trackName];
-                    if (track) {
-                        track.stop();
-                        track.close();
-                        localTracks[trackName] = null;
-                    }
-                }
-                
-                                // Показываем экран ожидания
-                document.querySelector('.livestream-main').innerHTML = `
-                    <div class="waiting-screen">
-                        <h2>Ожидание одобрения ведущего</h2>
-                        <p>Пожалуйста, дождитесь, пока ведущий разрешит вам вернуться в трансляцию.</p>
-                        <div class="loader"></div>
-                        <div id="status-message" class="status-message"></div>
-                    </div>
-                `;
-                
-                // Продолжаем проверять статус
-                setTimeout(checkUserStatus, 3000);
-            } else if (data.approved && document.querySelector('.waiting-screen')) {
-                // Если пользователя одобрили и он на экране ожидания
-                showCustomAlert("Вы были одобрены! Перезагрузка страницы...", "success");
-                window.location.reload();
+                localStorage.setItem('kicked_from_room', '1');
+                window.location.href = "{% url 'livestream_list' %}";
             }
-            
-            // Проверяем, завершена ли трансляция
             if (data.room_ended) {
-                showCustomAlert("Трансляция завершена ведущим", "info");
-                
-                // Останавливаем все треки и покидаем комнату
-                for (const trackName in localTracks) {
-                    const track = localTracks[trackName];
-                    if (track) {
-                        track.stop();
-                        track.close();
-                        localTracks[trackName] = null;
-                    }
-                }
-                
-                if (client) {
-                    client.leave().then(() => {
-                        window.location.href = "{% url 'livestream_list' %}";
-                    }).catch(error => {
-                        window.location.href = "{% url 'livestream_list' %}";
-                    });
-                } else {
-                    window.location.href = "{% url 'livestream_list' %}";
-                }
+                localStorage.setItem('stream_ended', '1');
+                window.location.href = "{% url 'livestream_list' %}";
             }
-        })
-        .catch(error => {
-            console.error("Ошибка проверки статуса:", error);
         });
 }
+statusCheckInterval = setInterval(checkUserStatus, 3000);
 
 document.addEventListener('DOMContentLoaded', async function() {
     try {
@@ -307,6 +280,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         document.getElementById('mic-btn').addEventListener('click', async function() {
+            if (!canEnableMic) {
+                showCustomAlert("Ведущий запретил включать микрофон", "error");
+                return;
+            }
             if (!localTracks.audioTrack) return;
             if (localTrackState.audioTrackMuted) {
                 await localTracks.audioTrack.setMuted(false);
@@ -324,6 +301,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
 
         document.getElementById('camera-btn').addEventListener('click', async function() {
+            if (!canEnableCamera) {
+                showCustomAlert("Ведущий запретил включать камеру", "error");
+                return;
+            }
             if (!localTracks.videoTrack) return;
             if (localTrackState.videoTrackMuted) {
                 await localTracks.videoTrack.setMuted(false);
@@ -340,8 +321,43 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
 
+        document.getElementById('hand-btn').addEventListener('click', function() {
+            if (!handRaised) {
+                fetch("/livestream/raise_hand/{{ room.id }}/", {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': '{{ csrf_token }}'}
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        handRaised = true;
+                        updateHandButton();
+                        showCustomAlert("Вы подняли руку. Ожидайте решения ведущего.", "info");
+                    }
+                });
+            } else {
+                fetch("/livestream/lower_hand/{{ room.id }}/", {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': '{{ csrf_token }}'}
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        handRaised = false;
+                        updateHandButton();
+                        showCustomAlert("Вы опустили руку.", "info");
+                    }
+                });
+            }
+        });
+
         document.getElementById('return-word-btn').addEventListener('click', function() {
-            returnWord();
+            fetch("/livestream/grant/{{ room.id }}/" + uid + "/", {
+                method: 'POST',
+                headers: {'X-CSRFToken': '{{ csrf_token }}'}
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    amISpeaker = false;
+                    updateReturnWordButton();
+                    showCustomAlert("Вы вернули слово ведущему", "success");
+                }
+            });
         });
 
         document.getElementById('leave-btn').addEventListener('click', async function() {
@@ -444,36 +460,63 @@ document.addEventListener('DOMContentLoaded', async function() {
         showCustomAlert("Не удалось подключиться к трансляции: " + error.message, "error");
     }
 
-    // Функция для получения имени пользователя по ID
-    function getUserName(userId) {
+    // Функция для проверки, является ли пользователь спикером
+    function isUserSpeaker(userId) {
+        // Проверяем, является ли пользователь спикером по данным с сервера
         for (let user of allUsers) {
-            if (user.id === userId) {
-                return user.name;
+            if (user.id === userId && user.is_speaker) {
+                return true;
             }
         }
-        return null;
+        return false;
     }
 
-    // Функция для возврата слова ведущему
-    function returnWord() {
-        fetch("/livestream/grant/{{ room.id }}/" + uid + "/", {
-            method: 'POST', 
-            headers: {'X-CSRFToken': '{{ csrf_token }}'}
-        })
-        .then(response => {
-            if (response.ok) {
-                amISpeaker = false;
-                updateReturnWordButton();
-                showCustomAlert("Вы вернули слово ведущему", "success");
-            } else {
-                showCustomAlert("Не удалось вернуть слово", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Ошибка возврата слова:", error);
-            showCustomAlert("Ошибка при возврате слова", "error");
-        });
+    // Диалог для ведущего по заявкам
+    if (isHost) {
+        setInterval(function() {
+            fetch("/livestream/pending_requests/{{ room.id }}/")
+                .then(r => r.json())
+                .then(data => {
+                    const dialog = document.getElementById('pending-dialog');
+                    if (data.waiting && data.waiting.length) {
+                        let html = '';
+                        data.waiting.forEach(u => {
+                            html += `<div class="pending-request">
+                                <span>${u.name} просится в трансляцию</span>
+                                <button onclick="approveUser(${u.id})" class="btn-approve">Принять</button>
+                                <button onclick="rejectUser(${u.id})" class="btn-reject">Отклонить</button>
+                            </div>`;
+                        });
+                        dialog.innerHTML = html;
+                        dialog.style.display = 'block';
+                    } else {
+                        dialog.innerHTML = '';
+                        dialog.style.display = 'none';
+                    }
+                });
+        }, 3000);
     }
+
+    window.approveUser = function(id) {
+        fetch("/livestream/approve/{{ room.id }}/" + id + "/", {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showCustomAlert("Пользователь одобрен", "success");
+            }
+        });
+    };
+        window.rejectUser = function(id) {
+        fetch("/livestream/kick/{{ room.id }}/" + id + "/", {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showCustomAlert("Пользователь отклонён", "info");
+            }
+        });
+    };
 
     // Чат
     function loadChat() {
@@ -489,9 +532,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                     chat.appendChild(div);
                 });
                 chat.scrollTop = chat.scrollHeight;
-            })
-            .catch(error => {
-                console.error("Ошибка загрузки чата:", error);
             });
     }
     
@@ -529,16 +569,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     loadChat();
 
     // Список пользователей
-    function isUserSpeaker(userId) {
-        // Проверяем, является ли пользователь спикером по данным с сервера
-        for (let user of allUsers) {
-            if (user.id === userId && user.is_speaker) {
-                return true;
-            }
-        }
-        return false;
-    }
-    
     function loadUsers() {
         fetch("/livestream/users/{{ room.id }}/")
             .then(r => r.json())
@@ -550,6 +580,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                 for (let user of allUsers) {
                     if (user.id === uid) {
                         amISpeaker = user.is_speaker;
+                        canEnableMic = user.can_enable_mic;
+                        canEnableCamera = user.can_enable_camera;
+                        handRaised = user.hand_raised;
                         break;
                     }
                 }
@@ -557,10 +590,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                 // Обновляем кнопку "Вернуть слово"
                 updateReturnWordButton();
                 
+                // Обновляем кнопки микрофона и камеры
+                updateMicCameraButtons();
+                
+                // Обновляем кнопку "Поднять руку"
+                updateHandButton();
+                
                 // Получаем текущий поисковый запрос
                 const searchQuery = document.getElementById('invite-search').value.trim().toLowerCase();
                 
-                                // Фильтруем пользователей по поисковому запросу
+                // Фильтруем пользователей по поисковому запросу
                 let filteredUsers = allUsers;
                 if (searchQuery) {
                     filteredUsers = allUsers.filter(user => 
@@ -605,9 +644,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                             </div>
                         `;
                         users.appendChild(waitingRow);
-                        
-                        // Показываем уведомление о новом запросе
-                        showCustomAlert(`Пользователь ${u.name} просится в трансляцию`, "info");
                     });
                 }
                 
@@ -616,9 +652,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 // Обновляем видео контейнеры
                 updateVideoContainers();
-                
-                // Проверяем статус пользователя
-                checkUserStatus();
             })
             .catch(error => {
                 console.error("Ошибка загрузки списка пользователей:", error);
@@ -641,6 +674,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (user.is_muted) {
             userIcons += '<span class="icon-muted" title="Микрофон выключен">🔇</span>';
         }
+        if (user.hand_raised) {
+            userIcons += '<span class="icon-hand-raised" title="Поднял руку">✋</span>';
+        }
         
         let html = `<span class="user-name-row">${user.name} ${userIcons}</span>`;
         
@@ -653,6 +689,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             html += `<button onclick="muteUser(${user.id})" class="btn-mute">${user.is_muted ? 'Включить' : 'Выключить'} микрофон</button>`;
+            html += `<button onclick="togglePermission(${user.id}, 'mic')" class="btn-permission">${user.can_enable_mic ? 'Запретить' : 'Разрешить'} микрофон</button>`;
+            html += `<button onclick="togglePermission(${user.id}, 'camera')" class="btn-permission">${user.can_enable_camera ? 'Запретить' : 'Разрешить'} камеру</button>`;
             html += `<button onclick="kickUser(${user.id})" class="btn-kick">Исключить</button>`;
             html += `</div>`;
         }
@@ -797,113 +835,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     };
     
-    window.approveUser = function(id) {
-        fetch("/livestream/approve/{{ room.id }}/" + id + "/", {
+    window.togglePermission = function(id, device) {
+        fetch(`/livestream/toggle_permission/{{ room.id }}/${id}/${device}/`, {
             method: 'POST', 
             headers: {'X-CSRFToken': '{{ csrf_token }}'}
         })
         .then(response => {
             if (response.ok) {
                 loadUsers();
-                showCustomAlert("Пользователь одобрен", "success");
+                showCustomAlert(`Права на ${device === 'mic' ? 'микрофон' : 'камеру'} изменены`, "success");
             } else {
-                showCustomAlert("Не удалось одобрить пользователя", "error");
+                showCustomAlert("Не удалось изменить права", "error");
             }
         })
         .catch(error => {
-            console.error("Ошибка одобрения пользователя:", error);
-            showCustomAlert("Ошибка при одобрении пользователя", "error");
-        });
-    };
-    
-    window.rejectUser = function(id) {
-        kickUser(id);
-    };
-
-    // Поиск и приглашение пользователей
-    const inviteSearch = document.getElementById('invite-search');
-    const inviteResults = document.getElementById('invite-results');
-    
-    if (inviteSearch) {
-        // Обработчик поиска пользователей для приглашения
-        if (isHost) {
-            let searchTimeout;
-            
-            inviteSearch.addEventListener('input', function() {
-                clearTimeout(searchTimeout);
-                const query = this.value.trim();
-                
-                if (query.length < 2) {
-                    inviteResults.innerHTML = '';
-                    loadUsers(); // Обновляем список пользователей при очистке поиска
-                    return;
-                }
-                
-                searchTimeout = setTimeout(() => {
-                    fetch("/livestream/invite/{{ room.id }}/?q=" + encodeURIComponent(query))
-                        .then(r => r.json())
-                        .then(data => {
-                            inviteResults.innerHTML = '';
-                            
-                            if (data.results && data.results.length) {
-                                data.results.forEach(u => {
-                                    const userItem = document.createElement('div');
-                                    userItem.className = 'invite-user';
-                                    userItem.innerHTML = `
-                                        <span>${u.name}</span>
-                                        <button onclick="inviteUser(${u.id}, this)">Пригласить</button>
-                                    `;
-                                    inviteResults.appendChild(userItem);
-                                });
-                            } else {
-                                inviteResults.innerHTML = '<div class="no-results">Пользователи не найдены</div>';
-                            }
-                        })
-                        .catch(error => {
-                            console.error("Ошибка поиска пользователей:", error);
-                            inviteResults.innerHTML = '<div class="no-results error">Ошибка поиска</div>';
-                        });
-                }, 300);
-            });
-        } else {
-            // Для обычных пользователей - просто фильтрация списка
-            inviteSearch.addEventListener('input', function() {
-                loadUsers(); // Обновляем список с учетом поискового запроса
-            });
-        }
-        
-        // Скрываем результаты при клике вне поля поиска
-        document.addEventListener('click', function(e) {
-            if (e.target !== inviteSearch && !inviteResults.contains(e.target)) {
-                inviteResults.innerHTML = '';
-            }
-        });
-    }
-    
-    window.inviteUser = function(userId, button) {
-        button.disabled = true;
-        button.textContent = 'Отправка...';
-        
-        fetch("/livestream/invite/{{ room.id }}/", {
-            method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}'},
-            body: new URLSearchParams({user_id: userId})
-        })
-        .then(response => {
-            if (response.ok) {
-                button.textContent = 'Приглашен';
-                showCustomAlert("Приглашение отправлено", "success");
-            } else {
-                button.textContent = 'Ошибка';
-                button.disabled = false;
-                showCustomAlert("Не удалось отправить приглашение", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Ошибка отправки приглашения:", error);
-            button.textContent = 'Ошибка';
-            button.disabled = false;
-            showCustomAlert("Ошибка при отправке приглашения", "error");
+            console.error("Ошибка изменения прав:", error);
+            showCustomAlert("Ошибка при изменении прав", "error");
         });
     };
 });
@@ -1207,6 +1154,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     background-color: #ef4444;
 }
 
+.user-actions .btn-permission {
+    background-color: #8b5cf6;
+}
+
 .icon-host {
     color: #f59e0b;
 }
@@ -1229,6 +1180,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 .icon-no-video {
     color: #6b7280;
+}
+
+.icon-hand-raised {
+    color: #f59e0b;
 }
 
 .chat-panel {
@@ -1335,40 +1290,45 @@ document.addEventListener('DOMContentLoaded', async function() {
     100% { opacity: 0; transform: translate(-50%, -20px); }
 }
 
-.waiting-screen {
-    background-color: var(--card);
+.pending-dialog {
+    position: fixed;
+    top: 80px;
+    right: 30px;
+    background: var(--card);
+    border: 2px solid var(--primary);
     border-radius: 10px;
-    padding: 30px;
-    text-align: center;
-    max-width: 600px;
-    margin: 50px auto;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.waiting-screen h2 {
-    margin-top: 0;
-    color: var(--primary);
-    margin-bottom: 20px;
-}
-.waiting-screen p {
-    margin-bottom: 30px;
-    font-size: 16px;
-    line-height: 1.5;
-}
-.loader {
-    display: inline-block;
-    width: 50px;
-    height: 50px;
-    border: 5px solid var(--border);
-    border-radius: 50%;
-    border-top-color: var(--primary);
-    animation: spin 1s linear infinite;
-}
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    padding: 20px;
+    z-index: 9999;
+    min-width: 250px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-/* Адаптивность */
+.pending-request {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.btn-approve {
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+.btn-reject {
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
 @media (max-width: 1200px) {
     .livestream-main {
         flex-direction: column;
@@ -1385,6 +1345,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         height: 400px;
     }
 }
+
 @media (max-width: 768px) {
     .side-panel {
         flex-direction: column;
@@ -1402,6 +1363,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         justify-content: flex-start;
     }
 }
+
 @media (max-width: 576px) {
     .video-controls {
         flex-wrap: wrap;

@@ -3,30 +3,29 @@
 {% block content %}
 <div class="livestream-main">
     <div class="video-block">
-        <iframe
-            id="jitsi-iframe"
-            src="https://meet.jit.si/{{ room.channel_id }}?config.disableDeepLinking=true&config.prejoinPageEnabled=false&userInfo.displayName={{ user_name }}"
-            allow="camera; microphone; fullscreen; display-capture; autoplay"
-            style="width:100%; height:400px; border:0; border-radius:10px; background:#222;">
-        </iframe>
-        <div class="status-bar" id="status-bar">
-            {% if is_host %}
-                <span class="status-host">Вы — ведущий</span>
-            {% else %}
-                <span class="status-viewer">Вы — участник</span>
-            {% endif %}
-            <span id="host-status"></span>
-        </div>
+        <div id="jitsi-container" style="width: 100%; min-height: 500px; background: #222; border-radius: 10px;"></div>
         <div class="video-controls">
+            <button id="hand-btn" class="control-btn" style="display: none;" title="Поднять руку">
+                <i class="hand-icon">✋</i> Поднять руку
+            </button>
             <button id="leave-btn" class="control-btn leave" title="Покинуть трансляцию">
                 <i class="leave-icon">❌</i> Выйти
             </button>
+            {% if is_host or user.role == 'admin' or user.is_superuser %}
+            <a href="{% url 'end_livestream' room.id %}" class="control-btn end" onclick="return confirm('Вы уверены, что хотите завершить трансляцию?')">
+                <i class="end-icon">⏹️</i> Завершить
+            </a>
+            {% endif %}
+        </div>
+        <div class="status-bar" id="status-bar">
+            <span id="speaker-status"></span>
         </div>
     </div>
     <div class="side-panel">
         <div class="users-panel">
             <div class="users-header">
                 <input type="text" id="invite-search" placeholder="Поиск пользователя..." autocomplete="off">
+                <div id="invite-results" class="invite-results"></div>
             </div>
             <div class="users-list" id="users-list"></div>
         </div>
@@ -34,138 +33,758 @@
             <div class="chat-messages" id="chat-messages"></div>
             <form id="chat-form" class="chat-form">
                 <input type="text" id="chat-input" placeholder="Сообщение..." autocomplete="off">
-                <button type="submit">Отправить</button>
+                <button type="submit" class="send-btn">Отправить</button>
             </form>
         </div>
     </div>
 </div>
-{% if is_host %}
-<div class="host-controls" style="margin-top: 20px; text-align: center;">
-    <a href="{% url 'end_livestream' room.id %}" class="btn-end" onclick="return confirm('Вы уверены, что хотите завершить трансляцию?')">Завершить трансляцию</a>
-</div>
-{% endif %}
+<div id="custom-alert" class="custom-alert" style="display:none;"></div>
+<div id="pending-dialog" class="pending-dialog" style="display:none;"></div>
+<script src="https://meet.jit.si/external_api.js"></script>
 <script>
-document.getElementById('leave-btn').onclick = function() {
-    window.location.href = "{% url 'livestream_list' %}";
-};
+const roomName = "ardar-{{ room.channel_id }}";
+const userName = "{{ user_name }}";
+const isHost = {{ is_host|yesno:"true,false" }};
+const roomType = "{{ room.type }}";
+const roomId = {{ room.id }};
+const csrfToken = "{{ csrf_token }}";
+let jitsiApi = null;
+let handRaised = false;
+let canEnableMic = true;
+let canEnableCamera = true;
 
-// Чат
-function loadChat() {
-    fetch("{% url 'livestream_chat' room.id %}")
-        .then(r => r.json())
-        .then(data => {
-            const chat = document.getElementById('chat-messages');
-            chat.innerHTML = '';
-            data.messages.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = 'chat-message';
-                div.innerHTML = `<b>${msg.user}:</b> ${msg.text} <span class="chat-time">${msg.created}</span>`;
-                chat.appendChild(div);
-            });
-            chat.scrollTop = chat.scrollHeight;
-        });
+function showCustomAlert(msg, type = 'info') {
+    let alertDiv = document.getElementById('custom-alert');
+    alertDiv.innerHTML = msg;
+    alertDiv.className = 'custom-alert ' + type;
+    alertDiv.style.display = 'block';
+    setTimeout(() => { alertDiv.style.display = 'none'; }, 3500);
 }
-document.getElementById('chat-form').onsubmit = function(e) {
-    e.preventDefault();
-    const input = document.getElementById('chat-input');
-    const text = input.value.trim();
-    if (!text) return;
-    fetch("{% url 'livestream_chat' room.id %}", {
-        method: 'POST',
-        headers: {'X-CSRFToken': '{{ csrf_token }}'},
-        body: new URLSearchParams({text})
-    })
-    .then(r => r.json())
-    .then(msg => {
-        input.value = '';
-        loadChat();
-    });
-};
-setInterval(loadChat, 3000);
-loadChat();
 
-// Список пользователей
-function loadUsers() {
-    fetch("{% url 'livestream_users' room.id %}")
-        .then(r => r.json())
+function updateHandButton() {
+    const handBtn = document.getElementById('hand-btn');
+    if (roomType === 'broadcast' && !isHost) {
+        handBtn.style.display = 'inline-block';
+        handBtn.innerHTML = handRaised ? '<i class="hand-icon">✋</i> Опустить руку' : '<i class="hand-icon">✋</i> Поднять руку';
+    } else {
+        handBtn.style.display = 'none';
+    }
+}
+
+function checkUserStatus() {
+    fetch("/livestream/check_status/" + roomId + "/?t=" + Date.now())
+        .then(response => response.json())
         .then(data => {
-            const users = document.getElementById('users-list');
-            users.innerHTML = '';
-            data.users.forEach(u => {
-                let html = `<div class="user-row"><span>${u.name}`;
-                if (u.is_host) html += ' <b>(Ведущий)</b>';
-                if (u.is_speaker) html += ' <i>(Говорит)</i>';
-                if (u.is_muted) html += ' <i>(Микрофон выкл.)</i>';
-                html += '</span>';
-                if (isHost && !u.is_host) {
-                    html += `<button onclick="kickUser(${u.id})">Выгнать</button>
-                             <button onclick="muteUser(${u.id})">${u.is_muted ? 'Включить' : 'Выключить'} микрофон</button>`;
+            handRaised = data.hand_raised;
+            canEnableMic = data.can_enable_mic;
+            canEnableCamera = data.can_enable_camera;
+            updateHandButton();
+            
+            // Обновляем права в Jitsi
+            if (jitsiApi) {
+                if (!canEnableMic) {
+                    jitsiApi.executeCommand('toggleAudio');
+                    jitsiApi.executeCommand('overwriteConfig', {
+                        toolbarButtons: ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'profile', 'chat', 'recording', 'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand', 'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts', 'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone', 'security']
+                    });
                 }
-                html += '</div>';
-                users.innerHTML += html;
-            });
+                if (!canEnableCamera) {
+                    jitsiApi.executeCommand('toggleVideo');
+                }
+            }
+            
+            if (data.is_kicked) {
+                localStorage.setItem('kicked_from_room', '1');
+                window.location.href = "{% url 'livestream_list' %}";
+            }
+            if (data.room_ended) {
+                localStorage.setItem('stream_ended', '1');
+                window.location.href = "{% url 'livestream_list' %}";
+            }
         });
 }
-setInterval(loadUsers, 3000);
-loadUsers();
-window.kickUser = function(id) {
-    fetch("{% url 'livestream_kick' room.id 0 %}".replace('/0/', '/' + id + '/'), {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}}).then(loadUsers);
-}
-window.muteUser = function(id) {
-    fetch("{% url 'livestream_mute' room.id 0 %}".replace('/0/', '/' + id + '/'), {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}}).then(loadUsers);
-}
+setInterval(checkUserStatus, 3000);
 
-// Приглашения
-{% if is_host %}
-document.getElementById('invite-search').oninput = function() {
-    const q = this.value;
-    if (q.length < 2) return;
-    fetch("{% url 'livestream_invite' room.id %}?q=" + encodeURIComponent(q))
-        .then(r => r.json())
-        .then(data => {
-            const res = document.getElementById('invite-results');
-            res.innerHTML = '';
-            data.results.forEach(u => {
-                const btn = document.createElement('button');
-                btn.textContent = 'Пригласить';
-                btn.onclick = function() {
-                    fetch("{% url 'livestream_invite' room.id %}", {
-                        method: 'POST',
-                        headers: {'X-CSRFToken': '{{ csrf_token }}'},
-                        body: new URLSearchParams({user_id: u.id})
-                    }).then(() => { btn.textContent = 'Приглашён'; btn.disabled = true; });
-                };
-                res.innerHTML += `<div>${u.name} </div>`;
-                res.lastChild.appendChild(btn);
+document.addEventListener('DOMContentLoaded', function() {
+    const domain = 'meet.jit.si';
+    const options = {
+        roomName: roomName,
+        width: '100%',
+        height: 500,
+        parentNode: document.getElementById('jitsi-container'),
+        userInfo: {
+            displayName: userName
+        },
+        configOverwrite: {
+            startWithAudioMuted: !isHost && roomType === 'broadcast',
+            startWithVideoMuted: !isHost && roomType === 'broadcast',
+            prejoinPageEnabled: false,
+            disableDeepLinking: true
+        },
+        interfaceConfigOverwrite: {
+            TOOLBAR_BUTTONS: [
+                'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+                'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+                'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+                'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
+                'security'
+            ],
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            DEFAULT_BACKGROUND: '#111',
+            DEFAULT_REMOTE_DISPLAY_NAME: 'Участник',
+            DISABLE_JOIN_LEAVE_NOTIFICATIONS: true
+        }
+    };
+
+    jitsiApi = new JitsiMeetExternalAPI(domain, options);
+
+    jitsiApi.addEventListeners({
+        videoConferenceJoined: function() {
+            showCustomAlert("Вы присоединились к трансляции", "success");
+            
+            // Если это режим трансляции и пользователь не ведущий, отключаем микрофон и камеру
+            if (roomType === 'broadcast' && !isHost) {
+                jitsiApi.executeCommand('toggleAudio');
+                jitsiApi.executeCommand('toggleVideo');
+            }
+        },
+        participantJoined: function(participant) {
+            showCustomAlert(`${participant.displayName} присоединился к трансляции`, "info");
+        },
+        participantLeft: function(participant) {
+            showCustomAlert(`${participant.displayName} покинул трансляцию`, "info");
+        },
+        audioMuteStatusChanged: function(muted) {
+            if (!canEnableMic && !muted.muted) {
+                jitsiApi.executeCommand('toggleAudio');
+                showCustomAlert("Ведущий запретил включать микрофон", "error");
+            }
+        },
+        videoMuteStatusChanged: function(muted) {
+            if (!canEnableCamera && !muted.muted) {
+                jitsiApi.executeCommand('toggleVideo');
+                showCustomAlert("Ведущий запретил включать камеру", "error");
+            }
+        }
+    });
+
+    document.getElementById('hand-btn').addEventListener('click', function() {
+        if (!handRaised) {
+            fetch("/livestream/raise_hand/" + roomId + "/", {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrfToken}
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    handRaised = true;
+                    updateHandButton();
+                    showCustomAlert("Вы подняли руку. Ожидайте решения ведущего.", "info");
+                    jitsiApi.executeCommand('toggleRaiseHand');
+                }
             });
+        } else {
+            fetch("/livestream/lower_hand/" + roomId + "/", {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrfToken}
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    handRaised = false;
+                    updateHandButton();
+                    showCustomAlert("Вы опустили руку.", "info");
+                    jitsiApi.executeCommand('toggleRaiseHand');
+                }
+            });
+        }
+    });
+
+    document.getElementById('leave-btn').addEventListener('click', function() {
+        jitsiApi.executeCommand('hangup');
+        setTimeout(function() {
+            window.location.href = "{% url 'livestream_list' %}";
+        }, 500);
+    });
+
+    if (isHost) {
+        setInterval(function() {
+            fetch("/livestream/pending_requests/" + roomId + "/")
+                .then(r => r.json())
+                .then(data => {
+                    const dialog = document.getElementById('pending-dialog');
+                    if (data.waiting && data.waiting.length) {
+                        let html = '';
+                        data.waiting.forEach(u => {
+                            html += `<div class="pending-request">
+                                <span>${u.name} просится в трансляцию</span>
+                                <button onclick="approveUser(${u.id})" class="btn-approve">Принять</button>
+                                <button onclick="rejectUser(${u.id})" class="btn-reject">Отклонить</button>
+                            </div>`;
+                        });
+                        dialog.innerHTML = html;
+                        dialog.style.display = 'block';
+                    } else {
+                        dialog.innerHTML = '';
+                        dialog.style.display = 'none';
+                    }
+                });
+        }, 3000);
+    }
+
+    window.approveUser = function(id) {
+        fetch("/livestream/approve/" + roomId + "/" + id + "/", {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken}
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showCustomAlert("Пользователь одобрен", "success");
+            }
         });
-};
-{% endif %}
+    };
+    window.rejectUser = function(id) {
+        fetch("/livestream/kick/" + roomId + "/" + id + "/", {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken}
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showCustomAlert("Пользователь отклонён", "info");
+            }
+        });
+    };
+
+    function loadChat() {
+        fetch("/livestream/chat/" + roomId + "/")
+            .then(r => r.json())
+            .then(data => {
+                const chat = document.getElementById('chat-messages');
+                chat.innerHTML = '';
+                data.messages.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = 'chat-message';
+                    div.innerHTML = `<b>${msg.user}:</b> ${msg.text} <span class="chat-time">${msg.created}</span>`;
+                    chat.appendChild(div);
+                });
+                chat.scrollTop = chat.scrollHeight;
+            });
+    }
+    document.getElementById('chat-form').onsubmit = function(e) {
+        e.preventDefault();
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+        const button = this.querySelector('button');
+        button.disabled = true;
+        button.textContent = 'Отправка...';
+        fetch("/livestream/chat/" + roomId + "/", {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken},
+            body: new URLSearchParams({text})
+        })
+        .then(r => r.json())
+        .then(msg => {
+            input.value = '';
+            loadChat();
+            button.disabled = false;
+            button.textContent = 'Отправить';
+        })
+        .catch(() => {
+            button.disabled = false;
+            button.textContent = 'Отправить';
+        });
+    };
+    setInterval(loadChat, 3000);
+    loadChat();
+
+    function loadUsers() {
+        fetch("/livestream/users/" + roomId + "/")
+            .then(r => r.json())
+            .then(data => {
+                const users = document.getElementById('users-list');
+                users.innerHTML = '';
+                
+                // Сначала отображаем ведущего
+                data.users.forEach(u => {
+                    if (u.is_host) {
+                        renderUserRow(u, users);
+                    }
+                });
+                
+                // Затем спикеров
+                data.users.forEach(u => {
+                    if (!u.is_host && u.is_speaker) {
+                        renderUserRow(u, users);
+                    }
+                });
+                
+                // Затем остальных пользователей
+                data.users.forEach(u => {
+                    if (!u.is_host && !u.is_speaker) {
+                        renderUserRow(u, users);
+                    }
+                });
+                
+                // Обрабатываем ожидающих одобрения
+                if (isHost && data.waiting && data.waiting.length) {
+                    data.waiting.forEach(u => {
+                        const waitingRow = document.createElement('div');
+                        waitingRow.className = 'user-row waiting';
+                        waitingRow.innerHTML = `
+                            <span class="waiting-user">${u.name} просится в трансляцию</span>
+                            <div class="user-actions">
+                                <button onclick="approveUser(${u.id})" class="btn-approve">Одобрить</button>
+                                <button onclick="rejectUser(${u.id})" class="btn-reject">Отклонить</button>
+                            </div>
+                        `;
+                        users.appendChild(waitingRow);
+                    });
+                }
+            });
+    }
+    
+    function renderUserRow(user, container) {
+        const row = document.createElement('div');
+        row.className = 'user-row';
+        row.dataset.userId = user.id;
+        row.dataset.isSpeaker = user.is_speaker;
+        
+        let userIcons = '';
+        if (user.is_host) {
+            userIcons += '<span class="icon-host" title="Ведущий">👑</span>';
+        }
+        if (user.is_speaker) {
+            userIcons += '<span class="icon-speaker" title="Говорит">🎙️</span>';
+        }
+        if (user.is_muted) {
+            userIcons += '<span class="icon-muted" title="Микрофон выключен">🔇</span>';
+        }
+        if (user.hand_raised) {
+            userIcons += '<span class="icon-hand-raised" title="Поднял руку">✋</span>';
+        }
+        
+        let html = `<span class="user-name-row">${user.name} ${userIcons}</span>`;
+        
+        // Добавляем кнопки управления для ведущего
+        if (isHost && user.id !== parseInt("{{ user_id }}")) {
+            html += `<div class="user-actions">`;
+            
+            if (roomType === 'broadcast') {
+                html += `<button onclick="grantUser(${user.id})" class="${user.is_speaker ? 'btn-revoke' : 'btn-grant'}">${user.is_speaker ? 'Забрать слово' : 'Дать слово'}</button>`;
+            }
+            
+            html += `<button onclick="muteUser(${user.id})" class="btn-mute">${user.is_muted ? 'Включить' : 'Выключить'} микрофон</button>`;
+            html += `<button onclick="togglePermission(${user.id}, 'mic')" class="btn-permission">${user.can_enable_mic ? 'Запретить' : 'Разрешить'} микрофон</button>`;
+            html += `<button onclick="togglePermission(${user.id}, 'camera')" class="btn-permission">${user.can_enable_camera ? 'Запретить' : 'Разрешить'} камеру</button>`;
+            html += `<button onclick="kickUser(${user.id})" class="btn-kick">Исключить</button>`;
+            html += `</div>`;
+        }
+        
+        row.innerHTML = html;
+        container.appendChild(row);
+    }
+    
+        window.kickUser = function(id) {
+        fetch("/livestream/kick/" + roomId + "/" + id + "/", {
+            method: 'POST', 
+            headers: {'X-CSRFToken': csrfToken}
+        })
+        .then(response => {
+            if (response.ok) {
+                loadUsers();
+                showCustomAlert("Пользователь исключён", "success");
+            } else {
+                showCustomAlert("Не удалось исключить пользователя", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка исключения пользователя:", error);
+            showCustomAlert("Ошибка при исключении пользователя", "error");
+        });
+    };
+    
+    window.muteUser = function(id) {
+        fetch("/livestream/mute/" + roomId + "/" + id + "/", {
+            method: 'POST', 
+            headers: {'X-CSRFToken': csrfToken}
+        })
+        .then(response => {
+            if (response.ok) {
+                loadUsers();
+                showCustomAlert("Статус микрофона изменен", "success");
+            } else {
+                showCustomAlert("Не удалось изменить статус микрофона", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка изменения статуса микрофона:", error);
+            showCustomAlert("Ошибка при изменении статуса микрофона", "error");
+        });
+    };
+    
+    window.grantUser = function(id) {
+        fetch("/livestream/grant/" + roomId + "/" + id + "/", {
+            method: 'POST', 
+            headers: {'X-CSRFToken': csrfToken}
+        })
+        .then(response => {
+            if (response.ok) {
+                loadUsers();
+                showCustomAlert("Статус спикера изменен", "success");
+            } else {
+                showCustomAlert("Не удалось изменить статус спикера", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка изменения статуса спикера:", error);
+            showCustomAlert("Ошибка при изменении статуса спикера", "error");
+        });
+    };
+    
+    window.togglePermission = function(id, device) {
+        fetch(`/livestream/toggle_permission/${roomId}/${id}/${device}/`, {
+            method: 'POST', 
+            headers: {'X-CSRFToken': csrfToken}
+        })
+        .then(response => {
+            if (response.ok) {
+                loadUsers();
+                showCustomAlert(`Права на ${device === 'mic' ? 'микрофон' : 'камеру'} изменены`, "success");
+            } else {
+                showCustomAlert("Не удалось изменить права", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка изменения прав:", error);
+            showCustomAlert("Ошибка при изменении прав", "error");
+        });
+    };
+    
+    setInterval(loadUsers, 3000);
+    loadUsers();
+});
 </script>
 <style>
-.livestream-main { display: flex; gap: 20px; }
-.video-block { flex: 2; min-width: 600px; }
-.status-bar { margin-bottom: 10px; }
-.status-host { color: #2563eb; font-weight: bold; }
-.status-viewer { color: #aaa; }
-.side-panel { flex: 1; min-width: 350px; max-width: 400px; display: flex; flex-direction: column; gap: 20px; }
-.users-panel { background: var(--card); border-radius: 8px; padding: 10px; height: 250px; display: flex; flex-direction: column; }
-.users-header { margin-bottom: 8px; }
-.users-list { flex: 1; overflow-y: auto; }
-.user-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.user-row button { font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; background: #eee; cursor: pointer; }
-.invite-panel { margin-top: 8px; }
-#invite-search { width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border); }
-#invite-results div { margin-bottom: 5px; }
-.chat-panel { background: var(--card); border-radius: 8px; padding: 10px; height: 250px; display: flex; flex-direction: column; }
-.chat-messages { flex: 1; overflow-y: auto; margin-bottom: 10px; }
-.chat-message { margin-bottom: 5px; }
-.chat-time { color: #aaa; font-size: 11px; margin-left: 5px; }
-.chat-form { display: flex; gap: 5px; }
-#chat-input { flex: 1; padding: 6px; border-radius: 4px; border: 1px solid var(--border); }
-.btn-end { display: inline-block; padding: 12px 24px; background-color: #e53e3e; color: white; border-radius: 6px; font-weight: 500; }
-.video-controls { display: flex; gap: 10px; margin-bottom: 10px; }
-.control-btn { padding: 10px 18px; border-radius: 6px; border: none; background: #2563eb; color: #fff; font-size: 18px; cursor: pointer; }
-.control-btn.leave { background: #ef4444; }
+.livestream-main {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.video-block {
+    flex: 2;
+    min-width: 600px;
+}
+.status-bar {
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: var(--card);
+    border-radius: 6px;
+    font-size: 16px;
+    min-height: 44px;
+}
+.side-panel {
+    flex: 1;
+    min-width: 300px;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.users-panel {
+    background: var(--card);
+    border-radius: 8px;
+    padding: 15px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+.users-header {
+    margin-bottom: 15px;
+    position: relative;
+}
+.users-header input {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background-color: var(--bg);
+    color: var(--text);
+}
+.invite-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 5px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.users-list {
+    flex: 1;
+    overflow-y: auto;
+    margin-right: -5px;
+    padding-right: 5px;
+    width: 100%;
+}
+.chat-panel {
+    background: var(--card);
+    border-radius: 8px;
+    padding: 15px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+}
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding-right: 5px;
+    width: 100%;
+}
+.chat-message {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background-color: var(--bg);
+    border-radius: 6px;
+    font-size: 14px;
+    word-break: break-word;
+}
+.chat-time {
+    color: var(--text-light);
+    font-size: 11px;
+    margin-left: 5px;
+}
+.chat-form {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+.chat-form input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background-color: var(--bg);
+    color: var(--text);
+}
+.send-btn {
+    padding: 0 15px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 100px;
+    white-space: nowrap;
+    height: 40px;
+    font-size: 14px;
+}
+.custom-alert {
+    position: fixed;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-size: 16px;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: fadeInOut 3.5s;
+    max-width: 80%;
+    text-align: center;
+}
+.custom-alert.info {
+    background-color: #3b82f6;
+    color: white;
+}
+.custom-alert.success {
+    background-color: #10b981;
+    color: white;
+}
+.custom-alert.warning {
+    background-color: #f59e0b;
+    color: white;
+}
+.custom-alert.error {
+    background-color: #ef4444;
+    color: white;
+}
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    10% { opacity: 1; transform: translate(-50%, 0); }
+    90% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+.pending-dialog {
+    position: fixed;
+    top: 80px;
+    right: 30px;
+    background: var(--card);
+    border: 2px solid var(--primary);
+    border-radius: 10px;
+    padding: 20px;
+    z-index: 9999;
+    min-width: 250px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.pending-request {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.btn-approve {
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+.btn-reject {
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+.video-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+.control-btn {
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: none;
+    background: #2563eb;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 120px;
+    max-width: 200px;
+    text-align: center;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+.control-btn.leave {
+    background: #ef4444;
+}
+.control-btn.end {
+    background: #7e22ce;
+}
+.user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background-color: var(--bg);
+    transition: background-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+.user-row:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+.user-row.waiting {
+    background-color: #fff7ed;
+    border: 1px dashed #f59e0b;
+}
+.waiting-user {
+    color: #b45309;
+    font-weight: 500;
+}
+.user-name-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}
+.user-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+.user-actions button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+    background-color: var(--primary);
+    color: white;
+    height: 32px;
+}
+.user-actions .btn-kick {
+    background-color: #ef4444;
+}
+.user-actions .btn-mute {
+    background-color: #f59e0b;
+}
+.user-actions .btn-grant {
+    background-color: #10b981;
+}
+.user-actions .btn-revoke {
+    background-color: #6b7280;
+}
+.user-actions .btn-permission {
+    background-color: #8b5cf6;
+}
+.icon-host {
+    color: #f59e0b;
+}
+.icon-speaker {
+    color: #10b981;
+}
+.icon-muted {
+    color: #ef4444;
+}
+.icon-hand-raised {
+    color: #f59e0b;
+}
+@media (max-width: 1200px) {
+    .livestream-main {
+        flex-direction: column;
+    }
+    .video-block {
+        min-width: 100%;
+    }
+    .side-panel {
+        max-width: 100%;
+        flex-direction: row;
+    }
+    .users-panel, .chat-panel {
+        flex: 1;
+        height: 400px;
+    }
+}
+@media (max-width: 768px) {
+    .side-panel {
+        flex-direction: column;
+    }
+}
+@media (max-width: 576px) {
+    .video-controls {
+        flex-wrap: wrap;
+    }
+    .control-btn {
+        flex: 1;
+        min-width: 100px;
+    }
+}
 </style>
 {% endblock %}

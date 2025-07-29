@@ -38,6 +38,11 @@ class LivestreamParticipant(models.Model):
     is_speaker = models.BooleanField(default=False)
     is_kicked = models.BooleanField(default=False)
     waiting_approval = models.BooleanField(default=False)
+    # Новые поля для управления правами
+    can_enable_mic = models.BooleanField(default=True)
+    can_enable_camera = models.BooleanField(default=True)
+    # Для "поднять руку"
+    hand_raised = models.BooleanField(default=False)
 
 
 class LivestreamChatMessage(models.Model):

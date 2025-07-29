@@ -32,6 +32,7 @@ function reloadRooms() {
                     </div>
                     <div class="livestream-actions">
                         <a href="/livestream/room/${room.id}/" class="btn-join">Присоединиться</a>
+                        ${room.can_end ? `<a href="/livestream/end/${room.id}/" class="btn-end" onclick="return confirm('Завершить трансляцию?')">Завершить</a>` : ''}
                     </div>
                 </div>`;
             });
@@ -40,6 +41,23 @@ function reloadRooms() {
 }
 reloadRooms();
 setInterval(reloadRooms, 5000);
+
+// Сообщения о завершении/исключении
+document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем localStorage на флаги
+    if (localStorage.getItem('kicked_from_room')) {
+        alert('Вы были исключены из трансляции ведущим.');
+        localStorage.removeItem('kicked_from_room');
+    }
+    if (localStorage.getItem('stream_ended')) {
+        alert('Трансляция завершена ведущим.');
+        localStorage.removeItem('stream_ended');
+    }
+    if (localStorage.getItem('waiting_cancelled')) {
+        alert('Вы отменили заявку на вход.');
+        localStorage.removeItem('waiting_cancelled');
+    }
+});
 </script>
 <style>
 .livestream-list { display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px; }

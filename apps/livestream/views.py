@@ -38,8 +38,14 @@ def livestream_list_ajax(request):
             'name': room.name,
             'platform': room.get_platform_display(),
             'host': room.host.name,
+            'host_id': room.host.id,
             'started_at': room.started_at.strftime('%d.%m.%Y %H:%M'),
             'description': room.description,
+            'can_end': (
+                request.user.is_superuser or
+                request.user == room.host or
+                getattr(request.user, 'role', '') == 'admin'
+            )
         })
     return JsonResponse({'rooms': data})
 
@@ -67,12 +73,21 @@ def livestream_room(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
     is_host = (request.user == room.host)
 
-    # Проверяем, не исключен ли пользователь
+    # Получаем или создаём участника
     participant, created = LivestreamParticipant.objects.get_or_create(
-        room=room, user=request.user
+        room=room, user=request.user,
+        defaults={
+            'is_muted': False,
+            'is_speaker': is_host,
+            'is_kicked': False,
+            'waiting_approval': False,
+            'can_enable_mic': True,
+            'can_enable_camera': True,
+            'hand_raised': False
+        }
     )
 
-    # Если пользователь исключен и не ожидает одобрения, устанавливаем флаг ожидания
+    # Если пользователь исключён и не ожидает одобрения, устанавливаем флаг ожидания
     if participant.is_kicked and not participant.waiting_approval:
         participant.waiting_approval = True
         participant.save()
@@ -125,7 +140,11 @@ def generate_token(request):
 @login_required
 def end_livestream(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-    if request.user != room.host and not request.user.is_superuser and getattr(request.user, 'role', '') != 'admin':
+    if not (
+        request.user == room.host or
+        request.user.is_superuser or
+        getattr(request.user, 'role', '') == 'admin'
+    ):
         return HttpResponseForbidden("У вас нет прав для завершения этой трансляции")
     room.is_active = False
     room.save()
@@ -164,13 +183,9 @@ def livestream_chat(request, room_id):
 @login_required
 def livestream_users(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-
-    # Получаем активных участников (не исключенных)
     participants = LivestreamParticipant.objects.filter(
         room=room, is_kicked=False, waiting_approval=False
     ).select_related('user')
-
-    # Получаем ожидающих одобрения
     waiting = LivestreamParticipant.objects.filter(
         room=room, waiting_approval=True
     ).select_related('user')
@@ -183,6 +198,9 @@ def livestream_users(request, room_id):
             'is_muted': p.is_muted,
             'is_speaker': p.is_speaker,
             'is_host': p.user == room.host,
+            'can_enable_mic': p.can_enable_mic,
+            'can_enable_camera': p.can_enable_camera,
+            'hand_raised': p.hand_raised,
         })
 
     waiting_list = []
@@ -195,21 +213,27 @@ def livestream_users(request, room_id):
 @login_required
 def check_user_status(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id)
-
-    # Проверяем статус пользователя
     participant, created = LivestreamParticipant.objects.get_or_create(
-        room=room, user=request.user
+        room=room, user=request.user,
+        defaults={
+            'is_muted': False,
+            'is_speaker': request.user == room.host,
+            'is_kicked': False,
+            'waiting_approval': False,
+            'can_enable_mic': True,
+            'can_enable_camera': True,
+            'hand_raised': False
+        }
     )
-
-    # Проверяем, завершена ли трансляция
     room_ended = not room.is_active
-
     return JsonResponse({
         'is_kicked': participant.is_kicked,
         'waiting_approval': participant.waiting_approval,
         'approved': not participant.is_kicked and not participant.waiting_approval,
         'room_ended': room_ended,
-        # Добавляем временную метку для предотвращения кэширования
+        'can_enable_mic': participant.can_enable_mic,
+        'can_enable_camera': participant.can_enable_camera,
+        'hand_raised': participant.hand_raised,
         'timestamp': int(time.time())
     })
 
@@ -218,18 +242,14 @@ def check_user_status(request, room_id):
 @login_required
 def livestream_invite(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-
-    # Проверяем, что запрос от ведущего
     if request.user != room.host and not request.user.is_superuser:
         return JsonResponse({'error': 'Нет прав'}, status=403)
-
     if request.method == 'POST':
         user_id = int(request.POST.get('user_id'))
         user = User.objects.get(id=user_id)
         LivestreamInvite.objects.get_or_create(
             room=room, invited_user=user, invited_by=request.user)
         return JsonResponse({'ok': True})
-
     q = request.GET.get('q', '')
     users = User.objects.filter(name__icontains=q).exclude(
         id__in=LivestreamParticipant.objects.filter(room=room).values('user_id'))[:10]
@@ -240,21 +260,15 @@ def livestream_invite(request, room_id):
 @login_required
 def livestream_kick(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-
-    # Проверяем, что запрос от ведущего
-    if request.user != room.host and not request.user.is_superuser:
+    if request.user != room.host and not request.user.is_superuser and getattr(request.user, 'role', '') != 'admin':
         return JsonResponse({'error': 'Нет прав'}, status=403)
-
-    # Находим участника
     participant = get_object_or_404(
         LivestreamParticipant, room=room, user_id=user_id)
-
-    # Исключаем участника
     participant.is_kicked = True
     participant.waiting_approval = False
-    participant.is_speaker = False  # Убираем статус спикера при исключении
+    participant.is_speaker = False
+    participant.hand_raised = False
     participant.save()
-
     return JsonResponse({'success': True})
 
 
@@ -262,20 +276,13 @@ def livestream_kick(request, room_id, user_id):
 @login_required
 def livestream_approve(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-
-    # Проверяем, что запрос от ведущего
-    if request.user != room.host and not request.user.is_superuser:
+    if request.user != room.host and not request.user.is_superuser and getattr(request.user, 'role', '') != 'admin':
         return JsonResponse({'error': 'Нет прав'}, status=403)
-
-    # Находим участника
     participant = get_object_or_404(
         LivestreamParticipant, room=room, user_id=user_id)
-
-    # Одобряем участника
     participant.is_kicked = False
     participant.waiting_approval = False
     participant.save()
-
     return JsonResponse({'success': True})
 
 
@@ -283,19 +290,12 @@ def livestream_approve(request, room_id, user_id):
 @login_required
 def livestream_mute(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-
-    # Проверяем, что запрос от ведущего
-    if request.user != room.host and not request.user.is_superuser:
+    if request.user != room.host and not request.user.is_superuser and getattr(request.user, 'role', '') != 'admin':
         return JsonResponse({'error': 'Нет прав'}, status=403)
-
-    # Находим участника
     participant = get_object_or_404(
         LivestreamParticipant, room=room, user_id=user_id)
-
-    # Меняем статус микрофона
     participant.is_muted = not participant.is_muted
     participant.save()
-
     return JsonResponse({'success': True})
 
 
@@ -303,33 +303,95 @@ def livestream_mute(request, room_id, user_id):
 @login_required
 def livestream_grant(request, room_id, user_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-
-    # Проверяем, что запрос от ведущего или от самого пользователя (для возврата слова)
-    if request.user != room.host and request.user.id != user_id and not request.user.is_superuser:
+    if request.user != room.host and request.user.id != user_id and not request.user.is_superuser and getattr(request.user, 'role', '') != 'admin':
         return JsonResponse({'error': 'Нет прав'}, status=403)
-
-    # Если пользователь возвращает слово сам
     if request.user.id == user_id:
         participant = get_object_or_404(
             LivestreamParticipant, room=room, user=request.user)
         participant.is_speaker = False
+        participant.hand_raised = False
         participant.save()
         return JsonResponse({'success': True})
-
-    # Если ведущий дает или забирает слово
     participant = get_object_or_404(
         LivestreamParticipant, room=room, user_id=user_id)
-
-    # Если пользователь уже спикер, забираем слово
     if participant.is_speaker:
         participant.is_speaker = False
+        participant.hand_raised = False
     else:
-        # Сначала убираем статус спикера у всех остальных
         LivestreamParticipant.objects.filter(
             room=room).update(is_speaker=False)
-        # Затем даем слово выбранному пользователю
         participant.is_speaker = True
-
+        participant.hand_raised = False
     participant.save()
-
     return JsonResponse({'success': True})
+
+# Новое: управление правами на микрофон/камеру
+
+
+@require_POST
+@login_required
+def livestream_toggle_permission(request, room_id, user_id, device):
+    room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
+    if request.user != room.host and not request.user.is_superuser and getattr(request.user, 'role', '') != 'admin':
+        return JsonResponse({'error': 'Нет прав'}, status=403)
+    participant = get_object_or_404(
+        LivestreamParticipant, room=room, user_id=user_id)
+    if device == 'mic':
+        participant.can_enable_mic = not participant.can_enable_mic
+    elif device == 'camera':
+        participant.can_enable_camera = not participant.can_enable_camera
+    participant.save()
+    return JsonResponse({'success': True, 'can_enable_mic': participant.can_enable_mic, 'can_enable_camera': participant.can_enable_camera})
+
+# Новое: "поднять руку"
+
+
+@require_POST
+@login_required
+def livestream_raise_hand(request, room_id):
+    room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
+    participant = get_object_or_404(
+        LivestreamParticipant, room=room, user=request.user)
+    participant.hand_raised = True
+    participant.save()
+    return JsonResponse({'success': True})
+
+
+@require_POST
+@login_required
+def livestream_lower_hand(request, room_id):
+    room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
+    participant = get_object_or_404(
+        LivestreamParticipant, room=room, user=request.user)
+    participant.hand_raised = False
+    participant.save()
+    return JsonResponse({'success': True})
+
+# Новое: отмена заявки на вход
+
+
+@require_POST
+@login_required
+def livestream_cancel_waiting(request, room_id):
+    room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
+    participant = get_object_or_404(
+        LivestreamParticipant, room=room, user=request.user)
+    participant.waiting_approval = False
+    participant.is_kicked = True
+    participant.save()
+    return JsonResponse({'success': True})
+
+# Новое: ведущий видит заявки в виде диалога (AJAX)
+
+
+@login_required
+def livestream_pending_requests(request, room_id):
+    room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
+    if request.user != room.host and not request.user.is_superuser and getattr(request.user, 'role', '') != 'admin':
+        return JsonResponse({'error': 'Нет прав'}, status=403)
+    waiting = LivestreamParticipant.objects.filter(
+        room=room, waiting_approval=True).select_related('user')
+    data = []
+    for p in waiting:
+        data.append({'id': p.user.id, 'name': p.user.name})
+    return JsonResponse({'waiting': data})

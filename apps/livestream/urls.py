@@ -22,4 +22,22 @@ urlpatterns = [
     path('users/<int:room_id>/', views.livestream_users, name='livestream_users'),
     path('check_status/<int:room_id>/',
          views.check_user_status, name='check_user_status'),
+
+    # Новое: управление правами на микрофон/камеру
+    path('toggle_permission/<int:room_id>/<int:user_id>/<str:device>/',
+         views.livestream_toggle_permission, name='livestream_toggle_permission'),
+
+    # Новое: поднять/опустить руку
+    path('raise_hand/<int:room_id>/', views.livestream_raise_hand,
+         name='livestream_raise_hand'),
+    path('lower_hand/<int:room_id>/', views.livestream_lower_hand,
+         name='livestream_lower_hand'),
+
+    # Новое: отмена ожидания
+    path('cancel_waiting/<int:room_id>/', views.livestream_cancel_waiting,
+         name='livestream_cancel_waiting'),
+
+    # Новое: получить список заявок (для ведущего)
+    path('pending_requests/<int:room_id>/',
+         views.livestream_pending_requests, name='livestream_pending_requests'),
 ]
