@@ -12,7 +12,16 @@
         <!-- Список будет обновляться через JS -->
     </div>
 </div>
+<div id="custom-alert" class="custom-alert" style="display:none;"></div>
 <script>
+function showCustomAlert(msg, type = 'info') {
+    let alertDiv = document.getElementById('custom-alert');
+    alertDiv.innerHTML = msg;
+    alertDiv.className = 'custom-alert ' + type;
+    alertDiv.style.display = 'block';
+    setTimeout(() => { alertDiv.style.display = 'none'; }, 3500);
+}
+
 function reloadRooms() {
     fetch("{% url 'livestream_list_ajax' %}")
         .then(r => r.json())
@@ -42,19 +51,17 @@ function reloadRooms() {
 reloadRooms();
 setInterval(reloadRooms, 5000);
 
-// Сообщения о завершении/исключении
 document.addEventListener('DOMContentLoaded', function() {
-    // Проверяем localStorage на флаги
     if (localStorage.getItem('kicked_from_room')) {
-        alert('Вы были исключены из трансляции ведущим.');
+        showCustomAlert('Вы были исключены из трансляции ведущим.', 'error');
         localStorage.removeItem('kicked_from_room');
     }
     if (localStorage.getItem('stream_ended')) {
-        alert('Трансляция завершена ведущим.');
+        showCustomAlert('Трансляция завершена ведущим.', 'warning');
         localStorage.removeItem('stream_ended');
     }
     if (localStorage.getItem('waiting_cancelled')) {
-        alert('Вы отменили заявку на вход.');
+        showCustomAlert('Вы отменили заявку на вход.', 'info');
         localStorage.removeItem('waiting_cancelled');
     }
 });
@@ -65,5 +72,42 @@ document.addEventListener('DOMContentLoaded', function() {
 .livestream-actions { display: flex; gap: 10px; }
 .btn-join { padding: 8px 16px; background-color: var(--primary); color: white; border-radius: 4px; font-weight: 500; }
 .btn-end { padding: 8px 16px; background-color: #ef4444; color: white; border-radius: 4px; font-weight: 500; }
+.custom-alert {
+    position: fixed;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-size: 16px;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: fadeInOut 3.5s;
+    max-width: 80%;
+    text-align: center;
+    display: none;
+}
+.custom-alert.info {
+    background-color: #3b82f6;
+    color: white;
+}
+.custom-alert.success {
+    background-color: #10b981;
+    color: white;
+}
+.custom-alert.warning {
+    background-color: #f59e0b;
+    color: white;
+}
+.custom-alert.error {
+    background-color: #ef4444;
+    color: white;
+}
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    10% { opacity: 1; transform: translate(-50%, 0); }
+    90% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+}
 </style>
 {% endblock %}

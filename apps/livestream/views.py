@@ -73,7 +73,6 @@ def livestream_room(request, room_id):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
     is_host = (request.user == room.host)
 
-    # Получаем или создаём участника
     participant, created = LivestreamParticipant.objects.get_or_create(
         room=room, user=request.user,
         defaults={
@@ -87,18 +86,15 @@ def livestream_room(request, room_id):
         }
     )
 
-    # Если пользователь исключён и не ожидает одобрения, устанавливаем флаг ожидания
     if participant.is_kicked and not participant.waiting_approval:
         participant.waiting_approval = True
         participant.save()
 
-    # Если пользователь ведущий, он всегда может войти
     if is_host:
         participant.waiting_approval = False
         participant.is_kicked = False
         participant.save()
 
-    # Если пользователь ожидает одобрения и не ведущий, показываем страницу ожидания
     if participant.waiting_approval and not is_host:
         return render(request, 'livestream/waiting_approval.html', {'room': room})
 
@@ -125,7 +121,7 @@ def livestream_room(request, room_id):
 def generate_token(request):
     channel = request.GET.get('channel')
     uid = int(request.GET.get('uid', 0))
-    role = int(request.GET.get('role', 1))  # 1 = publisher, 2 = subscriber
+    role = int(request.GET.get('role', 1))
     app_id = SiteSettings.get_setting('AGORA_APP_ID')
     app_certificate = SiteSettings.get_setting('AGORA_APP_CERTIFICATE')
     expire = int(SiteSettings.get_setting('AGORA_TOKEN_EXPIRE', '3600'))
@@ -201,6 +197,8 @@ def livestream_users(request, room_id):
             'can_enable_mic': p.can_enable_mic,
             'can_enable_camera': p.can_enable_camera,
             'hand_raised': p.hand_raised,
+            'has_video': True,  # для простоты, если нужно — можно хранить в БД
+            'has_audio': not p.is_muted,
         })
 
     waiting_list = []
@@ -226,6 +224,11 @@ def check_user_status(request, room_id):
         }
     )
     room_ended = not room.is_active
+    # теперь всегда можно управлять камерой, микрофоном — только если is_speaker или ведущий
+    can_control = True
+    can_control_mic = True
+    if room.type == 'broadcast':
+        can_control_mic = participant.is_speaker or request.user == room.host
     return JsonResponse({
         'is_kicked': participant.is_kicked,
         'waiting_approval': participant.waiting_approval,
@@ -234,6 +237,10 @@ def check_user_status(request, room_id):
         'can_enable_mic': participant.can_enable_mic,
         'can_enable_camera': participant.can_enable_camera,
         'hand_raised': participant.hand_raised,
+        'can_control_camera': True,
+        'can_control_mic': can_control_mic,
+        'is_speaker': participant.is_speaker,
+        'is_host': request.user == room.host,
         'timestamp': int(time.time())
     })
 
@@ -325,8 +332,6 @@ def livestream_grant(request, room_id, user_id):
     participant.save()
     return JsonResponse({'success': True})
 
-# Новое: управление правами на микрофон/камеру
-
 
 @require_POST
 @login_required
@@ -342,8 +347,6 @@ def livestream_toggle_permission(request, room_id, user_id, device):
         participant.can_enable_camera = not participant.can_enable_camera
     participant.save()
     return JsonResponse({'success': True, 'can_enable_mic': participant.can_enable_mic, 'can_enable_camera': participant.can_enable_camera})
-
-# Новое: "поднять руку"
 
 
 @require_POST
@@ -367,8 +370,6 @@ def livestream_lower_hand(request, room_id):
     participant.save()
     return JsonResponse({'success': True})
 
-# Новое: отмена заявки на вход
-
 
 @require_POST
 @login_required
@@ -380,8 +381,6 @@ def livestream_cancel_waiting(request, room_id):
     participant.is_kicked = True
     participant.save()
     return JsonResponse({'success': True})
-
-# Новое: ведущий видит заявки в виде диалога (AJAX)
 
 
 @login_required

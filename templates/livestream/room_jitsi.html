@@ -50,8 +50,6 @@ const roomId = {{ room.id }};
 const csrfToken = "{{ csrf_token }}";
 let jitsiApi = null;
 let handRaised = false;
-let canEnableMic = true;
-let canEnableCamera = true;
 
 function showCustomAlert(msg, type = 'info') {
     let alertDiv = document.getElementById('custom-alert');
@@ -76,98 +74,26 @@ function checkUserStatus() {
         .then(response => response.json())
         .then(data => {
             handRaised = data.hand_raised;
-            canEnableMic = data.can_enable_mic;
-            canEnableCamera = data.can_enable_camera;
             updateHandButton();
-            
-            // Обновляем права в Jitsi
-            if (jitsiApi) {
-                if (!canEnableMic) {
-                    jitsiApi.executeCommand('toggleAudio');
-                    jitsiApi.executeCommand('overwriteConfig', {
-                        toolbarButtons: ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'profile', 'chat', 'recording', 'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand', 'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts', 'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone', 'security']
-                    });
-                }
-                if (!canEnableCamera) {
-                    jitsiApi.executeCommand('toggleVideo');
-                }
-            }
-            
             if (data.is_kicked) {
-                localStorage.setItem('kicked_from_room', '1');
-                window.location.href = "{% url 'livestream_list' %}";
+                showCustomAlert("Вы были исключены из трансляции ведущим.", "error");
+                setTimeout(() => window.location.href = "{% url 'livestream_list' %}", 1500);
             }
             if (data.room_ended) {
-                localStorage.setItem('stream_ended', '1');
-                window.location.href = "{% url 'livestream_list' %}";
+                showCustomAlert("Трансляция завершена ведущим.", "warning");
+                setTimeout(() => window.location.href = "{% url 'livestream_list' %}", 1500);
             }
         });
 }
-setInterval(checkUserStatus, 3000);
+setInterval(checkUserStatus, 2000);
 
 document.addEventListener('DOMContentLoaded', function() {
-    const domain = 'meet.jit.si';
-    const options = {
+    jitsiApi = new JitsiMeetExternalAPI("meet.jit.si", {
         roomName: roomName,
-        width: '100%',
+        width: "100%",
         height: 500,
         parentNode: document.getElementById('jitsi-container'),
-        userInfo: {
-            displayName: userName
-        },
-        configOverwrite: {
-            startWithAudioMuted: !isHost && roomType === 'broadcast',
-            startWithVideoMuted: !isHost && roomType === 'broadcast',
-            prejoinPageEnabled: false,
-            disableDeepLinking: true
-        },
-        interfaceConfigOverwrite: {
-            TOOLBAR_BUTTONS: [
-                'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-                'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
-                'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
-                'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
-                'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
-                'security'
-            ],
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_WATERMARK_FOR_GUESTS: false,
-            DEFAULT_BACKGROUND: '#111',
-            DEFAULT_REMOTE_DISPLAY_NAME: 'Участник',
-            DISABLE_JOIN_LEAVE_NOTIFICATIONS: true
-        }
-    };
-
-    jitsiApi = new JitsiMeetExternalAPI(domain, options);
-
-    jitsiApi.addEventListeners({
-        videoConferenceJoined: function() {
-            showCustomAlert("Вы присоединились к трансляции", "success");
-            
-            // Если это режим трансляции и пользователь не ведущий, отключаем микрофон и камеру
-            if (roomType === 'broadcast' && !isHost) {
-                jitsiApi.executeCommand('toggleAudio');
-                jitsiApi.executeCommand('toggleVideo');
-            }
-        },
-        participantJoined: function(participant) {
-            showCustomAlert(`${participant.displayName} присоединился к трансляции`, "info");
-        },
-        participantLeft: function(participant) {
-            showCustomAlert(`${participant.displayName} покинул трансляцию`, "info");
-        },
-        audioMuteStatusChanged: function(muted) {
-            if (!canEnableMic && !muted.muted) {
-                jitsiApi.executeCommand('toggleAudio');
-                showCustomAlert("Ведущий запретил включать микрофон", "error");
-            }
-        },
-        videoMuteStatusChanged: function(muted) {
-            if (!canEnableCamera && !muted.muted) {
-                jitsiApi.executeCommand('toggleVideo');
-                showCustomAlert("Ведущий запретил включать камеру", "error");
-            }
-        }
+        userInfo: { displayName: userName }
     });
 
     document.getElementById('hand-btn').addEventListener('click', function() {
@@ -222,12 +148,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         dialog.innerHTML = html;
                         dialog.style.display = 'block';
+                        showCustomAlert("Новая заявка на вход!", "info");
                     } else {
                         dialog.innerHTML = '';
                         dialog.style.display = 'none';
                     }
                 });
-        }, 3000);
+        }, 2000);
     }
 
     window.approveUser = function(id) {
@@ -246,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: {'X-CSRFToken': csrfToken}
         }).then(r => r.json()).then(data => {
             if (data.success) {
-                showCustomAlert("Пользователь отклонён", "info");
+                showCustomAlert("Пользователь отклонён", "warning");
             }
         });
     };
@@ -300,29 +227,14 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 const users = document.getElementById('users-list');
                 users.innerHTML = '';
-                
-                // Сначала отображаем ведущего
-                data.users.forEach(u => {
-                    if (u.is_host) {
-                        renderUserRow(u, users);
-                    }
+                data.users.forEach(user => {
+                    const row = document.createElement('div');
+                    row.className = 'user-row';
+                    row.innerHTML = `
+                        <span class="user-name-row">${user.name} ${user.is_host ? '👑' : ''} ${user.is_speaker ? '🎙️' : ''} ${user.is_muted ? '🔇' : ''} ${user.hand_raised ? '✋' : ''}</span>
+                    `;
+                    users.appendChild(row);
                 });
-                
-                // Затем спикеров
-                data.users.forEach(u => {
-                    if (!u.is_host && u.is_speaker) {
-                        renderUserRow(u, users);
-                    }
-                });
-                
-                // Затем остальных пользователей
-                data.users.forEach(u => {
-                    if (!u.is_host && !u.is_speaker) {
-                        renderUserRow(u, users);
-                    }
-                });
-                
-                // Обрабатываем ожидающих одобрения
                 if (isHost && data.waiting && data.waiting.length) {
                     data.waiting.forEach(u => {
                         const waitingRow = document.createElement('div');
@@ -339,125 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
     }
-    
-    function renderUserRow(user, container) {
-        const row = document.createElement('div');
-        row.className = 'user-row';
-        row.dataset.userId = user.id;
-        row.dataset.isSpeaker = user.is_speaker;
-        
-        let userIcons = '';
-        if (user.is_host) {
-            userIcons += '<span class="icon-host" title="Ведущий">👑</span>';
-        }
-        if (user.is_speaker) {
-            userIcons += '<span class="icon-speaker" title="Говорит">🎙️</span>';
-        }
-        if (user.is_muted) {
-            userIcons += '<span class="icon-muted" title="Микрофон выключен">🔇</span>';
-        }
-        if (user.hand_raised) {
-            userIcons += '<span class="icon-hand-raised" title="Поднял руку">✋</span>';
-        }
-        
-        let html = `<span class="user-name-row">${user.name} ${userIcons}</span>`;
-        
-        // Добавляем кнопки управления для ведущего
-        if (isHost && user.id !== parseInt("{{ user_id }}")) {
-            html += `<div class="user-actions">`;
-            
-            if (roomType === 'broadcast') {
-                html += `<button onclick="grantUser(${user.id})" class="${user.is_speaker ? 'btn-revoke' : 'btn-grant'}">${user.is_speaker ? 'Забрать слово' : 'Дать слово'}</button>`;
-            }
-            
-            html += `<button onclick="muteUser(${user.id})" class="btn-mute">${user.is_muted ? 'Включить' : 'Выключить'} микрофон</button>`;
-            html += `<button onclick="togglePermission(${user.id}, 'mic')" class="btn-permission">${user.can_enable_mic ? 'Запретить' : 'Разрешить'} микрофон</button>`;
-            html += `<button onclick="togglePermission(${user.id}, 'camera')" class="btn-permission">${user.can_enable_camera ? 'Запретить' : 'Разрешить'} камеру</button>`;
-            html += `<button onclick="kickUser(${user.id})" class="btn-kick">Исключить</button>`;
-            html += `</div>`;
-        }
-        
-        row.innerHTML = html;
-        container.appendChild(row);
-    }
-    
-        window.kickUser = function(id) {
-        fetch("/livestream/kick/" + roomId + "/" + id + "/", {
-            method: 'POST', 
-            headers: {'X-CSRFToken': csrfToken}
-        })
-        .then(response => {
-            if (response.ok) {
-                loadUsers();
-                showCustomAlert("Пользователь исключён", "success");
-            } else {
-                showCustomAlert("Не удалось исключить пользователя", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Ошибка исключения пользователя:", error);
-            showCustomAlert("Ошибка при исключении пользователя", "error");
-        });
-    };
-    
-    window.muteUser = function(id) {
-        fetch("/livestream/mute/" + roomId + "/" + id + "/", {
-            method: 'POST', 
-            headers: {'X-CSRFToken': csrfToken}
-        })
-        .then(response => {
-            if (response.ok) {
-                loadUsers();
-                showCustomAlert("Статус микрофона изменен", "success");
-            } else {
-                showCustomAlert("Не удалось изменить статус микрофона", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Ошибка изменения статуса микрофона:", error);
-            showCustomAlert("Ошибка при изменении статуса микрофона", "error");
-        });
-    };
-    
-    window.grantUser = function(id) {
-        fetch("/livestream/grant/" + roomId + "/" + id + "/", {
-            method: 'POST', 
-            headers: {'X-CSRFToken': csrfToken}
-        })
-        .then(response => {
-            if (response.ok) {
-                loadUsers();
-                showCustomAlert("Статус спикера изменен", "success");
-            } else {
-                showCustomAlert("Не удалось изменить статус спикера", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Ошибка изменения статуса спикера:", error);
-            showCustomAlert("Ошибка при изменении статуса спикера", "error");
-        });
-    };
-    
-    window.togglePermission = function(id, device) {
-        fetch(`/livestream/toggle_permission/${roomId}/${id}/${device}/`, {
-            method: 'POST', 
-            headers: {'X-CSRFToken': csrfToken}
-        })
-        .then(response => {
-            if (response.ok) {
-                loadUsers();
-                showCustomAlert(`Права на ${device === 'mic' ? 'микрофон' : 'камеру'} изменены`, "success");
-            } else {
-                showCustomAlert("Не удалось изменить права", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Ошибка изменения прав:", error);
-            showCustomAlert("Ошибка при изменении прав", "error");
-        });
-    };
-    
-    setInterval(loadUsers, 3000);
+    setInterval(loadUsers, 2000);
     loadUsers();
 });
 </script>

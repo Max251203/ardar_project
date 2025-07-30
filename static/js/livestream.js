@@ -1,6 +1,6 @@
 const appId = window.livestreamAppId;
 const channel = window.livestreamChannel;
-const uid = window.livestreamUid;
+const uid = parseInt(window.livestreamUserId);
 const userName = window.livestreamUserName;
 const isHost = window.livestreamIsHost;
 const roomType = window.livestreamRoomType;
@@ -17,8 +17,8 @@ let allUsers = [];
 let amISpeaker = false;
 let canEnableMic = true;
 let canEnableCamera = true;
+let canControlMicCamera = true;
 let handRaised = false;
-let statusCheckInterval = null;
 
 function showCustomAlert(msg, type = 'info') {
     let alertDiv = document.getElementById('custom-alert');
@@ -31,10 +31,10 @@ function showCustomAlert(msg, type = 'info') {
 function updateMicCameraButtons() {
     const micBtn = document.getElementById('mic-btn');
     const cameraBtn = document.getElementById('camera-btn');
-    if (!canEnableMic) {
+    if (!canControlMicCamera || !canEnableMic) {
         micBtn.disabled = true;
         micBtn.classList.add('muted');
-        micBtn.title = "Ведущий запретил включать микрофон";
+        micBtn.title = !canControlMicCamera ? "Вам не дали слово" : "Ведущий запретил включать микрофон";
     } else {
         micBtn.disabled = false;
         micBtn.classList.remove('muted');
@@ -61,26 +61,86 @@ function updateHandButton() {
     }
 }
 
+function updateReturnWordButton() {
+    const returnWordBtn = document.getElementById('return-word-btn');
+    if (!returnWordBtn) return;
+    if (amISpeaker && !isHost) {
+        returnWordBtn.style.display = 'block';
+    } else {
+        returnWordBtn.style.display = 'none';
+    }
+}
+
 function checkUserStatus() {
     fetch(`/livestream/check_status/${roomId}/?t=${Date.now()}`)
         .then(response => response.json())
         .then(data => {
             canEnableMic = data.can_enable_mic;
             canEnableCamera = data.can_enable_camera;
+            canControlMicCamera = isHost ? true : data.can_control_mic;
             handRaised = data.hand_raised;
+            amISpeaker = data.is_speaker;
             updateMicCameraButtons();
             updateHandButton();
+            updateReturnWordButton();
             if (data.is_kicked) {
-                localStorage.setItem('kicked_from_room', '1');
-                window.location.href = "/livestream/";
+                showCustomAlert("Вы были исключены из трансляции ведущим.", "error");
+                setTimeout(() => window.location.href = "/livestream/", 1500);
             }
             if (data.room_ended) {
-                localStorage.setItem('stream_ended', '1');
-                window.location.href = "/livestream/";
+                showCustomAlert("Трансляция завершена ведущим.", "warning");
+                setTimeout(() => window.location.href = "/livestream/", 1500);
             }
         });
 }
-statusCheckInterval = setInterval(checkUserStatus, 3000);
+setInterval(checkUserStatus, 2000);
+
+function showVideo(uid, label, isSpeaker) {
+    let container = document.getElementById(`user-${uid}`);
+    let displayName = label;
+    if (uid === parseInt(window.livestreamHostId)) {
+        displayName = window.livestreamHostName + " (Ведущий)";
+    } else if (uid === parseInt(uid)) {
+        displayName = userName + " (Вы)";
+    }
+    if (!container) {
+        container = document.createElement('div');
+        container.id = `user-${uid}`;
+        container.className = 'video-player';
+        if (isSpeaker) container.classList.add('speaking');
+        container.innerHTML = `
+            <div class="user-name">
+                ${displayName}
+                <div class="user-icons" id="icons-${uid}"></div>
+            </div>
+            <div id="video-box-${uid}" class="video-box"></div>
+        `;
+        document.getElementById('agora-video').append(container);
+    } else if (isSpeaker) {
+        container.classList.add('speaking');
+    } else {
+        container.classList.remove('speaking');
+    }
+}
+
+function updateUserIcons(uid, isMuted, hasVideo) {
+    const iconsContainer = document.getElementById(`icons-${uid}`);
+    if (iconsContainer) {
+        let html = '';
+        html += isMuted ? '<span class="icon-mic-off" title="Микрофон выключен">🔇</span>' : '<span class="icon-mic-on" title="Микрофон включён">🎤</span>';
+        html += hasVideo ? '<span class="icon-cam-on" title="Камера включена">📹</span>' : '<span class="icon-cam-off" title="Камера выключена">🚫</span>';
+        iconsContainer.innerHTML = html;
+    }
+}
+
+function removeVideo(uid) {
+    const container = document.getElementById(`user-${uid}`);
+    if (container) container.remove();
+    if (currentSpeakerId === uid) {
+        document.getElementById('speaker-status').innerHTML = '';
+        currentSpeakerId = null;
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async function() {
     const role = isHost ? 1 : 2;
@@ -114,6 +174,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     document.getElementById('mic-btn').addEventListener('click', async function() {
+        if (!canControlMicCamera) {
+            showCustomAlert("Вам не дали слово!", "warning");
+            return;
+        }
         if (!canEnableMic) {
             showCustomAlert("Ведущий запретил включать микрофон", "error");
             return;
@@ -124,13 +188,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             localTrackState.audioTrackMuted = false;
             this.classList.remove('muted');
             this.querySelector('.mic-icon').textContent = '🎤';
-            updateUserIcons(uid, false, !localTrackState.videoTrackMuted);
         } else {
             await localTracks.audioTrack.setMuted(true);
             localTrackState.audioTrackMuted = true;
             this.classList.add('muted');
             this.querySelector('.mic-icon').textContent = '🔇';
-            updateUserIcons(uid, true, !localTrackState.videoTrackMuted);
         }
     });
 
@@ -145,13 +207,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             localTrackState.videoTrackMuted = false;
             this.classList.remove('muted');
             this.querySelector('.camera-icon').textContent = '📹';
-            updateUserIcons(uid, localTrackState.audioTrackMuted, true);
         } else {
             await localTracks.videoTrack.setMuted(true);
             localTrackState.videoTrackMuted = true;
             this.classList.add('muted');
             this.querySelector('.camera-icon').textContent = '🚫';
-            updateUserIcons(uid, localTrackState.audioTrackMuted, false);
         }
     });
 
@@ -224,12 +284,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                         });
                         dialog.innerHTML = html;
                         dialog.style.display = 'block';
+                        showCustomAlert("Новая заявка на вход!", "info");
                     } else {
                         dialog.innerHTML = '';
                         dialog.style.display = 'none';
                     }
                 });
-        }, 3000);
+        }, 2000);
     }
 
     window.approveUser = function(id) {
@@ -248,7 +309,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             headers: {'X-CSRFToken': csrfToken}
         }).then(r => r.json()).then(data => {
             if (data.success) {
-                showCustomAlert("Пользователь отклонён", "info");
+                showCustomAlert("Пользователь отклонён", "warning");
             }
         });
     };
@@ -307,13 +368,119 @@ document.addEventListener('DOMContentLoaded', async function() {
                         canEnableMic = user.can_enable_mic;
                         canEnableCamera = user.can_enable_camera;
                         handRaised = user.hand_raised;
-                        updateMicCameraButtons();
-                        updateHandButton();
                         break;
                     }
                 }
+                updateReturnWordButton();
+                updateMicCameraButtons();
+                updateHandButton();
+                renderUsers(data.users, data.waiting);
             });
     }
-    setInterval(loadUsers, 3000);
+    setInterval(loadUsers, 2000);
     loadUsers();
+
+    function renderUsers(users, waiting) {
+        const usersList = document.getElementById('users-list');
+        usersList.innerHTML = '';
+        users.forEach(user => {
+            let icons = '';
+            icons += user.can_enable_mic ? '<span class="icon-mic-on" title="Микрофон разрешён">🎤</span>' : '<span class="icon-mic-off" title="Микрофон запрещён">🔇</span>';
+            icons += user.can_enable_camera ? '<span class="icon-cam-on" title="Камера разрешена">📹</span>' : '<span class="icon-cam-off" title="Камера запрещена">🚫</span>';
+            if (user.is_host) icons += '<span class="icon-host" title="Ведущий">👑</span>';
+            if (user.is_speaker) icons += '<span class="icon-speaker" title="Говорит">🎙️</span>';
+            if (user.hand_raised) icons += '<span class="icon-hand" title="Поднял руку">✋</span>';
+
+            let menu = '';
+            if (isHost && user.id !== uid) {
+                menu = `
+                <div class="user-actions-dropdown">
+                    <button class="btn btn-sm burger-btn" onclick="toggleDropdown(this)">⋮</button>
+                    <div class="user-actions-dropdown-content">
+                        ${roomType === 'broadcast' ? `<button onclick="grantUser(${user.id})">${user.is_speaker ? 'Забрать слово' : 'Дать слово'}</button>` : ''}
+                        <button onclick="muteUser(${user.id})">${user.is_muted ? 'Включить микрофон' : 'Выключить микрофон'}</button>
+                        <button onclick="togglePermission(${user.id}, 'mic')">${user.can_enable_mic ? 'Запретить микрофон' : 'Разрешить микрофон'}</button>
+                        <button onclick="togglePermission(${user.id}, 'camera')">${user.can_enable_camera ? 'Запретить камеру' : 'Разрешить камеру'}</button>
+                        <button onclick="kickUser(${user.id})">Исключить</button>
+                    </div>
+                </div>
+                `;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'user-row';
+            row.innerHTML = `
+                <span class="user-name-row">${user.name} ${icons}</span>
+                ${menu}
+            `;
+            usersList.appendChild(row);
+        });
+        if (isHost && waiting && waiting.length) {
+            waiting.forEach(u => {
+                const waitingRow = document.createElement('div');
+                waitingRow.className = 'user-row waiting';
+                waitingRow.innerHTML = `
+                    <span class="waiting-user">${u.name} просится в трансляцию</span>
+                    <div class="user-actions">
+                        <button onclick="approveUser(${u.id})" class="btn-approve">Одобрить</button>
+                        <button onclick="rejectUser(${u.id})" class="btn-reject">Отклонить</button>
+                    </div>
+                `;
+                usersList.appendChild(waitingRow);
+            });
+        }
+    }
+
+    window.kickUser = function(id) {
+        fetch(`/livestream/kick/${roomId}/${id}/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken}
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showCustomAlert("Пользователь исключён", "success");
+                loadUsers();
+            }
+        });
+    };
+    window.muteUser = function(id) {
+        fetch(`/livestream/mute/${roomId}/${id}/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken}
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showCustomAlert("Статус микрофона изменён", "success");
+                loadUsers();
+            }
+        });
+    };
+    window.grantUser = function(id) {
+        fetch(`/livestream/grant/${roomId}/${id}/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken}
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showCustomAlert("Статус спикера изменён", "success");
+                loadUsers();
+            }
+        });
+    };
+    window.togglePermission = function(id, device) {
+        fetch(`/livestream/toggle_permission/${roomId}/${id}/${device}/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken}
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showCustomAlert(`Права на ${device === 'mic' ? 'микрофон' : 'камеру'} изменены`, "success");
+                loadUsers();
+            }
+        });
+    };
+    window.toggleDropdown = function(btn) {
+        document.querySelectorAll('.user-actions-dropdown').forEach(el => el.classList.remove('open'));
+        btn.parentNode.classList.toggle('open');
+        event.stopPropagation();
+    };
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.user-actions-dropdown').forEach(el => el.classList.remove('open'));
+    });
 });
