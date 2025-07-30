@@ -197,8 +197,10 @@ def livestream_users(request, room_id):
             'can_enable_mic': p.can_enable_mic,
             'can_enable_camera': p.can_enable_camera,
             'hand_raised': p.hand_raised,
-            'has_video': True,  # для простоты, если нужно — можно хранить в БД
+            'has_video': True,
             'has_audio': not p.is_muted,
+            'role': getattr(p.user, 'role', 'guest'),
+            'is_superuser': p.user.is_superuser,
         })
 
     waiting_list = []
@@ -224,11 +226,14 @@ def check_user_status(request, room_id):
         }
     )
     room_ended = not room.is_active
-    # теперь всегда можно управлять камерой, микрофоном — только если is_speaker или ведущий
-    can_control = True
     can_control_mic = True
     if room.type == 'broadcast':
-        can_control_mic = participant.is_speaker or request.user == room.host
+        if request.user.is_superuser:
+            can_control_mic = True
+        elif getattr(request.user, 'role', '') == 'admin':
+            can_control_mic = participant.is_speaker or request.user == room.host
+        else:
+            can_control_mic = participant.is_speaker or request.user == room.host
     return JsonResponse({
         'is_kicked': participant.is_kicked,
         'waiting_approval': participant.waiting_approval,
@@ -237,7 +242,6 @@ def check_user_status(request, room_id):
         'can_enable_mic': participant.can_enable_mic,
         'can_enable_camera': participant.can_enable_camera,
         'hand_raised': participant.hand_raised,
-        'can_control_camera': True,
         'can_control_mic': can_control_mic,
         'is_speaker': participant.is_speaker,
         'is_host': request.user == room.host,
