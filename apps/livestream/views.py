@@ -227,13 +227,10 @@ def check_user_status(request, room_id):
     )
     room_ended = not room.is_active
     can_control_mic = True
-    if room.type == 'broadcast':
-        if request.user.is_superuser:
-            can_control_mic = True
-        elif getattr(request.user, 'role', '') == 'admin':
-            can_control_mic = participant.is_speaker or request.user == room.host
-        else:
-            can_control_mic = participant.is_speaker or request.user == room.host
+
+    # В любом режиме все могут управлять своими устройствами
+    # Ведущий может управлять устройствами других
+
     return JsonResponse({
         'is_kicked': participant.is_kicked,
         'waiting_approval': participant.waiting_approval,
@@ -329,8 +326,10 @@ def livestream_grant(request, room_id, user_id):
         participant.is_speaker = False
         participant.hand_raised = False
     else:
-        LivestreamParticipant.objects.filter(
-            room=room).update(is_speaker=False)
+        # В режиме конференции может быть несколько говорящих
+        if room.type == 'broadcast':
+            LivestreamParticipant.objects.filter(
+                room=room).exclude(user=room.host).update(is_speaker=False)
         participant.is_speaker = True
         participant.hand_raised = False
     participant.save()

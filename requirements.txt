@@ -29,7 +29,7 @@ gTTS
 gunicorn
 django-debug-toolbar
 
+# Agora для видеотрансляций
+agora-token-builder
 
 django-ckeditor>=6.0.0
-
-py-agora-token-builder==1.0.0
