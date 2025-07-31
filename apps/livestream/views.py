@@ -365,12 +365,28 @@ def livestream_raise_hand(request, room_id):
 
 @require_POST
 @login_required
-def livestream_lower_hand(request, room_id):
+def livestream_lower_hand(request, room_id, user_id=None):
     room = get_object_or_404(LivestreamRoom, id=room_id, is_active=True)
-    participant = get_object_or_404(
-        LivestreamParticipant, room=room, user=request.user)
+
+    # Если указан user_id, проверяем права (только ведущий может опустить руку другому)
+    if user_id:
+        if request.user != room.host and not request.user.is_superuser and getattr(request.user, 'role', '') != 'admin':
+            return JsonResponse({'error': 'Нет прав'}, status=403)
+        participant = get_object_or_404(
+            LivestreamParticipant, room=room, user_id=user_id)
+    else:
+        # Иначе пользователь опускает свою руку
+        participant = get_object_or_404(
+            LivestreamParticipant, room=room, user=request.user)
+
     participant.hand_raised = False
     participant.save()
+
+    # Отправляем уведомление пользователю, если ведущий опустил его руку
+    if user_id and user_id != request.user.id:
+        # Здесь можно добавить логику для отправки уведомления
+        pass
+
     return JsonResponse({'success': True})
 
 

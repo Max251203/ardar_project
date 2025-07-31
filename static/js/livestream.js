@@ -20,7 +20,10 @@ let handRaised = false;
 let handDialogShown = false;
 let currentSpeakerUid = null;
 let remoteUsers = {};
+let miniVideoCollapsed = false;
+let lastHandRaisedUser = null;
 
+// Функция для отображения уведомлений
 function showCustomAlert(msg, type = 'info') {
     let alertDiv = document.getElementById('custom-alert');
     alertDiv.innerHTML = msg;
@@ -29,6 +32,7 @@ function showCustomAlert(msg, type = 'info') {
     setTimeout(() => { alertDiv.style.display = 'none'; }, 3500);
 }
 
+// Обновление состояния кнопок микрофона и камеры
 function updateMicCameraButtons() {
     const micBtn = document.getElementById('mic-btn');
     const cameraBtn = document.getElementById('camera-btn');
@@ -70,6 +74,7 @@ function updateMicCameraButtons() {
     }
 }
 
+// Обновление кнопок поднятия руки
 function updateHandButton() {
     const handBtn = document.getElementById('hand-btn');
     const lowerHandBtn = document.getElementById('lower-hand-btn');
@@ -87,6 +92,7 @@ function updateHandButton() {
     }
 }
 
+// Обновление кнопки возврата слова
 function updateReturnWordButton() {
     const returnWordBtn = document.getElementById('return-word-btn');
     if (!returnWordBtn) return;
@@ -97,6 +103,7 @@ function updateReturnWordButton() {
     }
 }
 
+// Обновление статуса говорящего
 function updateSpeakerStatus(name) {
     const statusBar = document.getElementById('speaker-status');
     if (name) {
@@ -106,21 +113,29 @@ function updateSpeakerStatus(name) {
     }
 }
 
+// Проверка статуса пользователя
 function checkUserStatus() {
     fetch(`/livestream/check_status/${roomId}/?t=${Date.now()}`)
         .then(response => response.json())
         .then(data => {
+            // Обновляем только если статус изменился
+            const statusChanged = 
+                canEnableMic !== data.can_enable_mic || 
+                canEnableCamera !== data.can_enable_camera || 
+                handRaised !== data.hand_raised || 
+                amISpeaker !== data.is_speaker;
+            
             canEnableMic = data.can_enable_mic;
             canEnableCamera = data.can_enable_camera;
             handRaised = data.hand_raised;
             amISpeaker = data.is_speaker;
             
-            updateMicCameraButtons();
-            updateHandButton();
-            updateReturnWordButton();
-            
-            // Обновляем отображение видео в зависимости от статуса
-            updateVideoLayout();
+            if (statusChanged) {
+                updateMicCameraButtons();
+                updateHandButton();
+                updateReturnWordButton();
+                updateVideoLayout();
+            }
             
             if (data.is_kicked) {
                 showCustomAlert("Вы были исключены из трансляции ведущим.", "error");
@@ -133,7 +148,7 @@ function checkUserStatus() {
         });
 }
 
-// Обновление расположения видео в зависимости от текущего статуса
+// Обновление расположения видео
 function updateVideoLayout() {
     // Получаем информацию о пользователях
     fetch(`/livestream/users/${roomId}/`)
@@ -220,7 +235,7 @@ function updateVideoLayout() {
             }
             
             // Отображаем мини-видео (если есть)
-            if (miniUser) {
+            if (miniUser && !miniVideoCollapsed) {
                 const isMiniUserMe = miniUser.id === uid;
                 
                 // Создаем элемент для мини-видео
@@ -234,8 +249,19 @@ function updateVideoLayout() {
                     displayName += " (Ведущий)";
                 }
                 
-                // Создаем HTML для видео
+                // Создаем HTML для видео с кнопками управления
                 miniVideoEl.innerHTML = `
+                    <div class="mini-video-controls">
+                        <button class="mini-control-btn" id="mini-collapse-btn" title="Свернуть">
+                            <img src="/static/img/return.png" class="mini-control-icon" alt="Свернуть">
+                        </button>
+                        <button class="mini-control-btn" id="mini-move-btn" title="Переместить">
+                            <img src="/static/img/hand.png" class="mini-control-icon" alt="Переместить">
+                        </button>
+                        <button class="mini-control-btn" id="mini-resize-btn" title="Изменить размер">
+                            <img src="/static/img/speak.png" class="mini-control-icon" alt="Изменить размер">
+                        </button>
+                    </div>
                     <div class="video-box" id="mini-video-box-${miniUser.id}"></div>
                     <div class="video-info">
                         <div class="video-name">${displayName}</div>
@@ -262,12 +288,65 @@ function updateVideoLayout() {
                 // Обновляем иконки статуса
                 updateVideoIcons(miniUser.id, 'mini');
                 
+                // Добавляем обработчики для кнопок управления мини-видео
+                document.getElementById('mini-collapse-btn').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    collapseMiniVideo(miniUser.id);
+                });
+                
+                document.getElementById('mini-move-btn').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Включаем режим перемещения
+                    makeDraggable(miniVideoEl);
+                });
+                
+                document.getElementById('mini-resize-btn').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Изменяем размер мини-видео
+                    toggleMiniVideoSize(miniVideoEl);
+                });
+                
                 // Делаем мини-видео перетаскиваемым
                 makeDraggable(miniVideoEl);
+            } else if (miniUser && miniVideoCollapsed) {
+                // Отображаем свернутую кнопку мини-видео
+                const collapsedBtn = document.createElement('div');
+                collapsedBtn.className = 'mini-video-collapsed';
+                collapsedBtn.id = `collapsed-mini-video-${miniUser.id}`;
+                collapsedBtn.innerHTML = `<img src="/static/img/cam-on.png" class="icon-btn" alt="Развернуть">`;
+                collapsedBtn.addEventListener('click', function() {
+                    expandMiniVideo(miniUser.id);
+                });
+                
+                miniContainer.appendChild(collapsedBtn);
             }
         });
 }
 
+// Свернуть мини-видео
+function collapseMiniVideo(userId) {
+    miniVideoCollapsed = true;
+    updateVideoLayout();
+}
+
+// Развернуть мини-видео
+function expandMiniVideo(userId) {
+    miniVideoCollapsed = false;
+    updateVideoLayout();
+}
+
+// Изменить размер мини-видео
+function toggleMiniVideoSize(element) {
+    if (element.style.width === '240px') {
+        element.style.width = '180px';
+        element.style.height = '120px';
+    } else {
+        element.style.width = '240px';
+        element.style.height = '160px';
+    }
+}
+
+// Обновление иконок статуса для видео
 // Обновление иконок статуса для видео
 function updateVideoIcons(userId, type) {
     const iconsContainer = document.getElementById(`${type}-video-icons-${userId}`);
@@ -321,21 +400,34 @@ function updateVideoIcons(userId, type) {
 // Функция для перетаскивания мини-видео
 function makeDraggable(element) {
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    let isDragging = false;
     
     element.onmousedown = dragMouseDown;
     
     function dragMouseDown(e) {
         e = e || window.event;
+        // Проверяем, что клик был не на кнопке управления
+        if (e.target.closest('.mini-control-btn')) {
+            return;
+        }
+        
         e.preventDefault();
+        isDragging = true;
+        
         // Получаем начальную позицию курсора
         pos3 = e.clientX;
         pos4 = e.clientY;
         document.onmouseup = closeDragElement;
         // Вызываем функцию при движении курсора
         document.onmousemove = elementDrag;
+        
+        // Добавляем класс для визуального эффекта перетаскивания
+        element.classList.add('dragging');
     }
     
     function elementDrag(e) {
+        if (!isDragging) return;
+        
         e = e || window.event;
         e.preventDefault();
         // Вычисляем новую позицию
@@ -351,7 +443,7 @@ function makeDraggable(element) {
         // Получаем размеры элемента
         const elementRect = element.getBoundingClientRect();
         
-                // Вычисляем новую позицию с учетом границ
+        // Вычисляем новую позицию с учетом границ
         let newTop = element.offsetTop - pos2;
         let newLeft = element.offsetLeft - pos1;
         
@@ -366,9 +458,71 @@ function makeDraggable(element) {
     
     function closeDragElement() {
         // Останавливаем перемещение при отпускании кнопки мыши
+        isDragging = false;
         document.onmouseup = null;
         document.onmousemove = null;
+        
+        // Удаляем класс перетаскивания
+        element.classList.remove('dragging');
     }
+}
+
+// Показать диалог с поднятой рукой
+function showHandRaisedDialog(userId, userName) {
+    const dialog = document.getElementById('hand-raised-dialog');
+    const userNameEl = document.getElementById('hand-raised-user');
+    const giveWordBtn = document.getElementById('give-word-btn');
+    const rejectHandBtn = document.getElementById('reject-hand-btn');
+    
+    userNameEl.textContent = userName;
+    lastHandRaisedUser = userId;
+    
+    // Настраиваем обработчики кнопок
+    giveWordBtn.onclick = function() {
+        giveWordToUser(userId);
+        dialog.style.display = 'none';
+    };
+    
+    rejectHandBtn.onclick = function() {
+        rejectHandRaised(userId);
+        dialog.style.display = 'none';
+    };
+    
+    dialog.style.display = 'block';
+    
+    // Автоматически скрываем диалог через 10 секунд
+    setTimeout(() => {
+        if (dialog.style.display === 'block') {
+            dialog.style.display = 'none';
+        }
+    }, 10000);
+}
+
+// Дать слово пользователю
+function giveWordToUser(userId) {
+    fetch(`/livestream/grant/${roomId}/${userId}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken}
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            showCustomAlert(`Слово дано пользователю`, "success");
+            // Обновляем отображение видео
+            updateVideoLayout();
+        }
+    });
+}
+
+// Отклонить поднятую руку
+function rejectHandRaised(userId) {
+    // Сначала опускаем руку пользователя
+    fetch(`/livestream/lower_hand/${roomId}/${userId}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken}
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            showCustomAlert(`Запрос отклонен`, "info");
+        }
+    });
 }
 
 // Проверка статуса пользователя каждые 2 секунды
@@ -384,13 +538,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     await client.join(appId, channel, token, uid);
     showCustomAlert("Вы присоединились к трансляции", "success");
-
-    // Создаем контейнеры для видео
-    const videoArea = document.getElementById('agora-video');
-    videoArea.innerHTML = `
-        <div id="main-video-container" class="main-video-container"></div>
-        <div id="mini-video-container" class="mini-video-container"></div>
-    `;
 
     try {
         [localTracks.audioTrack, localTracks.videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
@@ -562,7 +709,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
-    // Обработка запросов на вход для ведущего
+        // Обработка запросов на вход и поднятых рук для ведущего
     if (isHost) {
         setInterval(function() {
             fetch(`/livestream/pending_requests/${roomId}/`)
@@ -593,6 +740,23 @@ document.addEventListener('DOMContentLoaded', async function() {
                     }
                 });
         }, 2000);
+        
+        // Проверка поднятых рук
+        setInterval(function() {
+            fetch(`/livestream/users/${roomId}/`)
+                .then(r => r.json())
+                .then(data => {
+                    const users = data.users;
+                    // Находим пользователей с поднятой рукой
+                    const usersWithRaisedHand = users.filter(u => u.hand_raised && !u.is_host && !u.is_speaker);
+                    
+                    if (usersWithRaisedHand.length > 0 && !document.getElementById('hand-raised-dialog').style.display === 'block') {
+                        // Показываем диалог для первого пользователя с поднятой рукой
+                        const user = usersWithRaisedHand[0];
+                        showHandRaisedDialog(user.id, user.name);
+                    }
+                });
+        }, 3000);
     }
 
     // Глобальные функции для управления пользователями
@@ -716,7 +880,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     "/static/img/mic-block.png";
                 micBtn.appendChild(micImg);
                 
-                                micBtn.onclick = function() {
+                micBtn.onclick = function() {
                     if (user.can_enable_mic) {
                         // Если микрофон разрешен, переключаем состояние
                         fetch(`/livestream/mute/${roomId}/${user.id}/`, {
@@ -895,7 +1059,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         loadUsers();
     });
     
-    // Обработчик для кнопки завершения трансляции
+        // Обработчик для кнопки завершения трансляции
     const endBtn = document.getElementById('end-btn');
     if (endBtn) {
         endBtn.addEventListener('click', function(e) {
@@ -904,4 +1068,25 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
     }
+    
+    // Обработчик для закрытия диалога с поднятой рукой
+    document.addEventListener('click', function(e) {
+        const handRaisedDialog = document.getElementById('hand-raised-dialog');
+        if (handRaisedDialog && handRaisedDialog.style.display === 'block') {
+            // Проверяем, что клик был не на диалоге и не на его дочерних элементах
+            if (!handRaisedDialog.contains(e.target)) {
+                handRaisedDialog.style.display = 'none';
+            }
+        }
+    });
+    
+    // Обработчик для клавиши Escape - закрывает диалоги
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const handRaisedDialog = document.getElementById('hand-raised-dialog');
+            if (handRaisedDialog && handRaisedDialog.style.display === 'block') {
+                handRaisedDialog.style.display = 'none';
+            }
+        }
+    });
 });
