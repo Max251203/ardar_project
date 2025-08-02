@@ -89,6 +89,7 @@
             ├── 0002_alter_livestreamroom_options_livestreamroom_platform_and_more.py
             ├── 0003_livestreamroom_channel_id.py
             ├── 0004_livestreamparticipant_is_kicked_and_more.py
+            ├── 0005_livestreamparticipant_can_enable_camera_and_more.py
             ├── __init__.py
         ├── models.py
         ├── tests.py
@@ -148,10 +149,25 @@
         ├── admin.css
         └── main.css
     ├── img
+        ├── burger.png
+        ├── cam-block.png
+        ├── cam-off.png
+        ├── cam-on.png
+        ├── crown.png
+        ├── end.png
+        ├── exit.png
         ├── eye-slash.png
         ├── eye.png
-        └── logo.png
+        ├── hand-down.png
+        ├── hand.png
+        ├── logo.png
+        ├── mic-block.png
+        ├── mic-off.png
+        ├── mic-on.png
+        ├── return.png
+        └── speak.png
     └── js
+        ├── livestream.js
         └── rating_comments.js
 ├── templates
     ├── admin_panel
@@ -205,7 +221,7 @@
         └── profile.html
     └── widgets
         └── image_input.html
-└── venv
+├── venv
     ├── Include
     ├── Lib
         └── site-packages
@@ -16669,3 +16685,4 @@
         ├── xbrnetwork-ui.exe
         └── xbrnetwork.exe
     └── pyvenv.cfg
+└── Как сбросить миграции.txt
