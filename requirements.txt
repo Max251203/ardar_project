@@ -5,6 +5,7 @@ python-decouple
 django-environ
 django-cors-headers
 django-modeltranslation
+django-allauth
 pillow
 django-ckeditor>=6.0.0
 gTTS
