@@ -13,3 +13,4 @@ django-debug-toolbar
 agora-token-builder
 dj-database-url
 whitenoise
+python-docx
