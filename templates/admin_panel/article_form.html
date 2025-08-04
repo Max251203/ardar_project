@@ -1,0 +1,852 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ edit_mode|yesno:"Редактирование,Создание" }} статьи{% endblock %}
+
+{% block content %}
+{{ form.media }}  <!-- Загрузка скриптов CKEditor -->
+
+<div class="article-form-container">
+    <div class="article-form-header">
+        <h2>{{ edit_mode|yesno:"Редактирование,Создание" }} статьи</h2>
+        <a href="{% url 'admin_articles' %}" class="btn-back">← Назад к списку</a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="article-form" id="articleForm">
+        {% csrf_token %}
+        
+        <div class="form-layout">
+            <div class="form-main">
+                <div class="form-group">
+                    <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+                    {{ form.title }}
+                    {% if form.title.errors %}
+                    <div class="field-errors">{{ form.title.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.language.id_for_label }}">{{ form.language.label }}</label>
+                    {{ form.language }}
+                    {% if form.language.errors %}
+                    <div class="field-errors">{{ form.language.errors }}</div>
+                    {% endif %}
+                    <div class="field-help">Язык будет определен автоматически при вводе текста</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.text.id_for_label }}">{{ form.text.label }}</label>
+                    {{ form.text }}
+                    {% if form.text.errors %}
+                    <div class="field-errors">{{ form.text.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-sidebar">
+                <div class="form-card">
+                    <h3>Изображение</h3>
+                    <div class="image-upload-area" id="imageUploadArea">
+                        {% if form.instance.image_data %}
+                        <div class="image-preview">
+                            <img src="{% url 'article_image' form.instance.pk %}" alt="Превью" id="imagePreview">
+                            <div class="image-actions">
+                                <button type="button" class="btn-remove-image" onclick="removeImage()">Удалить</button>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="image-placeholder" id="imagePlaceholder">
+                            <div class="upload-icon">📷</div>
+                            <p>Перетащите изображение сюда<br>или нажмите для выбора</p>
+                        </div>
+                        <div class="image-preview" id="previewContainer" style="display:none;">
+                            <img src="" alt="Превью" id="imagePreview">
+                            <div class="image-actions">
+                                <button type="button" class="btn-remove-image" onclick="removeImage()">Удалить</button>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div style="display:none;">{{ form.image }}</div>
+                    </div>
+                </div>
+
+                <div class="form-card">
+                    <h3>Загрузить текст из файла</h3>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <div class="file-placeholder">
+                            <div class="upload-icon">📄</div>
+                            <p>Перетащите файл (.txt, .docx, .doc)<br>или нажмите для выбора</p>
+                        </div>
+                        <div class="file-preview" id="filePreviewContainer" style="display:none;">
+                            <div class="file-info">
+                                <span class="file-name" id="fileName"></span>
+                                <button type="button" class="btn-remove-file" onclick="removeFile()">Удалить</button>
+                            </div>
+                        </div>
+                        <div style="display:none;">{{ form.uploaded_file }}</div>
+                    </div>
+                    <div class="file-help">
+                        <p>Поддерживаемые форматы: .txt, .docx, .doc</p>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-submit">Сохранить статью</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    .article-form-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: var(--card);
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .article-form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .article-form-header h2 {
+        margin: 0;
+    }
+
+    .form-layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+    }
+
+    .form-main {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-card {
+        background-color: var(--bg);
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .form-card h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 18px;
+    }
+
+    .image-upload-area, .file-upload-area {
+        border: 2px dashed var(--border);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .image-upload-area:hover, .file-upload-area:hover {
+        border-color: var(--primary);
+    }
+
+    .upload-icon {
+        font-size: 32px;
+        margin-bottom: 10px;
+        color: var(--text-light);
+    }
+
+    .image-placeholder p, .file-placeholder p {
+        margin: 0;
+        color: var(--text-light);
+        font-size: 14px;
+    }
+
+    .image-preview {
+        text-align: center;
+    }
+
+    .image-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+
+    .image-actions, .file-info {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .btn-remove-image, .btn-remove-file {
+        background-color: #ef4444;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+
+    .file-preview {
+        padding: 10px;
+        background-color: rgba(0, 0, 0, 0.03);
+        border-radius: 4px;
+    }
+
+    .file-name {
+        font-weight: 500;
+        word-break: break-all;
+    }
+
+    .file-help {
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--text-light);
+    }
+
+    .form-actions {
+        margin-top: 20px;
+    }
+
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .btn-submit:hover {
+        opacity: 0.9;
+    }
+
+    .btn-back {
+        padding: 8px 16px;
+        background-color: var(--bg);
+        color: var(--text);
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+
+    .btn-back:hover {
+        background-color: var(--border);
+    }
+
+    @media (max-width: 768px) {
+        .form-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* Добавляем стили для сообщения об ошибке языка */
+    .language-error {
+        background-color: #fee2e2;
+        color: #ef4444;
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-top: 10px;
+        display: none;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обработчики для загрузки изображения
+        const imageInput = document.querySelector('input[name="image"]');
+        const imageUploadArea = document.getElementById('imageUploadArea');
+        const imagePlaceholder = document.getElementById('imagePlaceholder');
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+
+        // Обработчики для загрузки файла
+        const fileInput = document.querySelector('input[name="uploaded_file"]');
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const filePreviewContainer = document.getElementById('filePreviewContainer');
+        const fileName = document.getElementById('fileName');
+
+        // Получаем элементы формы для определения языка
+        const titleInput = document.querySelector('.form-main input[name="title"]');
+        const textArea = document.querySelector('.form-main textarea[name="text"]');
+        const languageSelect = document.querySelector('.form-main select[name="language"]');
+        const form = document.getElementById('articleForm');
+
+        // Клик по области загрузки изображения
+        if (imageUploadArea && imagePlaceholder) {
+            imageUploadArea.addEventListener('click', function(e) {
+                // Проверяем, что клик был на placeholder или его дочерних элементах,
+                // но не на кнопке удаления или превью
+                if (e.target === imageUploadArea || 
+                    (e.target !== imagePreview && 
+                     !e.target.closest('.btn-remove-image'))) {
+                    imageInput.click();
+                }
+            });
+        }
+
+        // Клик по области загрузки файла
+        if (fileUploadArea) {
+            fileUploadArea.addEventListener('click', function(e) {
+                // Проверяем, что клик был на placeholder или его дочерних элементах,
+                // но не на кнопке удаления
+                if (e.target === fileUploadArea || 
+                    (e.target !== filePreviewContainer && 
+                     !e.target.closest('.btn-remove-file'))) {
+                    fileInput.click();
+                }
+            });
+        }
+
+        // Обработка выбора изображения
+        if (imageInput) {
+            imageInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        if (imagePlaceholder) imagePlaceholder.style.display = 'none';
+                        if (previewContainer) previewContainer.style.display = 'block';
+                        imagePreview.src = e.target.result;
+                    };
+                    
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+        }
+
+        // Функция для установки текста в редактор (работает с CKEditor или обычным textarea)
+        function setEditorContent(text) {
+            // Проверяем, загружен ли CKEditor
+            if (typeof CKEDITOR !== 'undefined') {
+                // Если редактор уже инициализирован
+                if (CKEDITOR.instances.id_text) {
+                    CKEDITOR.instances.id_text.setData(text);
+                } else {
+                    // Если редактор еще не инициализирован, ждем его готовности
+                    CKEDITOR.on('instanceReady', function(evt) {
+                        if (evt.editor.name === 'id_text') {
+                            evt.editor.setData(text);
+                        }
+                    });
+                }
+            } else {
+                // Используем обычное текстовое поле
+                const textArea = document.querySelector('textarea[name="text"]');
+                if (textArea) {
+                    textArea.value = text;
+                }
+            }
+        }
+
+        // Обработка выбора файла
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    fileName.textContent = file.name;
+                    filePreviewContainer.style.display = 'block';
+                    
+                    // Обработка текстовых файлов
+                    if (file.type === 'text/plain') {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            setEditorContent(e.target.result);
+                            // После загрузки текста, запускаем определение языка
+                            setTimeout(autoDetectLanguage, 500);
+                        };
+                        reader.readAsText(file);
+                    } else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+                        // Для DOCX отправляем файл на сервер для обработки
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        
+                        // Показываем сообщение о загрузке
+                        setEditorContent('<p>Загрузка и обработка файла...</p>');
+                        
+                        fetch('{% url "process_file" %}', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                setEditorContent('<p>Ошибка при обработке файла: ' + data.error + '</p>');
+                            } else {
+                                setEditorContent(data.text);
+                                // После загрузки текста, запускаем определение языка
+                                setTimeout(autoDetectLanguage, 500);
+                            }
+                        })
+                        .catch(error => {
+                            setEditorContent('<p>Ошибка при обработке файла. Попробуйте еще раз.</p>');
+                        });
+                    } else {
+                        setEditorContent('<p>Неподдерживаемый формат файла. Поддерживаются только .txt, .docx и .doc</p>');
+                    }
+                }
+            });
+        }
+
+        // Drag & Drop для изображений
+        if (imageUploadArea) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                imageUploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                imageUploadArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                imageUploadArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                imageUploadArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                imageUploadArea.classList.remove('highlight');
+            }
+
+            imageUploadArea.addEventListener('drop', handleImageDrop, false);
+
+            function handleImageDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files && files[0]) {
+                    imageInput.files = files;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (imagePlaceholder) imagePlaceholder.style.display = 'none';
+                        if (previewContainer) previewContainer.style.display = 'block';
+                        imagePreview.src = e.target.result;
+                    };
+                    reader.readAsDataURL(files[0]);
+                }
+            }
+        }
+
+        // Drag & Drop для файлов
+        if (fileUploadArea) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                fileUploadArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                fileUploadArea.classList.remove('highlight');
+            }
+
+            fileUploadArea.addEventListener('drop', handleFileDrop, false);
+
+            function handleFileDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files && files[0]) {
+                    const file = files[0];
+                    fileInput.files = files;
+                    fileName.textContent = file.name;
+                    filePreviewContainer.style.display = 'block';
+                    
+                    // Обработка текстовых файлов
+                    if (file.type === 'text/plain') {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            setEditorContent(e.target.result);
+                            // После загрузки текста, запускаем определение языка
+                            setTimeout(autoDetectLanguage, 500);
+                        };
+                        reader.readAsText(file);
+                    } else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+                        // Для DOCX отправляем файл на сервер для обработки
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        
+                        // Показываем сообщение о загрузке
+                        setEditorContent('<p>Загрузка и обработка файла...</p>');
+                        
+                        fetch('{% url "process_file" %}', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                setEditorContent('<p>Ошибка при обработке файла: ' + data.error + '</p>');
+                            } else {
+                                setEditorContent(data.text);
+                                // После загрузки текста, запускаем определение языка
+                                setTimeout(autoDetectLanguage, 500);
+                            }
+                        })
+                        .catch(error => {
+                            setEditorContent('<p>Ошибка при обработке файла. Попробуйте еще раз.</p>');
+                        });
+                    } else {
+                        setEditorContent('<p>Неподдерживаемый формат файла. Поддерживаются только .txt и .docx</p>');
+                    }
+                }
+            }
+        }
+
+        // Проверка загрузки CKEditor и настройка обработчиков
+        if (typeof CKEDITOR !== 'undefined') {
+            // Ждем, пока CKEditor полностью инициализируется
+            CKEDITOR.on('instanceReady', function(evt) {
+                // Добавляем обработчик изменения текста для автоопределения языка
+                if (evt.editor.name === 'id_text') {
+                    evt.editor.on('key', function() {
+                        // Запускаем определение языка с небольшой задержкой
+                        clearTimeout(window.langDetectTimeout);
+                        window.langDetectTimeout = setTimeout(autoDetectLanguage, 300);
+                    });
+                }
+            });
+        } else if (textArea) {
+            // Добавляем обработчик для обычного textarea
+            textArea.addEventListener('input', function() {
+                // Запускаем определение языка с небольшой задержкой
+                clearTimeout(window.langDetectTimeout);
+                window.langDetectTimeout = setTimeout(autoDetectLanguage, 300);
+            });
+        }
+        
+        // Функция для определения языка текста
+        function detectLanguage(text) {
+            if (!text || text.trim().length === 0) return null;
+            
+            // Удаляем HTML-теги и специальные символы
+            text = text.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
+            
+            // Регулярные выражения для поддерживаемых языков
+            const armenianRegex = /[\u0530-\u058F]/g;
+            const russianRegex = /[\u0400-\u04FF]/g;
+            const englishRegex = /[a-zA-Z]/g;
+            
+            // Подсчитываем количество символов каждого языка
+            const armenianCount = (text.match(armenianRegex) || []).length;
+            const russianCount = (text.match(russianRegex) || []).length;
+            const englishCount = (text.match(englishRegex) || []).length;
+            
+            // Общее количество символов поддерживаемых языков
+            const totalChars = armenianCount + russianCount + englishCount;
+            
+            // Если нет символов поддерживаемых языков, возвращаем null
+            if (totalChars === 0) return null;
+            
+            // Проверяем наличие символов неподдерживаемых языков
+            // Если есть символы, которые не относятся к поддерживаемым языкам, цифрам или пунктуации
+            const supportedCharsRegex = /[\u0530-\u058F\u0400-\u04FFa-zA-Z0-9\s.,!?;:'"()\-]/g;
+            const textLength = text.length;
+            const supportedCharsCount = (text.match(supportedCharsRegex) || []).length;
+            
+            // Если более 10% символов не относятся к поддерживаемым языкам, возвращаем null
+            if (supportedCharsCount < textLength * 0.9) return null;
+            
+            // Определяем преобладающий язык (должен составлять не менее 60% текста)
+            // Но если текста мало (менее 10 символов), то достаточно 50%
+            const threshold = totalChars < 10 ? 0.5 : 0.6;
+            
+            if (armenianCount > 0 && armenianCount / totalChars >= threshold) {
+                return 'hy';
+            } else if (russianCount > 0 && russianCount / totalChars >= threshold) {
+                return 'ru';
+            } else if (englishCount > 0 && englishCount / totalChars >= threshold) {
+                return 'en';
+            }
+            
+            // Если нет явного преобладания, но есть хотя бы один символ определенного языка
+            // и нет символов других языков, то считаем, что текст на этом языке
+            if (totalChars < 5) {
+                if (armenianCount > 0 && russianCount === 0 && englishCount === 0) {
+                    return 'hy';
+                } else if (russianCount > 0 && armenianCount === 0 && englishCount === 0) {
+                    return 'ru';
+                                } else if (englishCount > 0 && armenianCount === 0 && russianCount === 0) {
+                    return 'en';
+                }
+            }
+            
+            // Если нет явного преобладания, возвращаем null
+            return null;
+        }
+
+        // Функция для получения текста из CKEditor или обычного textarea
+        function getEditorContent() {
+            let content = '';
+            
+            if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances.id_text) {
+                content = CKEDITOR.instances.id_text.getData();
+                // Удаляем HTML-теги
+                content = content.replace(/<[^>]*>/g, ' ');
+            } else if (textArea) {
+                content = textArea.value;
+            }
+            
+            return content;
+        }
+
+        // Автоматическое определение языка при вводе текста (предварительное)
+        function autoDetectLanguage() {
+            if (!titleInput || !languageSelect) return;
+            
+            // Получаем текст из заголовка и содержимого
+            const titleText = titleInput.value;
+            const contentText = getEditorContent();
+            
+            // Если нет ни заголовка, ни содержимого, пропускаем определение
+            if (!titleText && !contentText) return;
+            
+            // Определяем язык текста содержимого и заголовка по отдельности
+            const contentLanguage = contentText ? detectLanguage(contentText) : null;
+            const titleLanguage = titleText ? detectLanguage(titleText) : null;
+            
+            // Приоритет отдаем содержимому, если оно есть и язык определен
+            const detectedLanguage = contentLanguage || titleLanguage;
+            
+            // Если язык определен, устанавливаем его
+            if (detectedLanguage) {
+                languageSelect.value = detectedLanguage;
+            }
+        }
+
+        // Добавляем обработчики событий для определения языка
+        if (titleInput) {
+            // Автоопределение языка при вводе заголовка
+            titleInput.addEventListener('input', function() {
+                // Запускаем определение языка с небольшой задержкой
+                clearTimeout(window.langDetectTimeout);
+                window.langDetectTimeout = setTimeout(autoDetectLanguage, 300);
+            });
+        }
+        
+        // Проверка при отправке формы
+        if (form && languageSelect) {
+            form.addEventListener('submit', function(e) {
+                // Предотвращаем отправку формы по умолчанию
+                e.preventDefault();
+                
+                // Получаем текст из заголовка и содержимого
+                const titleText = titleInput.value;
+                const contentText = getEditorContent();
+                
+                // Если нет ни заголовка, ни содержимого, пропускаем проверку
+                if (!titleText && !contentText) {
+                    this.submit();
+                    return;
+                }
+                
+                // Объединяем текст для анализа, с приоритетом на содержимое
+                const fullText = contentText + ' ' + titleText;
+                
+                // Определяем язык текста
+                const detectedLanguage = detectLanguage(fullText);
+                
+                // Если язык не определен или содержит недопустимые символы
+                if (!detectedLanguage) {
+                    alert("Не удалось определить язык текста. Поддерживаются только русский, английский и армянский языки. Пожалуйста, используйте один из этих языков.");
+                    return; // Блокируем отправку формы
+                }
+                
+                // Получаем выбранный язык
+                const selectedLanguage = languageSelect.value;
+                
+                // Если языки не совпадают, показываем предупреждение
+                if (detectedLanguage !== selectedLanguage) {
+                    const languageNames = {
+                        'ru': 'русский',
+                        'en': 'английский',
+                        'hy': 'армянский'
+                    };
+                    
+                    const message = `Внимание! Текст написан на ${languageNames[detectedLanguage]} языке, но был выбран ${languageNames[selectedLanguage]}. Язык будет автоматически изменен на ${languageNames[detectedLanguage]}.`;
+                    
+                    if (confirm(message)) {
+                        // Устанавливаем правильный язык в селекторе
+                        languageSelect.value = detectedLanguage;
+                        // Не отправляем форму сразу, чтобы пользователь мог проверить изменения
+                        return;
+                    } else {
+                        // Пользователь отменил действие
+                        return; // Блокируем отправку формы
+                    }
+                }
+                
+                // Если все проверки пройдены, отправляем форму
+                this.submit();
+            });
+        }
+    });
+
+    // Функция удаления изображения
+    function removeImage() {
+        const imageInput = document.querySelector('input[name="image"]');
+        const imagePreview = document.getElementById('imagePreview');
+        const imagePlaceholder = document.getElementById('imagePlaceholder');
+        const previewContainer = document.getElementById('previewContainer');
+        
+        imageInput.value = '';
+        if (imagePreview) imagePreview.src = '';
+        
+        if (imagePlaceholder) {
+            // Если мы на странице создания статьи или у нас есть placeholder
+            imagePlaceholder.style.display = 'block';
+            if (previewContainer) previewContainer.style.display = 'none';
+        } else {
+            // Если мы редактируем существующую статью с изображением
+            {% if form.instance.pk %}
+            // Отправляем AJAX запрос на удаление изображения
+            fetch('{% url "remove_article_image" form.instance.pk %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Создаем новый placeholder без перезагрузки страницы
+                    const imageUploadArea = document.getElementById('imageUploadArea');
+                    if (imageUploadArea) {
+                        // Создаем новые элементы вместо изменения innerHTML
+                        const newPlaceholder = document.createElement('div');
+                        newPlaceholder.id = 'imagePlaceholder';
+                        newPlaceholder.className = 'image-placeholder';
+                        
+                        const uploadIcon = document.createElement('div');
+                        uploadIcon.className = 'upload-icon';
+                        uploadIcon.textContent = '📷';
+                        
+                        const placeholderText = document.createElement('p');
+                        placeholderText.innerHTML = 'Перетащите изображение сюда<br>или нажмите для выбора';
+                        
+                        newPlaceholder.appendChild(uploadIcon);
+                        newPlaceholder.appendChild(placeholderText);
+                        
+                        // Создаем контейнер для превью (скрытый)
+                        const newPreviewContainer = document.createElement('div');
+                        newPreviewContainer.id = 'previewContainer';
+                        newPreviewContainer.className = 'image-preview';
+                        newPreviewContainer.style.display = 'none';
+                        
+                        const newImagePreview = document.createElement('img');
+                        newImagePreview.id = 'imagePreview';
+                        newImagePreview.alt = 'Превью';
+                        
+                        const imageActions = document.createElement('div');
+                        imageActions.className = 'image-actions';
+                        
+                        const removeButton = document.createElement('button');
+                        removeButton.type = 'button';
+                        removeButton.className = 'btn-remove-image';
+                        removeButton.textContent = 'Удалить';
+                        removeButton.onclick = removeImage;
+                        
+                        imageActions.appendChild(removeButton);
+                        newPreviewContainer.appendChild(newImagePreview);
+                        newPreviewContainer.appendChild(imageActions);
+                        
+                        // Очищаем содержимое области загрузки
+                        imageUploadArea.innerHTML = '';
+                        
+                        // Добавляем новые элементы
+                        imageUploadArea.appendChild(newPlaceholder);
+                        imageUploadArea.appendChild(newPreviewContainer);
+                        
+                        // Добавляем скрытый input для изображения
+                        const hiddenDiv = document.createElement('div');
+                        hiddenDiv.style.display = 'none';
+                        hiddenDiv.appendChild(imageInput.cloneNode(true));
+                        imageUploadArea.appendChild(hiddenDiv);
+                        
+                        // Добавляем обработчики событий
+                        const newImageInput = hiddenDiv.querySelector('input[name="image"]');
+                        
+                        // Обработчик клика на область загрузки
+                        imageUploadArea.addEventListener('click', function(e) {
+                            // Проверяем, что клик был на placeholder или его дочерних элементах,
+                            // но не на кнопке удаления или превью
+                            if (e.target === imageUploadArea || 
+                                e.target === newPlaceholder || 
+                                newPlaceholder.contains(e.target)) {
+                                newImageInput.click();
+                            }
+                        });
+                        
+                        // Обработка выбора изображения
+                        newImageInput.addEventListener('change', function() {
+                            if (this.files && this.files[0]) {
+                                const reader = new FileReader();
+                                
+                                reader.onload = function(e) {
+                                    newPlaceholder.style.display = 'none';
+                                    newPreviewContainer.style.display = 'block';
+                                    newImagePreview.src = e.target.result;
+                                };
+                                
+                                reader.readAsDataURL(this.files[0]);
+                            }
+                        });
+                    }
+                }
+            });
+            {% endif %}
+        }
+    }
+
+    // Функция удаления файла
+    function removeFile() {
+        const fileInput = document.querySelector('input[name="uploaded_file"]');
+        const filePreviewContainer = document.getElementById('filePreviewContainer');
+        
+        fileInput.value = '';
+        filePreviewContainer.style.display = 'none';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "socialaccount/base.html" %}
+
+{% block title %}Вход через {{ provider.name }}{% endblock %}
+
+{% block social_content %}
+<h1>Вход через {{ provider.name }}</h1>
+
+<p>Вы собираетесь войти через аккаунт {{ provider.name }}.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn-submit">Продолжить</button>
+</form>
+{% endblock %}

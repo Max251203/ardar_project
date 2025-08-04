@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Настройки API{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <h1>Настройки API</h1>
+    
+    <div class="settings-card">
+        <h2>API ключ для ArmTTS</h2>
+        <p class="settings-description">Этот ключ используется для доступа к API сервиса ArmTTS для озвучивания текстов на армянском языке.</p>
+        
+        <form method="post" class="settings-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="{{ form.armtts_api_key.id_for_label }}">{{ form.armtts_api_key.label }}:</label>
+                {{ form.armtts_api_key }}
+                {% if form.armtts_api_key.errors %}
+                <div class="field-errors">{{ form.armtts_api_key.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" name="save_armtts" class="btn-save">Сохранить ключ</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="settings-card">
+        <h2>Настройки Agora для видеотрансляций</h2>
+        <p class="settings-description">Эти ключи используются для доступа к API сервиса Agora.io для проведения прямых эфиров и видеоконференций.</p>
+        
+        <form method="post" class="settings-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="{{ agora_form.agora_app_id.id_for_label }}">{{ agora_form.agora_app_id.label }}:</label>
+                {{ agora_form.agora_app_id }}
+                {% if agora_form.agora_app_id.errors %}
+                <div class="field-errors">{{ agora_form.agora_app_id.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ agora_form.agora_app_certificate.id_for_label }}">{{ agora_form.agora_app_certificate.label }}:</label>
+                {{ agora_form.agora_app_certificate }}
+                {% if agora_form.agora_app_certificate.errors %}
+                <div class="field-errors">{{ agora_form.agora_app_certificate.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ agora_form.agora_token_expire.id_for_label }}">{{ agora_form.agora_token_expire.label }}:</label>
+                {{ agora_form.agora_token_expire }}
+                {% if agora_form.agora_token_expire.errors %}
+                <div class="field-errors">{{ agora_form.agora_token_expire.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" name="save_agora" class="btn-save">Сохранить настройки Agora</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .settings-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 30px 0;
+    }
+    
+    .settings-card {
+        background-color: var(--card);
+        border-radius: 10px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .settings-description {
+        color: var(--text-light);
+        margin-bottom: 20px;
+    }
+    
+    .settings-form {
+        margin-top: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+    
+    .input-field {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 15px;
+        background-color: var(--bg);
+        color: var(--text);
+    }
+    
+    .form-actions {
+        margin-top: 30px;
+    }
+    
+    .btn-save {
+        padding: 12px 24px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

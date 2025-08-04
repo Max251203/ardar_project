@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ room.name }} — Трансляция{% endblock %}
+{% block content %}
+
+<div class="livestream-grid">
+
+  <!-- === ОСНОВНАЯ СЕКЦИЯ (ГОВОРЯЩИЙ + УЧАСТНИКИ) === -->
+  <section class="area-main-combined">
+    <div class="main-section-header">
+      <h2 class="area-header">Трансляция</h2>
+    </div>
+    
+    <div class="main-section-content">
+      <!-- Главная карточка -->
+      <div class="main-speaker-wrapper">
+        <h3 class="sub-header">Сейчас говорит</h3>
+        <div id="main-speaker-container">
+          <div class="no-speaker">Нет активного говорящего</div>
+        </div>
+        <!-- Скрываем статус-бар -->
+        <div id="speaker-status" class="speaker-bar" style="display: none;"></div>
+      </div>
+      
+      <!-- Участники -->
+      <div class="participants-container">
+        <h3 class="sub-header">Участники</h3>
+        <div class="participants-scroll" id="secondary-participants"></div>
+      </div>
+    </div>
+    
+    <!-- Панель управления -->
+    <div class="control-panel">
+      <button id="mic-btn" class="control-btn" title="Микрофон">
+        <img src="{% static 'img/mic-on.png' %}" class="icon-btn" id="mic-icon" alt="Микрофон">
+      </button>
+      <button id="cam-btn" class="control-btn" title="Камера">
+        <img src="{% static 'img/cam-on.png' %}" class="icon-btn" id="cam-icon" alt="Камера">
+      </button>
+      <button id="hand-btn" class="control-btn" title="Поднять руку">
+        <img src="{% static 'img/hand.png' %}" class="icon-btn" alt="Поднять руку">
+      </button>
+
+      <!-- Кнопка забрать/вернуть слово -->
+      <button id="word-toggle-btn" class="control-btn" title="Управление словом" style="display:none;">
+        <img src="{% static 'img/word_back.png' %}" class="icon-btn" alt="Слово">
+      </button>
+
+      <button id="leave-btn" class="control-btn" title="Покинуть трансляцию">
+        <img src="{% static 'img/exit.png' %}" class="icon-btn" alt="Выйти">
+      </button>
+
+      {% if is_host or user.role == 'admin' or user.is_superuser %}
+        <a href="{% url 'end_livestream' room.id %}" class="control-btn end-btn" title="Завершить">
+          <img src="{% static 'img/end.png' %}" class="icon-btn" alt="Завершить">
+        </a>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- === ПАНЕЛЬ: Участники / Чат === -->
+  <section class="area-panel">
+    <div class="tabs-header">
+      <button class="tab-button active" onclick="switchPanelTab('participants')">Участники</button>
+      <button class="tab-button" onclick="switchPanelTab('chat')">Чат</button>
+    </div>
+
+    <div id="panel-participants" class="tab-content active">
+      <input type="text" id="user-search" placeholder="Поиск...">
+      <div class="users-list" id="participants-panel"></div>
+    </div>
+
+    <div id="panel-chat" class="tab-content">
+      <div id="chat-log" class="chat-messages"></div>
+      <form id="chat-form" class="chat-form">
+        {% csrf_token %}
+        <input type="text" id="chat-input" placeholder="Сообщение..." autocomplete="off">
+        <button type="submit" class="send-btn">
+          <img src="{% static 'img/send.png' %}" alt="▶" width="20">
+        </button>
+      </form>
+    </div>
+  </section>
+
+</div>
+
+<!-- === ALERT === -->
+<div id="custom-alert" class="custom-alert" style="display: none;"></div>
+
+<!-- === ДИАЛОГ РУКИ === -->
+<div id="hand-raised-dialog" class="dialog-modal" style="display: none;">
+  <div class="dialog-content">
+    <h3>Запрос слова</h3>
+    <p id="hand-raised-user">Имя пользователя</p>
+    <div class="dialog-actions">
+      <button id="give-word-btn" class="btn-approve">Дать слово</button>
+      <button id="reject-hand-btn" class="btn-reject">Отклонить</button>
+    </div>
+  </div>
+</div>
+
+<!-- === JS CONFIG === -->
+<script>
+window.livestreamAppId = "{{ app_id }}";
+window.livestreamChannel = "{{ channel_id }}";
+window.livestreamUserId = "{{ user_id|default:user.id }}";
+window.livestreamUserName = "{{ user_name|default:user.name }}";
+window.livestreamIsHost = {{ is_host|yesno:"true,false" }};
+window.livestreamRoomId = "{{ room.id }}";
+window.livestreamCsrfToken = "{{ csrf_token }}";
+window.livestreamUserRole = "{{ user.role }}";
+window.livestreamIsSuperuser = {{ user.is_superuser|yesno:"true,false" }};
+</script>
+
+<!-- === SDK & Logic === -->
+<script src="{% static 'lib/agora/AgoraRTC_N.js' %}"></script>
+<script src="{% static 'lib/agora/AgoraRTM.min.js' %}"></script>
+<script src="{% static 'js/livestream_rtm_full.js' %}"></script>
+
+<!-- Вкладки -->
+<script>
+function switchPanelTab(tab) {
+  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+  document.getElementById("panel-" + tab).classList.add("active");
+  document.querySelector(`[onclick*="${tab}"]`).classList.add("active");
+}
+</script>
+
+<!-- Стили -->
+<link rel="stylesheet" href="{% static 'css/livestream.css' %}">
+
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% block title %}{% trans "Donations" %}{% endblock %}
+
+{% block content %}
+<div class="donation-outer" style="max-width:480px;margin:0 auto;">
+    <div class="donation-card" style="background:var(--card);border-radius:18px;box-shadow:0 4px 24px rgba(0,0,0,0.07);padding:36px 28px 28px 28px;margin-top:40px;">
+        <div style="text-align:center;margin-bottom:18px;">
+            <img src="{% static 'img/heart.png' %}" alt="Donate" style="width:54px;height:54px;filter:drop-shadow(0 2px 8px rgba(37,99,235,0.10));">
+        </div>
+        <h1 style="font-size:2rem;margin-bottom:12px;color:var(--primary);font-weight:700;text-align:left;">{% trans "Support the project" %}</h1>
+        <div style="margin-bottom:24px;font-size:1.08rem;line-height:1.7;color:var(--text-light);text-align:left;">
+            {{ description|linebreaks }}
+        </div>
+        <form method="POST" action="https://auth.robokassa.ru/Merchant/Index.aspx" target="_blank"
+              style="background:var(--bg);padding:22px 18px 18px 18px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div class="form-group" style="margin-bottom:18px;text-align:left;">
+                <label for="amount" style="font-size:1rem;font-weight:500;color:var(--text);">{% trans "Amount (₽):" %}</label>
+                <input type="number" min="10" max="100000" step="1" name="OutSum" id="amount" required class="input-field"
+                       style="width:100%;max-width:200px;margin-top:7px;">
+            </div>
+            <button type="submit" class="btn-submit" style="width:100%;font-size:1.1rem;padding:13px 0;border-radius:8px;">
+                ❤️ {% trans "Pay" %}
+            </button>
+            <input type="hidden" name="MerchantLogin" value="{{ merchant_login }}">
+            <input type="hidden" name="Description" value="{% trans 'Donations' %}">
+            <input type="hidden" name="IsTest" value="1">
+        </form>
+        <div style="margin-top:16px;font-size:13px;color:var(--text-light);text-align:left;">
+            {% trans "After clicking 'Pay', you will be redirected to the secure Robokassa page to enter your card details. MIR, Visa, Mastercard cards are supported." %}
+        </div>
+        {% if request.user.is_superuser %}
+            <div style="margin-top:28px;">
+                <a href="{% url 'edit_donation_settings' %}" class="btn-action" style="display:block;width:100%;box-sizing:border-box;text-align:center;font-size:1rem;padding:12px 0;border-radius:7px;">
+                    ✏️ {% trans "Edit" %}
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

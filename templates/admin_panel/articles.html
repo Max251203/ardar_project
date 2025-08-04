@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Управление статьями{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h2>Управление статьями</h2>
+        <div class="admin-nav">
+            <a href="{% url 'admin_dashboard' %}">Дашборд</a>
+            <a href="{% url 'admin_articles' %}" class="active">Статьи</a>
+            <a href="{% url 'admin_users' %}">Пользователи</a>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-options">
+            <a href="{% url 'admin_articles' %}" class="{% if status == 'all' %}active{% endif %}">Все статьи</a>
+            <a href="{% url 'admin_articles' %}?status=pending"
+                class="{% if status == 'pending' %}active{% endif %}">Ожидают модерации</a>
+            <a href="{% url 'admin_articles' %}?status=approved"
+                class="{% if status == 'approved' %}active{% endif %}">Опубликованные</a>
+        </div>
+    </div>
+
+    {% if articles %}
+    <div class="articles-table">
+        <div class="table-header">
+            <div class="col-title">Заголовок</div>
+            <div class="col-author">Автор</div>
+            <div class="col-date">Дата</div>
+            <div class="col-status">Статус</div>
+            <div class="col-actions">Действия</div>
+        </div>
+
+        {% for article in articles %}
+        <div class="table-row">
+            <div class="col-title">
+                <a href="{% url 'article_detail' article.pk %}">{{ article.title }}</a>
+            </div>
+            <div class="col-author">{{ article.author.email }}</div>
+            <div class="col-date">{{ article.created_at|date:"d.m.Y" }}</div>
+            <div class="col-status">
+                {% if article.is_approved %}
+                <span class="status-approved">Опубликовано</span>
+                {% else %}
+                <span class="status-pending">Ожидает модерации</span>
+                {% endif %}
+            </div>
+            <div class="col-actions">
+                {% if not article.is_approved %}
+                <a href="{% url 'admin_approve_article' article.pk %}" class="btn-approve">Одобрить</a>
+                <a href="{% url 'admin_reject_article' article.pk %}" class="btn-reject"
+                    onclick="return confirm('Вы уверены, что хотите удалить эту статью?')">Удалить</a>
+                {% else %}
+                <a href="{% url 'admin_edit_article' article.pk %}" class="btn-view">Редактировать</a>
+                <a href="{% url 'admin_delete_article' article.pk %}" class="btn-reject"
+                    onclick="return confirm('Вы уверены, что хотите удалить эту статью?')">Удалить</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-articles">
+        <p>Нет статей, соответствующих выбранным критериям.</p>
+    </div>
+    {% endif %}
+    
+    <div style="margin-top: 20px;">
+        <a href="{% url 'admin_create_article' %}" class="btn-action">➕ Создать новую статью</a>
+    </div>
+</div>
+{% endblock %}

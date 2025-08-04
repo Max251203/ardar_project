@@ -1,0 +1,214 @@
+# locale/en/LC_MESSAGES/django.po
+msgid ""
+msgstr ""
+"Project-Id-Version: ardar\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-20 12:00+0000\n"
+"PO-Revision-Date: 2025-07-20 12:00+0000\n"
+"Last-Translator: Admin <admin@example.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: templates/base.html
+msgid "Home"
+msgstr "Home"
+
+#: templates/base.html
+msgid "Articles"
+msgstr "Articles"
+
+#: templates/base.html
+msgid "Admin Panel"
+msgstr "Admin Panel"
+
+#: templates/base.html
+msgid "Sign in / Register"
+msgstr "Sign in / Register"
+
+#: templates/base.html
+msgid "Sign out"
+msgstr "Sign out"
+
+#: templates/base.html
+msgid "Login"
+msgstr "Login"
+
+#: templates/base.html
+msgid "Register"
+msgstr "Register"
+
+#: templates/base.html
+msgid "Email:"
+msgstr "Email:"
+
+#: templates/base.html
+msgid "Password:"
+msgstr "Password:"
+
+#: templates/base.html
+msgid "Confirm password:"
+msgstr "Confirm password:"
+
+#: templates/base.html
+msgid "Name:"
+msgstr "Name:"
+
+#: templates/base.html
+msgid "Forgot password?"
+msgstr "Forgot password?"
+
+#: templates/base.html
+msgid "or login with"
+msgstr "or login with"
+
+#: templates/base.html
+msgid "Sign in"
+msgstr "Sign in"
+
+#: templates/core/home.html
+msgid "Blog for serious people"
+msgstr "Blog for serious people"
+
+#: templates/core/home.html
+msgid "Discussion of socio-political topics. Here, anyone can become an author of an article or discuss other authors' publications."
+msgstr "Discussion of socio-political topics. Here, anyone can become an author of an article or discuss other authors' publications."
+
+#: templates/core/home.html
+msgid "Latest articles"
+msgstr "Latest articles"
+
+#: templates/core/home.html
+msgid "No new articles"
+msgstr "No new articles"
+
+#: templates/core/home.html
+msgid "Terms of use and privacy"
+msgstr "Terms of use and privacy"
+
+#: templates/articles/list.html
+msgid "All articles"
+msgstr "All articles"
+
+#: templates/articles/list.html
+msgid "Add article"
+msgstr "Add article"
+
+#: templates/articles/list.html
+msgid "Search by title"
+msgstr "Search by title"
+
+#: templates/articles/list.html
+msgid "Language:"
+msgstr "Language:"
+
+#: templates/articles/list.html
+msgid "All languages"
+msgstr "All languages"
+
+#: templates/articles/list.html
+msgid "From:"
+msgstr "From:"
+
+#: templates/articles/list.html
+msgid "To:"
+msgstr "To:"
+
+#: templates/articles/list.html
+msgid "Find"
+msgstr "Find"
+
+#: templates/articles/list.html
+msgid "Reset"
+msgstr "Reset"
+
+#: templates/articles/detail.html
+msgid "Listen to article"
+msgstr "Listen to article"
+
+#: templates/articles/detail.html
+msgid "Browser speech"
+msgstr "Browser speech"
+
+#: templates/articles/detail.html
+msgid "Generate audio"
+msgstr "Generate audio"
+
+#: templates/articles/detail.html
+msgid "Your rating"
+msgstr "Your rating"
+
+#: templates/articles/detail.html
+msgid "Login to rate the article"
+msgstr "Login to rate the article"
+
+#: templates/articles/detail.html
+msgid "Average rating:"
+msgstr "Average rating:"
+
+#: templates/articles/detail.html
+msgid "No ratings yet"
+msgstr "No ratings yet"
+
+#: templates/articles/detail.html
+msgid "Comments"
+msgstr "Comments"
+
+#: templates/articles/detail.html
+msgid "Write your comment..."
+msgstr "Write your comment..."
+
+#: templates/articles/detail.html
+msgid "Send"
+msgstr "Send"
+
+#: templates/articles/detail.html
+msgid "Login to comment"
+msgstr "Login to comment"
+
+#: templates/articles/detail.html
+msgid "No comments yet"
+msgstr "No comments yet"
+
+#: templates/articles/detail.html
+msgid "Back to articles"
+msgstr "Back to articles"
+
+msgid "Livestreams"
+msgstr "Livestreams"
+
+msgid "Donations"
+msgstr "Donations"
+
+msgid "Support the project"
+msgstr "Support the project"
+
+msgid "Amount (₽):"
+msgstr "Amount (₽):"
+
+msgid "Pay"
+msgstr "Pay"
+
+msgid "After clicking 'Pay', you will be redirected to the secure Robokassa page to enter your card details. MIR, Visa, Mastercard cards are supported."
+msgstr "After clicking 'Pay', you will be redirected to the secure Robokassa page to enter your card details. MIR, Visa, Mastercard cards are supported."
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Edit donations"
+msgstr "Edit donations"
+
+msgid "Text for the page:"
+msgstr "Text for the page:"
+
+msgid "Merchant Login (Robokassa):"
+msgstr "Merchant Login (Robokassa):"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Back"
+msgstr "Back"

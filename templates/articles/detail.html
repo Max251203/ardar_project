@@ -1,0 +1,1173 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block content %}
+<div class="article-container">
+    {% if user.is_superuser %}
+    <div data-is-superadmin="true" style="display:none;"></div>
+    {% endif %}
+    <div class="article-header">
+        <h1 class="article-title">{{ article.title }}</h1>
+        <div class="article-meta">
+            <span><i class="fas fa-user"></i> {{ article.author.email }}</span>
+            <span><i class="fas fa-globe"></i> {{ article.get_language_display }}</span>
+            <span><i class="fas fa-calendar"></i> {{ article.created_at|date:"d.m.Y H:i" }}</span>
+        </div>
+        {% if not article.is_approved %}
+        <div class="article-pending">
+            <p>⚠️ Эта статья ожидает модерации и видна только вам и администраторам.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if article.image_data %}
+    <div class="article-image">
+        <img src="{% url 'article_image' article.pk %}" alt="{{ article.title }}">
+    </div>
+    {% endif %}
+
+    <!-- Минимальный плеер перед текстом статьи -->
+    <div class="article-player">
+        <div class="player-header">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+                <path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+            <span>{% trans "Listen to article" %}</span>
+        </div>
+        <div class="player-options">
+            <select id="voice-select" class="voice-select">
+                <option value="browser">{% trans "Browser speech" %}</option>
+                <option value="armtts">ArmTTS (армянский)</option>
+            </select>
+            <button id="generate-btn" class="generate-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                    <path fill="currentColor" d="M8 5v14l11-7z"/>
+                </svg>
+                {% trans "Generate audio" %}
+            </button>
+        </div>
+        <div id="ra-container" class="audio-container" style="display: none;">
+            <div id="ra-player" data-skin="https://assets.readaloudwidget.com/embed/skins/default">
+                <div class="ra-button" onclick="readAloud(document.getElementById('ra-audio'), document.getElementById('ra-player'))">
+                    <img src="https://assets.readaloudwidget.com/embed/skins/default/play-icon.png"/> Прослушать текст
+                </div>
+            </div>
+            <audio id="ra-audio" 
+                   data-lang="{% if article.language == 'ru' %}ru-RU{% elif article.language == 'en' %}en-US{% else %}hy-AM{% endif %}" 
+                   data-voice="{% if article.language == 'ru' %}Google ru-RU-Standard-D{% elif article.language == 'en' %}Google en-US-Standard-D{% else %}{% endif %}" 
+                   data-key="bdf2cc56acaf9af5e5c713ae0724e275">
+            </audio>
+        </div>
+        <div id="armtts-container" class="audio-container" style="display: none;">
+            <audio id="armtts-audio" controls style="width: 100%;"></audio>
+        </div>
+        <div id="player-status" class="player-status"></div>
+    </div>
+
+    <div class="article-content">
+        {{ article.text|safe }}
+    </div>
+
+    <!-- ⭐️ AJAX Рейтинг -->
+    <div class="article-rating js-rating-block" data-article-id="{{ article.id }}">
+        <h3>{% trans "Your rating" %}</h3>
+        {% if user.is_authenticated %}
+            <div class="star-select js-stars">
+                {% for i in "12345" %}
+                    <span class="star js-star {% if user_rating and user_rating.value >= forloop.counter %}active{% endif %}" data-value="{{ forloop.counter }}">★</span>
+                {% endfor %}
+            </div>
+            <div class="rating-info">
+                <span class="js-rating-label">
+                    {% if user_rating %}
+                        Ваша оценка: <strong>{{ user_rating.value }}</strong>/5
+                    {% else %}
+                        Оцените от 1 до 5 звёзд.
+                    {% endif %}
+                </span>
+            </div>
+            {% if user_rating %}
+                <button class="btn-delete-rating js-delete-own-rating" data-id="{{ user_rating.id }}">Удалить мою оценку</button>
+            {% endif %}
+        {% else %}
+            <p class="text-muted">⚠️ {% trans "Login to rate the article" %}</p>
+        {% endif %}
+        <div class="average-rating">
+            {% if avg_rating %}
+                <p>{% trans "Average rating:" %} <strong>{{ avg_rating|floatformat:1 }}</strong>/5 ({{ ratings.count }})</p>
+            {% else %}
+                <p>{% trans "No ratings yet" %}</p>
+            {% endif %}
+        </div>
+        {% if user.is_superuser and ratings %}
+            <div class="all-ratings">
+                <h4>Все оценки:</h4>
+                <ul>
+                    {% for rating in ratings %}
+                    <li>
+                        {{ rating.user.name }} — {{ rating.value }}/5
+                        <a href="#" class="btn-delete-rating text-danger js-delete-rating"
+                        data-id="{{ rating.id }}"
+                        title="Удалить оценку">✖️</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- 💬 AJAX Комментарии -->
+    <div class="article-comments js-comments-block" data-article-id="{{ article.id }}">
+        <h3>{% trans "Comments" %} (<span class="js-comments-count">{{ comments.count }}</span>)</h3>
+        {% if user.is_authenticated %}
+            <div class="comment-form">
+                <textarea id="comment-text" class="input-field" rows="4"
+                        placeholder="{% trans 'Write your comment...' %}">{% if user_comment %}{{ user_comment.text }}{% endif %}</textarea>
+                <button class="btn btn-primary js-submit-comment">💬 {% trans "Send" %}</button>
+            </div>
+        {% else %}
+            <p>⚠️ {% trans "Login to comment" %}</p>
+        {% endif %}
+        <ul class="comment-list js-comment-list">
+            {% for comment in comments %}
+            <li class="comment-item" data-id="{{ comment.id }}">
+                <div class="comment-header">
+                    <strong>{{ comment.author.name }}</strong>
+                    <span class="comment-date">{{ comment.created_at|date:"d.m.Y H:i" }}</span>
+                </div>
+                <div class="comment-body js-comment-text">
+                    {{ comment.text }}
+                </div>
+                {% if comment.author == user or user.is_superuser %}
+                <div class="comment-actions">
+                    <a href="#" class="js-edit-comment btn btn-sm" data-id="{{ comment.id }}">✏️</a>
+                    <a href="#" class="js-delete-comment btn btn-sm text-danger" data-id="{{ comment.id }}">🗑️</a>
+                </div>
+                {% endif %}
+            </li>
+            {% empty %}
+            <li class="text-muted">{% trans "No comments yet" %}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="article-actions">
+        <a href="{% url 'article_list' %}" class="btn-back">← {% trans "Back to articles" %}</a>
+    </div>
+
+    <!-- Кнопка "Вверх" -->
+    <button id="backToTop" class="back-to-top" title="Вернуться к началу">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+        </svg>
+    </button>
+</div>
+
+{% block extra_scripts %}
+<script src="{% static 'js/rating_comments.js' %}"></script>
+{% endblock %}
+
+<style>
+:root {
+    --primary: #2563eb;
+    --text: #111827;
+    --text-light: #6b7280;
+    --card: #f9f9f9;
+    --bg: #f3f4f6;
+    --border: #e5e7eb;
+}
+
+[data-theme="dark"] {
+    --primary: #3b82f6;
+    --text: #f3f4f6;
+    --text-light: #d1d5db;
+    --card: #1f2937;
+    --bg: #111827;
+    --border: #374151;
+}
+
+.article-container {
+    width: 800px;
+    max-width: 100%;
+    margin: 0 auto;
+    background-color: var(--card);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
+    position: relative; /* Для правильного позиционирования дочерних элементов */
+}
+
+.article-header {
+    margin-bottom: 25px;
+}
+
+.article-title {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 28px;
+    color: var(--text);
+}
+
+.article-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 14px;
+    color: var(--text-light);
+    margin-bottom: 15px;
+}
+
+.article-pending {
+    background-color: #fff7ed;
+    border-left: 4px solid #f59e0b;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    color: #92400e;
+}
+
+.article-image {
+    margin-bottom: 25px;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+    height: auto;
+    max-height: 500px;
+    text-align: center;
+}
+
+.article-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    max-height: 500px;
+}
+
+.article-content {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--text);
+    margin-bottom: 30px;
+    width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+.article-content p {
+    margin-bottom: 1em;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.article-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+.article-content a {
+    word-break: break-all;
+}
+
+.article-actions {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.btn-back {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #e5e7eb;
+    color: #374151;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.btn-back:hover {
+    background-color: #d1d5db;
+}
+
+/* --- Плеер озвучки --- */
+.article-player {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.player-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.player-options {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.voice-select {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background-color: var(--card);
+    color: var(--text);
+}
+
+.generate-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 15px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.generate-btn:hover {
+    opacity: 0.9;
+}
+
+.audio-container {
+    margin-top: 15px;
+    width: 100%;
+    min-height: 40px;
+}
+
+.ra-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 15px !important;
+    background-color: var(--primary) !important;
+    color: white !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    border-radius: 6px !important;
+    width: auto !important;
+    border: none !important;
+}
+
+.ra-button img {
+    width: 20px;
+    height: 20px;
+}
+
+#ra-player, 
+#ra-player div {
+    background-color: transparent !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+#ra-player {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+    position: relative !important;
+}
+
+#ra-player .ra-group {
+    display: flex !important;
+    align-items: center !important;
+    background: transparent !important;
+}
+
+#ra-player .ra-btn {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background-color: var(--primary) !important;
+    cursor: pointer !important;
+    margin: 0 5px !important;
+    color: white !important;
+}
+
+#ra-player .ra-btn img {
+    width: 18px !important;
+    height: 18px !important;
+}
+
+#ra-player .ra-status-bg {
+    position: relative !important;
+    height: 8px !important;
+    background-color: var(--border) !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+    margin: 0 10px !important;
+}
+
+#ra-player .ra-load-progress-bar {
+    position: absolute !important;
+    height: 100% !important;
+    background-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+#ra-player .ra-playback-position-bar {
+    position: absolute !important;
+    height: 100% !important;
+    background-color: var(--primary) !important;
+}
+
+#ra-player .ra-seek-knob {
+    position: absolute !important;
+    width: 16px !important;
+    height: 16px !important;
+    background-color: var(--primary) !important;
+    border-radius: 50% !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    cursor: pointer !important;
+}
+
+#ra-player .ra-time-text {
+    font-size: 12px !important;
+    color: var(--text) !important;
+    margin-left: 10px !important;
+}
+
+#ra-player .ra-btn-menu {
+    font-size: 18px !important;
+    font-weight: bold !important;
+}
+
+#ra-player .ra-overlay {
+    position: absolute !important;
+    top: 100% !important;
+    right: 0 !important;
+    background-color: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 10px !important;
+    z-index: 1000 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    width: 250px !important;
+}
+
+#ra-player .ra-menu-item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 8px !important;
+    gap: 10px !important;
+    color: var(--text) !important;
+}
+
+#ra-player .ra-menu-item img {
+    width: 20px !important;
+    height: 20px !important;
+}
+
+#ra-player .ra-voice-select {
+    background-color: var(--bg) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 4px !important;
+    padding: 5px !important;
+    color: var(--text) !important;
+    width: 100% !important;
+}
+
+#ra-player .ra-rate-bg,
+#ra-player .ra-volume-bg {
+    position: relative !important;
+    height: 8px !important;
+    background-color: var(--border) !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+    margin: 0 10px !important;
+}
+
+#ra-player .ra-rate-bar,
+#ra-player .ra-volume-bar {
+    position: absolute !important;
+    height: 100% !important;
+    background-color: var(--primary) !important;
+}
+
+#ra-player .ra-rate-knob,
+#ra-player .ra-volume-knob {
+    position: absolute !important;
+    width: 16px !important;
+    height: 16px !important;
+    background-color: var(--primary) !important;
+    border-radius: 50% !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    cursor: pointer !important;
+}
+
+#ra-player .ra-logo {
+    color: var(--text) !important;
+    font-weight: bold !important;
+}
+
+#ra-player .ra-grow-1 {
+    flex-grow: 1 !important;
+}
+
+[data-theme="dark"] #ra-player .ra-btn {
+    background-color: #3b82f6 !important;
+}
+
+[data-theme="dark"] #ra-player .ra-playback-position-bar,
+[data-theme="dark"] #ra-player .ra-seek-knob,
+[data-theme="dark"] #ra-player .ra-rate-bar,
+[data-theme="dark"] #ra-player .ra-volume-bar,
+[data-theme="dark"] #ra-player .ra-rate-knob,
+[data-theme="dark"] #ra-player .ra-volume-knob {
+    background-color: #3b82f6 !important;
+}
+
+[data-theme="dark"] #ra-player .ra-load-progress-bar {
+    background-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-theme="dark"] #ra-player .ra-overlay {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+}
+
+[data-theme="dark"] #ra-player .ra-voice-select {
+    background-color: #111827 !important;
+    border-color: #374151 !important;
+    color: #f9fafb !important;
+}
+
+[data-theme="dark"] #ra-player .ra-status-bg,
+[data-theme="dark"] #ra-player .ra-rate-bg,
+[data-theme="dark"] #ra-player .ra-volume-bg {
+    background-color: #374151 !important;
+}
+
+[data-theme="dark"] #ra-player .ra-time-text,
+[data-theme="dark"] #ra-player .ra-menu-item,
+[data-theme="dark"] #ra-player .ra-logo {
+    color: #f9fafb !important;
+}
+
+.player-status {
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--text-light);
+    min-height: 20px;
+}
+
+.player-status.error {
+    color: #ef4444;
+}
+
+.player-status.info {
+    color: #3b82f6;
+}
+
+/* --- Рейтинг --- */
+.article-rating {
+    margin: 30px 0;
+    padding: 20px;
+    background-color: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.article-rating h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.star-select {
+    display: inline-flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.star {
+    font-size: 32px;
+    color: #e0e0e0;
+    cursor: pointer;
+    transition: color 0.2s, text-shadow 0.2s;
+    user-select: none;
+    background: none;
+    border: none;
+    outline: none;
+}
+
+.star.active {
+    color: #ffd700;
+    text-shadow: 0 0 8px #ffe082, 0 0 2px #ffecb3;
+}
+
+.star.hovered {
+    color: #ff9800;
+    text-shadow: 0 0 12px #ff9800;
+}
+
+.star.unselected {
+    color: #e0e0e0;
+}
+
+[data-theme="dark"] .star {
+    color: #444;
+}
+[data-theme="dark"] .star.active {
+    color: #ffe066;
+    text-shadow: 0 0 8px #ffe082, 0 0 2px #ffecb3;
+}
+[data-theme="dark"] .star.hovered {
+    color: #ffb300;
+    text-shadow: 0 0 12px #ffb300;
+}
+[data-theme="dark"] .star.unselected {
+    color: #444;
+}
+
+.rating-info {
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.average-rating {
+    margin-top: 10px;
+    font-size: 15px;
+    color: var(--text-light);
+}
+
+.all-ratings {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border);
+}
+
+.all-ratings ul {
+    padding-left: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.all-ratings li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+    font-size: 15px;
+}
+
+.btn-delete-rating {
+    padding: 4px 10px;
+    background-color: #ef4444;
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+
+.btn-delete-rating:hover {
+    background-color: #b91c1c;
+}
+
+/* --- Комментарии --- */
+.article-comments {
+    margin: 30px 0;
+}
+
+.article-comments h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.comment-form {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.comment-form textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    resize: vertical;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--bg);
+}
+
+.comment-form .btn {
+    align-self: flex-end;
+    padding: 8px 18px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.comment-form .btn:hover {
+    background-color: #2563ebcc;
+}
+
+.comment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.comment-item {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: var(--card);
+    position: relative;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.comment-header strong {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.comment-date {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.comment-body {
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 6px;
+    white-space: pre-line;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-edit-comment,
+.btn-delete-comment {
+    padding: 4px 10px;
+    font-size: 13px;
+    border-radius: 4px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-edit-comment {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.btn-edit-comment:hover {
+    background-color: #2563eb;
+}
+
+.btn-delete-comment {
+    background-color: #ef4444;
+    color: white;
+}
+
+.btn-delete-comment:hover {
+    background-color: #b91c1c;
+}
+
+.text-muted {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Кнопка "Вверх" */
+.back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
+    z-index: 100;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.back-to-top:hover {
+    background-color: var(--primary);
+    opacity: 0.9;
+}
+
+.back-to-top svg {
+    width: 24px;
+    height: 24px;
+}
+
+@media (max-width: 576px) {
+    .article-container {
+        padding: 20px;
+    }
+    
+    .article-title {
+        font-size: 24px;
+    }
+    
+    .player-options {
+        flex-direction: column;
+    }
+    
+    .star {
+        font-size: 26px;
+    }
+    
+    .back-to-top {
+        bottom: 20px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
+    }
+}
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Элементы плеера
+        const voiceSelect = document.getElementById('voice-select');
+        const generateBtn = document.getElementById('generate-btn');
+        let raContainer = document.getElementById('ra-container');
+        const armttsContainer = document.getElementById('armtts-container');
+        const armttsAudio = document.getElementById('armtts-audio');
+        const playerStatus = document.getElementById('player-status');
+        
+        // Глобальные переменные для отслеживания состояния озвучки
+        let currentAudio = null; // текущий аудио-элемент или объект ReadAloud
+        let isPlaying = false;   // флаг воспроизведения
+        let readAloudInitialized = false; // флаг инициализации ReadAloud
+        let lastSelectedVoice = voiceSelect.value; // последний выбранный голос
+        
+        // Функция для полного удаления и пересоздания контейнера ReadAloud
+        function recreateReadAloudContainer() {
+            // Получаем родительский элемент
+            const parent = raContainer.parentElement;
+            
+            // Удаляем старый контейнер
+            parent.removeChild(raContainer);
+            
+            // Создаем новый контейнер
+            const newContainer = document.createElement('div');
+            newContainer.id = 'ra-container';
+            newContainer.className = 'audio-container';
+            newContainer.style.display = 'none';
+            
+            // Создаем HTML для нового контейнера
+            newContainer.innerHTML = `
+                                <div id="ra-player" data-skin="https://assets.readaloudwidget.com/embed/skins/default">
+                    <div class="ra-button" onclick="readAloud(document.getElementById('ra-audio'), document.getElementById('ra-player'))">
+                        <img src="https://assets.readaloudwidget.com/embed/skins/default/play-icon.png"/> Прослушать текст
+                    </div>
+                </div>
+                <audio id="ra-audio" 
+                       data-lang="${'{{ article.language }}' === 'ru' ? 'ru-RU' : '{{ article.language }}' === 'en' ? 'en-US' : 'hy-AM'}" 
+                       data-voice="${'{{ article.language }}' === 'ru' ? 'Google ru-RU-Standard-D' : '{{ article.language }}' === 'en' ? 'Google en-US-Standard-D' : ''}" 
+                       data-key="bdf2cc56acaf9af5e5c713ae0724e275">
+                </audio>
+            `;
+            
+            // Добавляем новый контейнер в родительский элемент
+            parent.appendChild(newContainer);
+            
+            // Обновляем ссылку на контейнер
+            raContainer = newContainer;
+            
+            // Сбрасываем глобальные переменные
+            window.readAloudPlayer = null;
+            readAloudInitialized = false;
+            
+            return newContainer;
+        }
+        
+        // Функция для остановки текущей озвучки
+        function stopCurrentAudio() {
+            // Останавливаем ReadAloud в любом случае
+            if (window.readAloudPlayer && typeof window.readAloudPlayer.stop === 'function') {
+                window.readAloudPlayer.stop();
+            }
+            
+            // Останавливаем speechSynthesis в любом случае
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+            
+            // Останавливаем HTML Audio
+            if (armttsAudio) {
+                armttsAudio.pause();
+                armttsAudio.currentTime = 0;
+            }
+            
+            // Сбрасываем глобальные переменные
+            window.readAloudPlayer = null;
+            readAloudInitialized = false;
+            isPlaying = false;
+            currentAudio = null;
+        }
+        
+        // Функция для ReadAloud
+        window.readAloud = function(e, t) {
+            // Останавливаем текущую озвучку
+            stopCurrentAudio();
+            
+            var n = "https://assets.readaloudwidget.com/embed/",
+            s = (/iPad|iPhone|iPod/.test(navigator.userAgent) && (e.src = n + "sound/silence.mp3", e.play(), "undefined" != typeof speechSynthesis && speechSynthesis.speak(new SpeechSynthesisUtterance(" "))), document.createElement("script"));
+            s.onload = function() { 
+                try {
+                    window.readAloudPlayer = readAloudInit(e, t);
+                    currentAudio = 'readAloud';
+                    isPlaying = true;
+                    readAloudInitialized = true;
+                } catch (error) {
+                    playerStatus.textContent = "Ошибка инициализации озвучки: " + error.message;
+                    playerStatus.className = "player-status error";
+                }
+            };
+            s.onerror = function(error) {
+                playerStatus.textContent = "Ошибка загрузки озвучки";
+                playerStatus.className = "player-status error";
+            };
+            s.src = n + "js/readaloud.min.js";
+            document.head.appendChild(s);
+        }
+        
+        // Функция для показа ReadAloud виджета с проверкой поддержки языка
+        function showReadAloud() {
+            // Пересоздаем контейнер ReadAloud для полного сброса
+            recreateReadAloudContainer();
+            
+            // Проверяем поддержку языка браузером
+            const articleLanguage = '{{ article.language }}';
+            const languageCode = articleLanguage === 'ru' ? 'ru-RU' : 
+                                articleLanguage === 'en' ? 'en-US' : 'hy-AM';
+            
+            // Проверяем, поддерживает ли браузер этот язык
+            let isLanguageSupported = false;
+            
+            if ('speechSynthesis' in window) {
+                const voices = window.speechSynthesis.getVoices();
+                isLanguageSupported = voices.some(voice => 
+                    voice.lang.startsWith(articleLanguage) || 
+                    voice.lang.startsWith(languageCode.split('-')[0])
+                );
+                
+                // Если голосов еще нет, ждем их загрузки
+                if (voices.length === 0) {
+                    window.speechSynthesis.onvoiceschanged = function() {
+                        const updatedVoices = window.speechSynthesis.getVoices();
+                        isLanguageSupported = updatedVoices.some(voice => 
+                            voice.lang.startsWith(articleLanguage) || 
+                            voice.lang.startsWith(languageCode.split('-')[0])
+                        );
+                        checkLanguageSupport();
+                    };
+                } else {
+                    checkLanguageSupport();
+                }
+            } else {
+                // Если браузер не поддерживает Web Speech API
+                playerStatus.textContent = "Ваш браузер не поддерживает озвучку текста";
+                playerStatus.className = "player-status error";
+                return;
+            }
+            
+            function checkLanguageSupport() {
+                if (!isLanguageSupported) {
+                    playerStatus.textContent = `Ваш браузер не поддерживает озвучку на ${
+                        articleLanguage === 'ru' ? 'русском' : 
+                        articleLanguage === 'en' ? 'английском' : 'армянском'
+                    } языке. Попробуйте установить языковой пакет или использовать другой браузер.`;
+                    playerStatus.className = "player-status error";
+                    
+                    // Если язык армянский, предлагаем использовать ArmTTS
+                    if (articleLanguage === 'hy') {
+                        playerStatus.textContent += " Попробуйте использовать специализированную озвучку ArmTTS.";
+                        // Автоматически переключаем на ArmTTS
+                        voiceSelect.value = 'armtts';
+                    }
+                } else {
+                    // Язык поддерживается, показываем ReadAloud
+                    playerStatus.textContent = "Браузерная озвучка готова";
+                    playerStatus.className = "player-status info";
+                    armttsContainer.style.display = "none";
+                    raContainer.style.display = "block";
+                }
+            }
+        }
+        
+        // Генерация аудио через ArmTTS
+        function generateArmTTS() {
+            // Останавливаем текущую озвучку
+            stopCurrentAudio();
+            
+            playerStatus.textContent = "Генерация аудио...";
+            playerStatus.className = "player-status info";
+            raContainer.style.display = "none";
+            armttsContainer.style.display = "none";
+            
+            fetch("/articles/{{ article.pk }}/generate-audio-armtts/")
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(text || "Ошибка генерации аудио");
+                        });
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    armttsAudio.src = url;
+                    armttsContainer.style.display = "block";
+                    playerStatus.textContent = "Аудио готово к воспроизведению";
+                    playerStatus.className = "player-status info";
+                    
+                    // Добавляем обработчики событий для отслеживания состояния
+                    armttsAudio.onplay = function() {
+                        isPlaying = true;
+                        currentAudio = armttsAudio;
+                    };
+                    
+                    armttsAudio.onpause = function() {
+                        if (currentAudio === armttsAudio) {
+                            isPlaying = false;
+                        }
+                    };
+                    
+                    armttsAudio.onended = function() {
+                        if (currentAudio === armttsAudio) {
+                            isPlaying = false;
+                            currentAudio = null;
+                        }
+                    };
+                })
+                .catch(error => {
+                    playerStatus.textContent = "Ошибка: " + error.message;
+                    playerStatus.className = "player-status error";
+                });
+        }
+        
+        // Обработчик кнопки генерации
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function() {
+                const selectedVoice = voiceSelect.value;
+                
+                // Останавливаем текущую озвучку в любом случае
+                stopCurrentAudio();
+                
+                // Запоминаем выбранный тип озвучки
+                lastSelectedVoice = selectedVoice;
+                
+                if (selectedVoice === 'armtts') {
+                    generateArmTTS();
+                } else {
+                    showReadAloud();
+                }
+            });
+        }
+        
+        // Обработчик изменения выбора озвучки
+        if (voiceSelect) {
+            voiceSelect.addEventListener('change', function() {
+                const selectedVoice = this.value;
+                
+                // Останавливаем текущую озвучку и сбрасываем плееры
+                stopCurrentAudio();
+                
+                // Полностью удаляем и пересоздаем контейнер ReadAloud
+                recreateReadAloudContainer();
+                
+                // Скрываем плееры при смене озвучки
+                raContainer.style.display = "none";
+                armttsContainer.style.display = "none";
+                
+                playerStatus.textContent = "Выбран вариант озвучки: " + this.options[this.selectedIndex].text;
+                playerStatus.className = "player-status";
+                
+                // Запоминаем выбранный тип озвучки
+                lastSelectedVoice = selectedVoice;
+            });
+        }
+        
+        // Инициализация
+        if (playerStatus) {
+            playerStatus.textContent = "Выберите вариант озвучки и нажмите 'Сгенерировать аудио'";
+        }
+        
+        // Кнопка "Вверх"
+        const backToTopButton = document.getElementById('backToTop');
+        
+        // Показываем кнопку при прокрутке вниз
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 300) {
+                backToTopButton.classList.add('visible');
+            } else {
+                backToTopButton.classList.remove('visible');
+            }
+        });
+        
+        // Прокрутка вверх при клике на кнопку
+        backToTopButton.addEventListener('click', function() {
+            // Плавная прокрутка вверх
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Оценить статью{% endblock %}
+
+{% block content %}
+<div class="rating-form-container">
+    <h2>Оценить статью</h2>
+    <h3>{{ article.title }}</h3>
+    
+    <form method="post" class="rating-form">
+        {% csrf_token %}
+        
+        <div class="rating-stars">
+            {% for radio in form.value %}
+            <div class="rating-option">
+                {{ radio.tag }}
+                <label for="{{ radio.id_for_label }}" class="star-label">
+                    {% for i in "12345" %}
+                    {% if forloop.counter <= radio.choice_value %}
+                    <span class="star filled">★</span>
+                    {% else %}
+                    <span class="star">☆</span>
+                    {% endif %}
+                    {% endfor %}
+                    <span class="rating-text">{{ radio.choice_label }}</span>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn-submit">Сохранить оценку</button>
+            <a href="{% url 'article_detail' article.pk %}" class="btn-cancel">Отмена</a>
+        </div>
+    </form>
+</div>
+
+<style>
+    .rating-form-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: var(--card);
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .rating-form {
+        margin-top: 20px;
+    }
+    
+    .rating-stars {
+        margin-bottom: 30px;
+    }
+    
+    .rating-option {
+        margin-bottom: 15px;
+    }
+    
+    .rating-option input[type="radio"] {
+        display: none;
+    }
+    
+        .star-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    
+    .star {
+        font-size: 24px;
+        color: #d1d5db;
+        margin-right: 2px;
+    }
+    
+    .star.filled {
+        color: #f59e0b;
+    }
+    
+    .rating-text {
+        margin-left: 10px;
+        font-size: 14px;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .btn-submit {
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+    
+    .btn-cancel {
+        padding: 10px 20px;
+        background-color: #e5e7eb;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+{% block title %}Профиль пользователя{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <h1>Профиль пользователя</h1>
+    </div>
+    
+    <div class="profile-card">
+        <h2>Личная информация</h2>
+        <form method="POST" class="profile-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="name">Имя:</label>
+                <input type="text" id="name" name="name" value="{{ request.user.name }}" class="input-field" required autocomplete="off">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" value="{{ request.user.email }}" class="input-field" required autocomplete="off">
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-save">Сохранить изменения</button>
+                <a href="{% url 'password_change' %}" class="btn-action">Изменить пароль</a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="profile-card">
+        <h2>Мои статьи</h2>
+        <div class="search-box">
+            <input type="text" id="articleSearch" placeholder="Поиск по названию..." onkeyup="searchArticles()" autocomplete="off">
+        </div>
+        <div class="user-articles">
+            {% with user_articles=request.user.article_set.all %}
+            {% if user_articles %}
+            <div class="articles-list" id="articlesList">
+                {% for article in user_articles %}
+                <div class="article-item">
+                    <div class="article-info">
+                        <h3><a href="{% url 'article_detail' article.pk %}">{{ article.title }}</a></h3>
+                        <div class="article-meta">
+                            <span>{{ article.created_at|date:"d.m.Y" }}</span>
+                            <span>{{ article.get_language_display }}</span>
+                            <span class="article-status {% if article.is_approved %}approved{% else %}pending{% endif %}">
+                                {{ article.is_approved|yesno:"Опубликовано,Ожидает модерации" }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="article-actions">
+                        <a href="{% url 'admin_edit_article' article.pk %}" class="btn-edit">Редактировать</a>
+                        <a href="{% url 'admin_delete_article' article.pk %}" class="btn-delete" onclick="return confirm('Вы уверены, что хотите удалить эту статью?')">Удалить</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="no-articles">У вас пока нет статей. <a href="{% url 'article_create' %}">Создать статью</a></p>
+            {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+    
+    <div class="profile-card">
+        <h2>Социальные аккаунты</h2>
+        <div class="social-accounts">
+            {% if social_accounts %}
+            <div class="connected-accounts">
+                {% for account in social_accounts %}
+                <div class="account-item">
+                    <div class="account-info">
+                        <span class="account-provider">{{ account.provider }}</span>
+                        <span class="account-uid">{{ account.uid }}</span>
+                    </div>
+                    <form method="post" action="{% url 'socialaccount_disconnect' account.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-disconnect">Отключить</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="connect-accounts">
+                <p>Подключите социальные аккаунты для быстрого входа:</p>
+                <a href="{% url 'socialaccount_connections' %}" class="btn-connect">Подключить аккаунты</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if request.user.is_superuser %}
+    <div class="profile-card">
+        <h2>Панель суперадминистратора</h2>
+        <div class="admin-actions">
+            <a href="{% url 'api_settings' %}" class="btn-action">Настройки API ключей</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    /* Фиксированная ширина для всего контейнера профиля */
+    .profile-container {
+        width: 800px;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 30px 0;
+        box-sizing: border-box;
+    }
+    
+    /* Фиксированная ширина для всех блоков внутри */
+    .profile-header,
+    .profile-card,
+    .profile-form,
+    .form-group,
+    .search-box,
+    .user-articles,
+    .articles-list,
+    .article-item,
+    .social-accounts,
+    .connected-accounts,
+    .account-item,
+    .connect-accounts {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .profile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .profile-header h1 {
+        margin: 0;
+    }
+    
+    .profile-card {
+        background-color: var(--card);
+        border-radius: 10px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .profile-form {
+        margin-top: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+    
+    .input-field {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 15px;
+        background-color: var(--bg);
+        color: var(--text);
+        box-sizing: border-box;
+    }
+    
+    .form-actions {
+        margin-top: 30px;
+        display: flex;
+        gap: 15px;
+    }
+    
+    .btn-save,
+    .btn-action {
+        padding: 12px 24px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 16px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-save:hover,
+    .btn-action:hover {
+        opacity: 0.9;
+        text-decoration: none;
+    }
+    
+    .search-box {
+        margin-bottom: 20px;
+    }
+    
+    .search-box input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 15px;
+        background-color: var(--bg);
+        color: var(--text);
+        box-sizing: border-box;
+    }
+    
+    .articles-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    /* Важно: фиксированная структура для элементов статей */
+    .article-item {
+        display: grid;
+        grid-template-columns: 1fr 220px;
+        gap: 15px;
+        padding: 15px;
+        background-color: var(--bg);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        min-height: 80px;
+        table-layout: fixed; /* Фиксированная ширина таблицы */
+    }
+    
+    .article-info {
+        overflow: hidden;
+        min-width: 0;
+    }
+    
+    .article-info h3 {
+        margin: 0 0 10px 0;
+        font-size: 16px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .article-info h3 a {
+        color: var(--text);
+        text-decoration: none;
+    }
+    
+    .article-info h3 a:hover {
+        color: var(--primary);
+    }
+    
+    .article-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        font-size: 12px;
+        color: var(--text-light);
+    }
+    
+    .article-status {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .article-status.approved {
+        background-color: #10b981;
+        color: white;
+    }
+    
+    .article-status.pending {
+        background-color: #f59e0b;
+        color: white;
+    }
+    
+    /* Фиксированная ширина для блока действий */
+    .article-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 220px;
+        min-width: 220px;
+        flex-shrink: 0;
+    }
+    
+    .btn-edit {
+        padding: 6px 12px;
+        background-color: var(--primary);
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 14px;
+        text-align: center;
+        white-space: nowrap;
+    }
+    
+    .btn-delete {
+        padding: 6px 12px;
+        background-color: #ef4444;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 14px;
+        text-align: center;
+        white-space: nowrap;
+    }
+    
+    .no-articles {
+        color: var(--text-light);
+        font-style: italic;
+    }
+    
+    .no-articles a {
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    
+    .social-accounts {
+        margin-top: 20px;
+    }
+    
+    .connected-accounts {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .account-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 15px;
+        padding: 15px;
+        background-color: var(--bg);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+    }
+    
+    .account-info {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .account-provider {
+        font-weight: 500;
+        color: var(--text);
+    }
+    
+    .account-uid {
+        font-size: 12px;
+        color: var(--text-light);
+        word-break: break-all;
+    }
+    
+    .btn-disconnect {
+        padding: 6px 12px;
+        background-color: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    
+    .connect-accounts {
+        text-align: center;
+        padding: 20px;
+        background-color: var(--bg);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+    }
+    
+    .btn-connect {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+    
+    /* Важно: добавляем стиль для контейнера списка статей, чтобы он не менял ширину */
+    #articlesList {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Медиа-запросы для адаптивности */
+    @media (max-width: 850px) {
+        .profile-container {
+            width: 100%;
+            padding: 30px 15px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .profile-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+        
+        .article-item {
+            grid-template-columns: 1fr;
+        }
+        
+        .article-actions {
+            width: 100%;
+            min-width: 100%;
+            margin-top: 10px;
+        }
+    }
+</style>
+
+<script>
+    function searchArticles() {
+        const input = document.getElementById('articleSearch');
+        const filter = input.value.toUpperCase();
+        const articlesList = document.getElementById('articlesList');
+        const articles = articlesList.getElementsByClassName('article-item');
+        
+        for (let i = 0; i < articles.length; i++) {
+            const title = articles[i].getElementsByTagName('h3')[0];
+            const txtValue = title.textContent || title.innerText;
+            
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                articles[i].style.display = "";
+            } else {
+                articles[i].style.display = "none";
+            }
+        }
+    }
+</script>
+{% endblock %}

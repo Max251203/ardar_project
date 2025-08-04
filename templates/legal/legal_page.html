@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="article-container">
+    <div class="article-header">
+        <h1 class="article-title">{{ document.title }}</h1>
+        {% if user.is_superuser %}
+        <div class="admin-actions">
+            <a href="{% url 'edit_legal_page' %}" class="btn-edit">Редактировать</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="article-content">
+        {{ document.content|safe }}
+    </div>
+</div>
+
+<style>
+    .admin-actions {
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .btn-edit {
+        display: inline-block;
+        padding: 8px 16px;
+        background-color: var(--primary);
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}

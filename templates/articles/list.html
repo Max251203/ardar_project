@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Articles" %}{% endblock %}
+
+{% block content %}
+<div class="article-container" style="max-width: 1200px;">
+    <div class="page-header">
+        <h1>{% trans "All articles" %}</h1>
+        {% if user.is_authenticated and user.role != 'guest' %}
+        <a class="btn-create" href="{% url 'article_create' %}">{% trans "Add article" %}</a>
+        {% endif %}
+    </div>
+    
+    <div class="search-filters">
+        <form method="get" id="searchForm">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <input type="text" name="q" placeholder="{% trans 'Search by title' %}" value="{{ search_query }}" class="search-input">
+                </div>
+                
+                <!-- Фильтр по языку -->
+                <div class="filter-group">
+                    <label>{% trans "Language:" %}</label>
+                    <select name="language" class="language-select">
+                        <option value="">{% trans "All languages" %}</option>
+                        <option value="ru" {% if language == 'ru' %}selected{% endif %}>Русский</option>
+                        <option value="en" {% if language == 'en' %}selected{% endif %}>English</option>
+                        <option value="hy" {% if language == 'hy' %}selected{% endif %}>Հայերեն</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>{% trans "From:" %}</label>
+                    <input type="date" name="date_from" value="{{ date_from }}" class="date-input">
+                </div>
+                
+                <div class="filter-group">
+                    <label>{% trans "To:" %}</label>
+                    <input type="date" name="date_to" value="{{ date_to }}" class="date-input">
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit" class="btn-search">{% trans "Find" %}</button>
+                    <button type="button" id="resetFilters" class="btn-reset">{% trans "Reset" %}</button>
+                </div>
+            </div>
+        </form>
+    </div>
+        
+    <div id="articles-container" class="card-grid">
+        {% include "articles/includes/article_cards.html" %}
+    </div>
+    
+    <!-- Пагинация -->
+    {% if articles.paginator.num_pages > 1 %}
+    <div class="pagination">
+        {% if articles.has_previous %}
+        <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">&laquo; {% if LANGUAGE_CODE == "ru" %}Первая{% elif LANGUAGE_CODE == "en" %}First{% else %}Առաջին{% endif %}</a>
+        <a href="?page={{ articles.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">&lsaquo; {% if LANGUAGE_CODE == "ru" %}Предыдущая{% elif LANGUAGE_CODE == "en" %}Previous{% else %}Նախորդ{% endif %}</a>
+        {% endif %}
+        
+        {% for num in articles.paginator.page_range %}
+            {% if articles.number == num %}
+            <span class="pagination-item active">{{ num }}</span>
+            {% elif num > articles.number|add:'-3' and num < articles.number|add:'3' %}
+            <a href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        
+        {% if articles.has_next %}
+        <a href="?page={{ articles.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">{% if LANGUAGE_CODE == "ru" %}Следующая{% elif LANGUAGE_CODE == "en" %}Next{% else %}Հաջորդ{% endif %} &rsaquo;</a>
+        <a href="?page={{ articles.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if language %}&language={{ language }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="pagination-item">{% if LANGUAGE_CODE == "ru" %}Последняя{% elif LANGUAGE_CODE == "en" %}Last{% else %}Վերջին{% endif %} &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .btn-create {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+    
+    .search-filters {
+        background-color: var(--card);
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+    }
+    
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .filter-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text);
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid var(--primary);
+        border-radius: 6px;
+        background-color: var(--bg);
+        font-size: 16px;
+        transition: all 0.2s;
+        color: var(--text);
+    }
+    
+    .search-input:focus {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        outline: none;
+    }
+    
+    .date-input, .language-select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background-color: var(--bg);
+        color: var(--text);
+    }
+    
+    .date-input:focus, .language-select:focus {
+        border-color: var(--primary);
+        outline: none;
+    }
+    
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-search, .btn-reset {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-search {
+        background-color: var(--primary);
+        color: white;
+    }
+    
+    .btn-search:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+    
+    .btn-reset {
+        background-color: #e5e7eb;
+        color: #374151;
+    }
+    
+    .btn-reset:hover {
+        background-color: #d1d5db;
+    }
+    
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        margin: 30px 0;
+    }
+    
+    .pagination-item {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 10px;
+        background-color: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .pagination-item:hover {
+        background-color: var(--border);
+    }
+    
+    .pagination-item.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    
+    @media (max-width: 992px) {
+        .card-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .card-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .filter-row {
+            flex-direction: column;
+        }
+        
+        .filter-group {
+            width: 100%;
+        }
+        
+        .pagination {
+            flex-wrap: wrap;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const resetBtn = document.getElementById('resetFilters');
+        
+        // Обработчик кнопки "Сбросить"
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                window.location.href = '{% url "article_list" %}';
+            });
+        }
+    });
+</script>
+{% endblock %}

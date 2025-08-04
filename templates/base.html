@@ -1,0 +1,694 @@
+{% load static %}
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Ardar{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/admin.css' %}">
+    <style>
+        /* Стили для сообщений */
+        .messages {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 15px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .message.success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .message.error {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .message.warning {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .message.info {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .close-message {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            margin-left: 10px;
+            opacity: 0.8;
+        }
+
+        .close-message:hover {
+            opacity: 1;
+        }
+
+        /* Стили для модального окна авторизации */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: var(--card);
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--text-light);
+            cursor: pointer;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .auth-tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-light);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+        }
+
+        .auth-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .auth-tab-content {
+            display: none;
+        }
+
+        .auth-tab-content.active {
+            display: block;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .password-group {
+            position: relative;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 38px;
+            width: 22px;
+            height: 22px;
+            background: url("{% static 'img/eye.png' %}") no-repeat center;
+            background-size: contain;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .toggle-password[data-state="visible"] {
+            background-image: url("{% static 'img/eye-slash.png' %}");
+        }
+
+        .form-links {
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        .forgot-password {
+            font-size: 14px;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+
+        .social-login {
+            margin-top: 20px;
+        }
+
+        .social-divider {
+            position: relative;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .social-divider:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: var(--border);
+        }
+
+        .social-divider span {
+            position: relative;
+            display: inline-block;
+            padding: 0 10px;
+            background-color: var(--card);
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .social-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-social {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-google {
+            background-color: #fff;
+            color: #757575;
+            border: 1px solid #ddd;
+        }
+
+        .btn-google:hover {
+            background-color: #f8f8f8;
+        }
+
+        .btn-google img {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Стили для сообщений об ошибках в модальном окне */
+        .auth-errors {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            color: #b91c1c;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .auth-errors ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        [data-theme="dark"] .auth-errors {
+            background-color: #7f1d1d;
+            border-left-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        /* Стили для селектора языка */
+        .language-selector {
+            margin-left: 20px;
+        }
+        
+        .language-selector select {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        .language-selector select option {
+            background-color: var(--bg);
+            color: var(--text);
+        }
+        
+        @media (max-width: 768px) {
+            .language-selector {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <a href="{% url 'home' %}" class="logo-container">
+                <img src="{% static 'img/logo.png' %}" alt="Ardar Logo" class="logo-image">
+                <div class="logo-text">
+                    <span class="logo-title">ardar.info</span>
+                    <div class="logo-divider"></div>
+                    <span class="logo-subtitle">{% if LANGUAGE_CODE == 'ru' %}Общественно-политический блог{% elif LANGUAGE_CODE == 'en' %}Socio-political blog{% else %}Հասարակական-քաղաքական բլոգ{% endif %}</span>
+                </div>
+            </a>
+            
+            <form action="{% url 'set_language' %}" method="post" class="language-selector">
+                {% csrf_token %}
+                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                <select name="language" onchange="this.form.submit()" aria-label="{% trans 'Language' %}">
+                    {% get_current_language as LANGUAGE_CODE %}
+                    {% get_available_languages as LANGUAGES %}
+                    {% for lang in LANGUAGES %}
+                        <option value="{{ lang.0 }}" {% if lang.0 == LANGUAGE_CODE %}selected{% endif %}>
+                            {{ lang.1 }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+            
+            <div class="nav-links">
+                <a href="{% url 'home' %}">{% trans "Home" %}</a>
+                <a href="{% url 'article_list' %}">{% trans "Articles" %}</a>
+                <a href="{% url 'livestream_list' %}">{% trans "Livestreams" %}</a>
+                <a href="{% url 'donation_page' %}">{% trans "Donations" %}</a>
+
+                {% if request.user.is_authenticated %}
+                    {% if request.user.is_superuser or request.user.role == 'admin' %}
+                        <a href="{% url 'admin_dashboard' %}">{% trans "Admin Panel" %}</a>
+                    {% endif %}
+
+                    <span><a href="{% url 'user_profile' %}">{{ request.user.name }}</a></span>
+                    <a href="{% url 'logout_user' %}">{% trans "Sign out" %}</a>
+                {% else %}
+                    <a href="#" id="authLink">{% trans "Sign in / Register" %}</a>
+                {% endif %}
+
+                <button class="theme-toggle" id="theme-toggle">🌙</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="message {{ message.tags }}">
+                {{ message }}
+                <button class="close-message" onclick="this.parentElement.remove()">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            © 2025 Ardar Project
+        </div>
+    </footer>
+
+    <!-- Модальное окно авторизации -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">{% trans "Login" %}</button>
+                <button class="auth-tab" data-tab="register">{% trans "Register" %}</button>
+            </div>
+            
+            <!-- Блок для ошибок -->
+            <div id="authErrors" class="auth-errors" style="display:none;"></div>
+            
+            <div id="loginTab" class="auth-tab-content active">
+                <form id="loginForm" method="POST" action="{% url 'auth' %}" class="auth-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="mode" value="login">
+                    
+                    <div class="form-group">
+                        <label for="login-email">{% trans "Email:" %}</label>
+                        <input type="email" id="login-email" name="username" required class="input-field">
+                    </div>
+                    
+                    <div class="form-group password-group">
+                        <label for="login-password">{% trans "Password:" %}</label>
+                        <input type="password" id="login-password" name="password" required class="input-field">
+                        <button type="button" class="toggle-password" data-state="hidden"></button>
+                    </div>
+                    
+                    <div class="form-links">
+                        <a href="{% url 'password_reset' %}" class="forgot-password">{% trans "Forgot password?" %}</a>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">{% trans "Sign in" %}</button>
+                </form>
+                
+                {% if 'allauth.socialaccount' in INSTALLED_APPS %}
+                <div class="social-login">
+                    <div class="social-divider">
+                        <span>{% trans "or login with" %}</span>
+                    </div>
+                    <div class="social-buttons">
+                        <a href="{% url 'google_login' %}" class="btn-social btn-google">
+                            <img src="{% static 'img/google-icon.png' %}" alt="Google">
+                            Google
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div id="registerTab" class="auth-tab-content">
+                <form id="registerForm" method="POST" action="{% url 'auth' %}" class="auth-form" autocomplete="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="mode" value="register">
+                    
+                    <div class="form-group">
+                        <label for="register-name">{% trans "Name:" %}</label>
+                        <input type="text" id="register-name" name="name" required class="input-field" autocomplete="off">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-email">{% trans "Email:" %}</label>
+                        <input type="email" id="register-email" name="email" required class="input-field" autocomplete="off">
+                    </div>
+                    
+                    <div class="form-group password-group">
+                        <label for="register-password">{% trans "Password:" %}</label>
+                        <input type="password" id="register-password" name="password" required class="input-field" autocomplete="new-password">
+                        <button type="button" class="toggle-password" data-state="hidden"></button>
+                    </div>
+                    
+                    <div class="form-group password-group">
+                        <label for="register-password-confirm">{% trans "Confirm password:" %}</label>
+                        <input type="password" id="register-password-confirm" name="password_confirm" required class="input-field" autocomplete="new-password">
+                        <button type="button" class="toggle-password" data-state="hidden"></button>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">{% trans "Register" %}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Переключение темы
+        const toggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        html.dataset.theme = savedTheme;
+        toggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+        toggle.addEventListener('click', () => {
+            const current = html.dataset.theme;
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            html.dataset.theme = newTheme;
+            localStorage.setItem('theme', newTheme);
+            toggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        });
+
+        // Автоматическое скрытие сообщений
+        document.addEventListener('DOMContentLoaded', function() {
+            const messages = document.querySelectorAll('.message');
+            messages.forEach(message => {
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    message.style.transform = 'translateX(100%)';
+                    message.style.transition = 'opacity 0.5s, transform 0.5s';
+                    setTimeout(() => {
+                        message.remove();
+                    }, 500);
+                }, 5000);
+            });
+            
+            // Сверхбыстрые переходы
+            const mainContent = document.querySelector('main');
+            if (mainContent) {
+                mainContent.style.opacity = 0;
+                mainContent.style.transform = 'translateY(5px)';
+                
+                setTimeout(() => {
+                    mainContent.style.opacity = 1;
+                    mainContent.style.transform = 'translateY(0)';
+                    mainContent.style.transition = 'opacity 0.1s, transform 0.1s';
+                }, 10);
+            }
+        });
+
+        // Модальное окно авторизации
+        document.addEventListener('DOMContentLoaded', function() {
+            const authLink = document.getElementById('authLink');
+            const modal = document.getElementById('authModal');
+            const closeBtn = document.querySelector('.close-modal');
+            const tabs = document.querySelectorAll('.auth-tab');
+            const tabContents = document.querySelectorAll('.auth-tab-content');
+            const toggleBtns = document.querySelectorAll('.toggle-password');
+            const authErrors = document.getElementById('authErrors');
+            
+            // Открытие модального окна при клике на ссылку авторизации
+            if (authLink) {
+                authLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    modal.style.display = 'block';
+                });
+            }
+            
+            // Закрытие модального окна
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    modal.style.display = 'none';
+                });
+            }
+            
+            // Закрытие при клике вне модального окна
+            window.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // Переключение вкладок
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Убираем активный класс со всех вкладок
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    // Добавляем активный класс текущей вкладке
+                    this.classList.add('active');
+                    const tabName = this.getAttribute('data-tab');
+                    document.getElementById(tabName + 'Tab').classList.add('active');
+                    
+                    // Скрываем ошибки при переключении
+                    if (authErrors) {
+                        authErrors.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Переключение видимости пароля
+            toggleBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const input = this.previousElementSibling;
+                    const currentState = this.getAttribute('data-state');
+                    
+                    if (currentState === 'hidden') {
+                        input.type = 'text';
+                        this.setAttribute('data-state', 'visible');
+                    } else {
+                        input.type = 'password';
+                        this.setAttribute('data-state', 'hidden');
+                    }
+                });
+            });
+
+            // AJAX для форм авторизации
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            
+            // Обработка формы входа
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Скрываем предыдущие ошибки
+                    if (authErrors) {
+                        authErrors.style.display = 'none';
+                    }
+                    
+                    // Собираем данные формы
+                    const formData = new FormData(this);
+                    
+                    // Отправляем AJAX запрос
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Успешный вход - перенаправляем
+                            window.location.href = data.redirect;
+                        } else {
+                            // Показываем ошибки
+                            if (authErrors) {
+                                authErrors.innerHTML = '';
+                                if (data.errors && data.errors.length) {
+                                    const ul = document.createElement('ul');
+                                    data.errors.forEach(error => {
+                                        const li = document.createElement('li');
+                                        li.textContent = error;
+                                        ul.appendChild(li);
+                                    });
+                                    authErrors.appendChild(ul);
+                                    authErrors.style.display = 'block';
+                                } else {
+                                    authErrors.textContent = 'Произошла ошибка при входе. Пожалуйста, попробуйте снова.';
+                                    authErrors.style.display = 'block';
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        if (authErrors) {
+                            authErrors.textContent = 'Произошла ошибка при обработке запроса. Пожалуйста, попробуйте позже.';
+                            authErrors.style.display = 'block';
+                        }
+                    });
+                });
+            }
+            
+            // Обработка формы регистрации
+            if (registerForm) {
+                registerForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Скрываем предыдущие ошибки
+                    if (authErrors) {
+                        authErrors.style.display = 'none';
+                    }
+                    
+                    // Проверяем совпадение паролей
+                    const password = document.getElementById('register-password').value;
+                    const passwordConfirm = document.getElementById('register-password-confirm').value;
+                    
+                    if (password !== passwordConfirm) {
+                        if (authErrors) {
+                            authErrors.innerHTML = '<ul><li>Пароли не совпадают</li></ul>';
+                            authErrors.style.display = 'block';
+                        }
+                        return;
+                    }
+                    
+                    // Собираем данные формы
+                    const formData = new FormData(this);
+                    
+                    // Отправляем AJAX запрос
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Успешная регистрация - перенаправляем
+                            window.location.href = data.redirect;
+                        } else {
+                            // Показываем ошибки
+                            if (authErrors) {
+                                authErrors.innerHTML = '';
+                                if (data.errors && data.errors.length) {
+                                    const ul = document.createElement('ul');
+                                    data.errors.forEach(error => {
+                                        const li = document.createElement('li');
+                                        li.textContent = error;
+                                        ul.appendChild(li);
+                                    });
+                                    authErrors.appendChild(ul);
+                                    authErrors.style.display = 'block';
+                                } else {
+                                    authErrors.textContent = 'Произошла ошибка при регистрации. Пожалуйста, попробуйте снова.';
+                                    authErrors.style.display = 'block';
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        if (authErrors) {
+                            authErrors.textContent = 'Произошла ошибка при обработке запроса. Пожалуйста, попробуйте позже.';
+                            authErrors.style.display = 'block';
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

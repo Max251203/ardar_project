@@ -1,0 +1,153 @@
+{% load average %}
+<div class="card">
+    <div class="card-image-container">
+        {% if article.image_data %}
+        <img src="{% url 'article_image' article.pk %}" class="card-image" alt="Обложка">
+        {% else %}
+        <div class="card-image-placeholder">
+            <span>Нет изображения</span>
+        </div>
+        {% endif %}
+    </div>
+    <div class="card-content">
+        <h3 class="card-title">{{ article.title }}</h3>
+        <div class="card-footer">
+            <div class="card-date">
+                <i class="fas fa-calendar"></i> {{ article.created_at|date:"d.m.Y" }}
+            </div>
+            <div class="card-stats">
+                <span class="card-comments">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2.5a1 1 0 0 1 .8.4l1.9 2.533a1 1 0 0 0 1.6 0l1.9-2.533a1 1 0 0 1 .8-.4H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                    </svg>
+                    {{ article.comments.count|default:"0" }}
+                </span>
+                <span class="card-rating">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+                    </svg>
+                    {% with avg=article.ratings.all|average:"value" %}
+                        {% if avg %}
+                            {{ avg|floatformat:1 }}/5
+                        {% else %}
+                            —
+                        {% endif %}
+                    {% endwith %}
+                </span>
+            </div>
+        </div>
+    </div>
+    <a href="{% url 'article_detail' article.pk %}" class="card-link"></a>
+    {% if not article.is_approved and article.author == request.user %}
+    <div class="pending-badge">🕒 Ожидает модерации</div>
+    {% endif %}
+</div>
+
+<style>
+    .card {
+    position: relative;
+    background-color: var(--card);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-image-container {
+    height: 200px;
+    overflow: hidden;
+}
+
+.card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.card-image-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f3f4f6;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.card-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.card-title {
+    margin: 0 0 15px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.card-date {
+    font-size: 14px;
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.card-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 14px;
+    color: var(--text-light);
+}
+
+.card-comments, .card-rating {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.card-rating svg {
+    color: #ffd700;
+}
+
+.card-link {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.pending-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(245, 158, 11, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 2;
+}
+</style>

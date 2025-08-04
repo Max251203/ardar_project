@@ -1,0 +1,214 @@
+# locale/ru/LC_MESSAGES/django.po
+msgid ""
+msgstr ""
+"Project-Id-Version: ardar\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-20 12:00+0000\n"
+"PO-Revision-Date: 2025-07-20 12:00+0000\n"
+"Last-Translator: Admin <admin@example.com>\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: templates/base.html
+msgid "Home"
+msgstr "Главная"
+
+#: templates/base.html
+msgid "Articles"
+msgstr "Статьи"
+
+#: templates/base.html
+msgid "Admin Panel"
+msgstr "Панель администратора"
+
+#: templates/base.html
+msgid "Sign in / Register"
+msgstr "Вход / Регистрация"
+
+#: templates/base.html
+msgid "Sign out"
+msgstr "Выйти"
+
+#: templates/base.html
+msgid "Login"
+msgstr "Вход"
+
+#: templates/base.html
+msgid "Register"
+msgstr "Регистрация"
+
+#: templates/base.html
+msgid "Email:"
+msgstr "Email:"
+
+#: templates/base.html
+msgid "Password:"
+msgstr "Пароль:"
+
+#: templates/base.html
+msgid "Confirm password:"
+msgstr "Подтвердите пароль:"
+
+#: templates/base.html
+msgid "Name:"
+msgstr "Имя:"
+
+#: templates/base.html
+msgid "Forgot password?"
+msgstr "Забыли пароль?"
+
+#: templates/base.html
+msgid "or login with"
+msgstr "или войти через"
+
+#: templates/base.html
+msgid "Sign in"
+msgstr "Войти"
+
+#: templates/core/home.html
+msgid "Blog for serious people"
+msgstr "Блог для серьёзных людей"
+
+#: templates/core/home.html
+msgid "Discussion of socio-political topics. Here, anyone can become an author of an article or discuss other authors' publications."
+msgstr "Обсуждение тем общественно-политической направленности. Здесь каждый желающий может стать автором статьи или обсудить публикации других авторов."
+
+#: templates/core/home.html
+msgid "Latest articles"
+msgstr "Последние статьи"
+
+#: templates/core/home.html
+msgid "No new articles"
+msgstr "Нет новых статей"
+
+#: templates/core/home.html
+msgid "Terms of use and privacy"
+msgstr "Условия использования и конфиденциальность"
+
+#: templates/articles/list.html
+msgid "All articles"
+msgstr "Все статьи"
+
+#: templates/articles/list.html
+msgid "Add article"
+msgstr "Добавить статью"
+
+#: templates/articles/list.html
+msgid "Search by title"
+msgstr "Поиск по названию"
+
+#: templates/articles/list.html
+msgid "Language:"
+msgstr "Язык:"
+
+#: templates/articles/list.html
+msgid "All languages"
+msgstr "Все языки"
+
+#: templates/articles/list.html
+msgid "From:"
+msgstr "От:"
+
+#: templates/articles/list.html
+msgid "To:"
+msgstr "До:"
+
+#: templates/articles/list.html
+msgid "Find"
+msgstr "Найти"
+
+#: templates/articles/list.html
+msgid "Reset"
+msgstr "Сбросить"
+
+#: templates/articles/detail.html
+msgid "Listen to article"
+msgstr "Прослушать статью"
+
+#: templates/articles/detail.html
+msgid "Browser speech"
+msgstr "Браузерная озвучка"
+
+#: templates/articles/detail.html
+msgid "Generate audio"
+msgstr "Сгенерировать аудио"
+
+#: templates/articles/detail.html
+msgid "Your rating"
+msgstr "Ваша оценка"
+
+#: templates/articles/detail.html
+msgid "Login to rate the article"
+msgstr "Войдите, чтобы оценить статью"
+
+#: templates/articles/detail.html
+msgid "Average rating:"
+msgstr "Средняя оценка:"
+
+#: templates/articles/detail.html
+msgid "No ratings yet"
+msgstr "Пока нет оценок"
+
+#: templates/articles/detail.html
+msgid "Comments"
+msgstr "Комментарии"
+
+#: templates/articles/detail.html
+msgid "Write your comment..."
+msgstr "Напишите ваш комментарий..."
+
+#: templates/articles/detail.html
+msgid "Send"
+msgstr "Отправить"
+
+#: templates/articles/detail.html
+msgid "Login to comment"
+msgstr "Войдите, чтобы оставить комментарий"
+
+#: templates/articles/detail.html
+msgid "No comments yet"
+msgstr "Пока нет комментариев"
+
+#: templates/articles/detail.html
+msgid "Back to articles"
+msgstr "Назад к статьям"
+
+msgid "Livestreams"
+msgstr "Трансляции"
+
+msgid "Donations"
+msgstr "Пожертвования"
+
+msgid "Support the project"
+msgstr "Поддержать проект"
+
+msgid "Amount (₽):"
+msgstr "Сумма (₽):"
+
+msgid "Pay"
+msgstr "Оплатить"
+
+msgid "After clicking 'Pay', you will be redirected to the secure Robokassa page to enter your card details. MIR, Visa, Mastercard cards are supported."
+msgstr "После нажатия «Оплатить» вы перейдёте на защищённую страницу Робокассы для ввода данных карты. Поддерживаются карты МИР, Visa, Mastercard."
+
+msgid "Edit"
+msgstr "Редактировать"
+
+msgid "Edit donations"
+msgstr "Редактировать пожертвования"
+
+msgid "Text for the page:"
+msgstr "Текст для страницы:"
+
+msgid "Merchant Login (Robokassa):"
+msgstr "Merchant Login (Робокасса):"
+
+msgid "Save"
+msgstr "Сохранить"
+
+msgid "Back"
+msgstr "Назад"
