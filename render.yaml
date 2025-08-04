@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: ardar
+    env: python
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn ardar.wsgi:application
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: DB_NAME
+        fromDatabase:
+          name: ardar-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ardar-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ardar-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: ardar-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ardar-db
+          property: port
+      - key: FREEKASSA_MERCHANT_ID
+        value: "123456"
+      - key: FREEKASSA_SECRET_1
+        value: "your_secret1"
+      - key: FREEKASSA_SECRET_2
+        value: "your_secret2"
+      - key: DOMAIN_NAME
+        value: "https://ardar.onrender.com"
+
+databases:
+  - name: ardar-db
+    plan: free

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Ошибка оплаты" %}{% endblock %}
+
+{% block content %}
+<div class="fail-container">
+    <div class="fail-icon">❌</div>
+    <h1>{% trans "Платеж не завершен" %}</h1>
+    <p>{% trans "К сожалению, произошла ошибка при обработке платежа." %}</p>
+    <a href="{% url 'donation_page' %}" class="btn-retry">{% trans "Попробовать снова" %}</a>
+    <a href="{% url 'home' %}" class="btn-return">{% trans "Вернуться на главную" %}</a>
+</div>
+{% endblock %}

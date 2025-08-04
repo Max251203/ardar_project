@@ -1,40 +1,65 @@
-# apps/donations/views.py
+import hashlib
+from django.conf import settings
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
-from apps.core.models import SiteSettings
+from django.http import HttpResponse
 from django.contrib import messages
+from .models import Donation
+from django.views.decorators.csrf import csrf_exempt
 
 def donation_page(request):
-    description = SiteSettings.get_setting('DONATION_DESCRIPTION', (
-        "Дорогие друзья!\n\n"
-        "Вы можете поддержать развитие нашего общественно-политического проекта. "
-        "Ваша помощь позволит нам:\n"
-        "- публиковать больше независимых материалов;\n"
-        "- проводить прямые эфиры и дискуссии;\n"
-        "- развивать новые сервисы для читателей.\n\n"
-        "Любая сумма важна! Спасибо за вашу поддержку и доверие."
-    ))
-    merchant_login = SiteSettings.get_setting('ROBOKASSA_MERCHANT_LOGIN', 'demo')
-    return render(request, 'donations/donation_page.html', {
-        'description': description,
-        'merchant_login': merchant_login,
-    })
+    return render(request, 'donations/donation_page.html')
 
-@login_required
-def edit_donation_settings(request):
-    if not request.user.is_superuser:
-        return HttpResponseForbidden("Доступ только для суперадмина")
+def create_payment(request):
     if request.method == 'POST':
-        description = request.POST.get('description', '')
-        merchant_login = request.POST.get('merchant_login', '')
-        SiteSettings.set_setting('DONATION_DESCRIPTION', description)
-        SiteSettings.set_setting('ROBOKASSA_MERCHANT_LOGIN', merchant_login)
-        messages.success(request, "Настройки обновлены")
-        return redirect('donation_page')
-    description = SiteSettings.get_setting('DONATION_DESCRIPTION', '')
-    merchant_login = SiteSettings.get_setting('ROBOKASSA_MERCHANT_LOGIN', '')
-    return render(request, 'donations/edit_donation_settings.html', {
-        'description': description,
-        'merchant_login': merchant_login,
-    })
+        amount = request.POST.get('amount')
+        email = request.POST.get('email', '')
+
+        try:
+            amount_float = float(amount)
+            if amount_float < 10:
+                messages.error(request, "Минимальная сумма - 10 рублей")
+                return redirect('donation_page')
+        except:
+            messages.error(request, "Некорректная сумма")
+            return redirect('donation_page')
+
+        donation = Donation.objects.create(amount=amount, email=email)
+
+        m_id = str(settings.FREEKASSA_MERCHANT_ID)
+        secret = settings.FREEKASSA_SECRET_1
+        order_id = donation.id
+        sign_str = f"{m_id}:{amount}:{secret}:{order_id}"
+        sign = hashlib.md5(sign_str.encode('utf-8')).hexdigest()
+
+        payment_url = (
+            f"https://pay.freekassa.ru/?m={m_id}&oa={amount}&o={order_id}"
+            f"&s={sign}&email={email}"
+        )
+
+        return redirect(payment_url)
+
+    return redirect('donation_page')
+
+def payment_success(request):
+    messages.success(request, "Платеж успешно выполнен! Спасибо за поддержку.")
+    return render(request, 'donations/success.html')
+
+def payment_fail(request):
+    messages.error(request, "Платеж не был завершен.")
+    return render(request, 'donations/fail.html')
+
+@csrf_exempt
+def payment_check(request):
+    amount = request.GET.get('AMOUNT')
+    order_id = request.GET.get('MERCHANT_ORDER_ID')
+    sign = request.GET.get('SIGN')
+
+    expected_sign = hashlib.md5(f"{order_id}:{settings.FREEKASSA_SECRET_2}".encode()).hexdigest()
+
+    if sign == expected_sign:
+        donation = Donation.objects.filter(id=order_id).first()
+        if donation:
+            donation.status = 'success'
+            donation.save()
+            return HttpResponse("YES")
+    return HttpResponse("NO")

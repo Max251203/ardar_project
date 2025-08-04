@@ -1,34 +1,15 @@
-# Django
 Django==4.2
 djangorestframework
-
-# Авторизация
-django-allauth
-
-# БД
 psycopg2-binary
-
-# Утилиты и конфиги
 python-decouple
 django-environ
 django-cors-headers
 django-modeltranslation
-
-# Работа с файлами
 pillow
-django-ckeditor>=6.0.0  # Можно заменить на django-ckeditor-5 если нужно
-
-# Stripe для пожертвований
-stripe
-
-# Озвучка
+django-ckeditor>=6.0.0
 gTTS
-# ArmTTS накатываем отдельно
-
-# Для отладки и продакшена
 gunicorn
 django-debug-toolbar
-
-# Agora для видеотрансляций
 agora-token-builder
 dj-database-url
+whitenoise
