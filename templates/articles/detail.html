@@ -34,7 +34,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
                 <path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
             </svg>
-            <span>{% trans "Listen to article" %}</span>
+                        <span>{% trans "Listen to article" %}</span>
         </div>
         <div class="player-options">
             <select id="voice-select" class="voice-select">
@@ -194,14 +194,17 @@
     margin: 0 auto;
     background-color: var(--card);
     border-radius: 10px;
-    padding: 30px;
+    padding: 25px 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     box-sizing: border-box;
-    position: relative; /* Для правильного позиционирования дочерних элементов */
+    position: relative;
+    overflow: hidden;
 }
 
 .article-header {
     margin-bottom: 25px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .article-title {
@@ -209,6 +212,7 @@
     margin-bottom: 15px;
     font-size: 28px;
     color: var(--text);
+    word-wrap: break-word;
 }
 
 .article-meta {
@@ -226,6 +230,8 @@
     padding: 10px 15px;
     margin-bottom: 20px;
     color: #92400e;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .article-image {
@@ -236,6 +242,7 @@
     height: auto;
     max-height: 500px;
     text-align: center;
+    box-sizing: border-box;
 }
 
 .article-image img {
@@ -254,6 +261,7 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
+    box-sizing: border-box;
 }
 
 .article-content p {
@@ -276,6 +284,8 @@
     margin-top: 30px;
     display: flex;
     justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .btn-back {
@@ -315,6 +325,7 @@
 
 .player-options {
     display: flex;
+    flex-direction: column;
     gap: 10px;
     margin-bottom: 10px;
 }
@@ -326,11 +337,14 @@
     border: 1px solid var(--border);
     background-color: var(--card);
     color: var(--text);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .generate-btn {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     padding: 8px 15px;
     background-color: var(--primary);
@@ -340,6 +354,8 @@
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .generate-btn:hover {
@@ -350,6 +366,7 @@
     margin-top: 15px;
     width: 100%;
     min-height: 40px;
+    box-sizing: border-box;
 }
 
 .ra-button {
@@ -387,6 +404,7 @@
     border-radius: 8px !important;
     width: 100% !important;
     position: relative !important;
+    box-sizing: border-box !important;
 }
 
 #ra-player .ra-group {
@@ -442,7 +460,7 @@
     border-radius: 50% !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
-    cursor: pointer !important;
+        cursor: pointer !important;
 }
 
 #ra-player .ra-time-text {
@@ -591,6 +609,8 @@
     background-color: var(--bg);
     border-radius: 8px;
     border: 1px solid var(--border);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .article-rating h3 {
@@ -694,6 +714,8 @@
 /* --- Комментарии --- */
 .article-comments {
     margin: 30px 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .article-comments h3 {
@@ -706,6 +728,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    width: 100%;
 }
 
 .comment-form textarea {
@@ -717,6 +740,7 @@
     font-size: 15px;
     color: var(--text);
     background: var(--bg);
+    box-sizing: border-box;
 }
 
 .comment-form .btn {
@@ -739,6 +763,8 @@
     list-style: none;
     padding: 0;
     margin: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .comment-item {
@@ -748,6 +774,8 @@
     margin-bottom: 12px;
     background: var(--card);
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .comment-header {
@@ -755,6 +783,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 6px;
+    flex-wrap: wrap;
+    gap: 5px;
 }
 
 .comment-header strong {
@@ -772,6 +802,8 @@
     color: var(--text);
     margin-bottom: 6px;
     white-space: pre-line;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .comment-actions {
@@ -852,17 +884,23 @@
     height: 24px;
 }
 
-@media (max-width: 576px) {
+@media (min-width: 768px) {
+    .player-options {
+        flex-direction: row;
+    }
+    
+    .generate-btn {
+        width: auto;
+    }
+}
+
+@media (max-width: 767px) {
     .article-container {
-        padding: 20px;
+        padding: 20px 15px;
     }
     
     .article-title {
         font-size: 24px;
-    }
-    
-    .player-options {
-        flex-direction: column;
     }
     
     .star {
@@ -874,6 +912,33 @@
         right: 20px;
         width: 45px;
         height: 45px;
+    }
+}
+
+@media (max-width: 480px) {
+    .article-container {
+        padding: 15px 12px;
+    }
+    
+    .article-title {
+        font-size: 22px;
+    }
+    
+    .article-meta {
+        gap: 10px;
+    }
+    
+    .article-player {
+        padding: 12px;
+    }
+    
+    .star {
+        font-size: 24px;
+    }
+    
+    .comment-form .btn {
+        width: 100%;
+        align-self: stretch;
     }
 }
 </style>
@@ -912,7 +977,7 @@
             newContainer.innerHTML = `
                                 <div id="ra-player" data-skin="https://assets.readaloudwidget.com/embed/skins/default">
                     <div class="ra-button" onclick="readAloud(document.getElementById('ra-audio'), document.getElementById('ra-player'))">
-                        <img src="https://assets.readaloudwidget.com/embed/skins/default/play-icon.png"/> Прослушать текст
+                                                <img src="https://assets.readaloudwidget.com/embed/skins/default/play-icon.png"/> Прослушать текст
                     </div>
                 </div>
                 <audio id="ra-audio" 

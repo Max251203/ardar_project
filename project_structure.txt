@@ -63,6 +63,7 @@
         ├── admin.py
         ├── apps.py
         ├── migrations
+            ├── 0001_initial.py
             ├── __init__.py
         ├── models.py
         ├── tests.py
@@ -124,6 +125,7 @@
     ├── settings.py
     ├── urls.py
     └── wsgi.py
+├── create_superuser.py
 ├── docker
     ├── Dockerfile
     └── docker-compose.yml
@@ -145,12 +147,14 @@
     └── temp
 ├── prob.py
 ├── project_structure.txt
+├── render.yaml
 ├── requirements.txt
 ├── static
     ├── css
         ├── admin.css
         ├── livestream.css
-        └── main.css
+        ├── main.css
+        └── styles.css
     ├── img
         ├── add.png
         ├── approve.png
@@ -210,7 +214,8 @@
         └── home.html
     ├── donations
         ├── donation_page.html
-        └── edit_donation_settings.html
+        ├── fail.html
+        └── success.html
     ├── legal
         ├── edit_legal_page.html
         └── legal_page.html
