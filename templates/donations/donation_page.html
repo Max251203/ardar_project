@@ -7,31 +7,131 @@
 {% block content %}
 <div class="donation-container">
     <h1>{% trans "Поддержать проект" %}</h1>
-    
+
     <div class="donation-description">
-        <p>{% trans "Вы можете поддержать развитие нашего общественно-политического проекта. Ваша помощь позволит нам публиковать больше независимых материалов, проводить прямые эфиры и дискуссии, развивать новые сервисы для читателей." %}</p>
-        <p>{% trans "Любая сумма важна! Спасибо за вашу поддержку и доверие." %}</p>
+        <p>{% trans "Вы можете поддержать развитие нашего проекта. Любая сумма важна!" %}</p>
+        {% if receiver_info %}
+        <div class="receiver-info" style="margin: 10px 0; padding: 12px; border: 1px dashed var(--border); border-radius: 6px; background: var(--bg); color: var(--text);">
+            <strong>Реквизиты получателя (для справки):</strong><br>
+            <span style="white-space: pre-wrap;">{{ receiver_info }}</span>
+        </div>
+        {% endif %}
     </div>
-    
+
     <div class="donation-form-container">
-        <form method="POST" action="{% url 'create_payment' %}" class="donation-form">
+        <form method="POST" action="{% url 'create_payment' %}" class="donation-form" id="donationForm">
             {% csrf_token %}
             <div class="form-group">
                 <label for="amount">{% trans "Сумма (₽):" %}</label>
                 <input type="number" id="amount" name="amount" min="10" step="1" required class="form-control">
             </div>
-            
+
             <div class="form-group">
                 <label for="email">{% trans "Email (необязательно):" %}</label>
-                <input type="email" id="email" name="email" class="form-control">
+                <input type="email" id="email" name="email" class="form-control" placeholder="example@mail.com">
             </div>
-            
+
             <button type="submit" class="btn-donate">{% trans "Перейти к оплате" %}</button>
         </form>
     </div>
-    
+
     <div class="donation-info">
-        <p>{% trans "После нажатия кнопки вы будете перенаправлены на защищенную страницу оплаты. Поддерживаются карты МИР, Visa, Mastercard." %}</p>
+        <p>{% trans "Оплата откроется в окне прямо на сайте. Если окно не отобразится, произойдёт переход на защищенную страницу оплаты." %}</p>
     </div>
 </div>
+
+<!-- Модалка с iframe -->
+<div id="fkOverlay" class="fk-overlay" style="display:none;">
+  <div class="fk-modal">
+    <button class="fk-close" id="fkCloseBtn" aria-label="Закрыть">×</button>
+    <iframe id="fkFrame" src="" frameborder="0" allow="payment *" allowpaymentrequest="true"></iframe>
+    <div class="fk-fallback">
+      Если окно оплаты не загрузилось — <a id="fkDirectLink" href="#" target="_blank" rel="noopener">открыть по ссылке</a>.
+    </div>
+  </div>
+</div>
+
+<style>
+.donation-container { max-width: 640px; margin: 0 auto; }
+.btn-donate { padding: 12px 20px; background: var(--primary); color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+.fk-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+.fk-modal {
+  background: var(--card); border-radius: 10px; width: min(920px, 96vw); height: min(720px, 92vh); position: relative; padding: 0; display: flex; flex-direction: column;
+}
+.fk-modal #fkFrame {
+  width: 100%; height: 100%; border: 0; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+}
+.fk-close {
+  position: absolute; top: 8px; right: 12px; z-index: 2;
+  background: transparent; border: none; color: var(--text); font-size: 28px; cursor: pointer;
+}
+.fk-fallback {
+  position: absolute; bottom: 8px; left: 12px; right: 12px; text-align: center; color: var(--text-light);
+  background: rgba(0,0,0,0.02); padding: 6px 8px; border-radius: 6px; display: none;
+}
+</style>
+
+<script>
+(function() {
+  const form = document.getElementById('donationForm');
+  const overlay = document.getElementById('fkOverlay');
+  const iframe = document.getElementById('fkFrame');
+  const closeBtn = document.getElementById('fkCloseBtn');
+  const directLink = document.getElementById('fkDirectLink');
+  const fallbackHint = document.querySelector('.fk-fallback');
+
+  function openOverlay(url) {
+    iframe.src = url;
+    directLink.href = url;
+    overlay.style.display = 'flex';
+
+    // Если фрейм заблокирован политиками X-Frame-Options, покажем fallback
+    let loaded = false;
+    const timer = setTimeout(() => {
+      if (!loaded) {
+        fallbackHint.style.display = 'block';
+        // как запасной вариант — открыть в новой вкладке автоматически
+        window.open(url, '_blank', 'noopener');
+      }
+    }, 2500);
+
+    iframe.addEventListener('load', function onload() {
+      loaded = true;
+      fallbackHint.style.display = 'none';
+      clearTimeout(timer);
+      iframe.removeEventListener('load', onload);
+    });
+  }
+
+  closeBtn.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    iframe.src = '';
+  });
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: fd,
+      headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.pay_url) {
+        openOverlay(data.pay_url);
+      } else {
+        alert(data.error || 'Не удалось создать платёж. Попробуйте позже.');
+      }
+    })
+    .catch(() => {
+      // Если что-то пошло не так с AJAX — обычный сабмит (редирект)
+      form.submit();
+    });
+  });
+})();
+</script>
 {% endblock %}

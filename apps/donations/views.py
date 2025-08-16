@@ -1,105 +1,119 @@
-# import hashlib
-# from django.conf import settings
-# from django.shortcuts import render, redirect
-# from django.http import HttpResponse
-# from django.contrib import messages
-# from .models import Donation
-# from django.views.decorators.csrf import csrf_exempt
-
-# def donation_page(request):
-#     return render(request, 'donations/donation_page.html')
-
-# def create_payment(request):
-#     if request.method == 'POST':
-#         amount = request.POST.get('amount')
-#         email = request.POST.get('email', '')
-
-#         try:
-#             amount_float = float(amount)
-#             if amount_float < 10:
-#                 messages.error(request, "Минимальная сумма - 10 рублей")
-#                 return redirect('donation_page')
-#         except:
-#             messages.error(request, "Некорректная сумма")
-#             return redirect('donation_page')
-
-#         donation = Donation.objects.create(amount=amount, email=email)
-
-#         m_id = str(settings.FREEKASSA_MERCHANT_ID)
-#         secret = settings.FREEKASSA_SECRET_1
-#         order_id = donation.id
-#         sign_str = f"{m_id}:{amount}:{secret}:{order_id}"
-#         sign = hashlib.md5(sign_str.encode('utf-8')).hexdigest()
-
-#         payment_url = (
-#             f"https://pay.freekassa.ru/?m={m_id}&oa={amount}&o={order_id}"
-#             f"&s={sign}&email={email}"
-#         )
-
-#         return redirect(payment_url)
-
-#     return redirect('donation_page')
-
-# def payment_success(request):
-#     messages.success(request, "Платеж успешно выполнен! Спасибо за поддержку.")
-#     return render(request, 'donations/success.html')
-
-# def payment_fail(request):
-#     messages.error(request, "Платеж не был завершен.")
-#     return render(request, 'donations/fail.html')
-
-# @csrf_exempt
-# def payment_check(request):
-#     amount = request.GET.get('AMOUNT')
-#     order_id = request.GET.get('MERCHANT_ORDER_ID')
-#     sign = request.GET.get('SIGN')
-
-#     expected_sign = hashlib.md5(f"{order_id}:{settings.FREEKASSA_SECRET_2}".encode()).hexdigest()
-
-#     if sign == expected_sign:
-#         donation = Donation.objects.filter(id=order_id).first()
-#         if donation:
-#             donation.status = 'success'
-#             donation.save()
-#             return HttpResponse("YES")
-#     return HttpResponse("NO")
-
 import hashlib
+from decimal import Decimal, InvalidOperation
+
 from django.conf import settings
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
-from .models import Donation
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+from apps.core.models import SiteSettings
+from .models import Donation
+
+
+def _get_conf(key, default=''):
+    return SiteSettings.get_setting(key, getattr(settings, key, default))
+
 
 def donation_page(request):
-    return render(request, 'donations/donation_page.html')
+    receiver_info = _get_conf('PAYMENT_RECEIVER_INFO', '')
+    return render(request, 'donations/donation_page.html', {'receiver_info': receiver_info})
 
+
+def _build_pay_sign(merchant_id: str, amount_str: str, secret1: str, order_id: int) -> str:
+    # Подпись для перехода на оплату (классическая формула FreeKassa)
+    to_sign = f"{merchant_id}:{amount_str}:{secret1}:{order_id}"
+    return hashlib.md5(to_sign.encode('utf-8')).hexdigest()
+
+
+@require_POST
 def create_payment(request):
-    if request.method == 'POST':
-        amount = request.POST.get('amount')
-        email = request.POST.get('email', '')
-        
-        # Временно: вместо перенаправления на Free-Kassa
-        # просто создаем запись и показываем сообщение
-        donation = Donation.objects.create(
-            amount=amount, 
-            email=email,
-            status='pending'
-        )
-        
-        messages.success(request, f"Тестовый режим: создано пожертвование #{donation.id} на сумму {amount} ₽")
+    amount_raw = request.POST.get('amount')
+    email = request.POST.get('email', '') or ''
+
+    # Валидация суммы
+    try:
+        amount = Decimal(amount_raw).quantize(Decimal('0.01'))
+        if amount < Decimal('10'):
+            raise ValueError("Минимальная сумма — 10 ₽")
+    except Exception:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Некорректная сумма (минимум 10 ₽)'}, status=400)
+        messages.error(request, "Некорректная сумма (минимум 10 ₽)")
         return redirect('donation_page')
-    
-    return redirect('donation_page')
+
+    # Настройки FreeKassa
+    merchant_id = _get_conf('FREEKASSA_MERCHANT_ID', '')
+    secret1 = _get_conf('FREEKASSA_SECRET_1', '')
+    currency = _get_conf('FREEKASSA_CURRENCY', 'RUB')
+
+    if not merchant_id or not secret1:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Платёжные настройки не заданы.'}, status=500)
+        messages.error(request, "Платёжные настройки не заданы. Обратитесь к администратору.")
+        return redirect('donation_page')
+
+    # Создаем запись пожертвования
+    donation = Donation.objects.create(amount=amount, email=email, status='pending')
+
+    amount_str = f"{amount:.2f}".replace(',', '.')
+    sign = _build_pay_sign(merchant_id, amount_str, secret1, donation.id)
+
+    pay_url = f"https://pay.freekassa.ru/?m={merchant_id}&oa={amount_str}&o={donation.id}&s={sign}"
+    if currency:
+        pay_url += f"&currency={currency}"
+    if email:
+        pay_url += f"&email={email}"
+
+    # AJAX: вернём JSON для открытия модалки; без AJAX — обычный редирект
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'success': True, 'pay_url': pay_url, 'order_id': donation.id})
+    return redirect(pay_url)
+
 
 def payment_success(request):
+    # Важно: финальный статус лучше фиксировать по server-to-server коллбеку (payment_check)
     return render(request, 'donations/success.html')
+
 
 def payment_fail(request):
     return render(request, 'donations/fail.html')
 
+
 @csrf_exempt
 def payment_check(request):
-    # Временная заглушка
-    return HttpResponse("OK")
+    """
+    Серверный коллбек от FreeKassa.
+    В настройках мерчанта укажите URL: https://<домен>/donations/check/
+    Способ подписи у FreeKassa бывает разным — ниже реализованы 2 популярных варианта.
+    При необходимости подкорректируйте в соответствии с настройками в кабинете.
+    """
+    data = request.POST if request.method == 'POST' else request.GET
+
+    merchant_id = _get_conf('FREEKASSA_MERCHANT_ID', '')
+    secret2 = _get_conf('FREEKASSA_SECRET_2', '')
+
+    sent_sign = (data.get('SIGN') or data.get('sign') or '').lower()
+    amount = data.get('AMOUNT') or data.get('amount') or ''
+    order_id = data.get('MERCHANT_ORDER_ID') or data.get('order_id') or data.get('o') or ''
+
+    if not sent_sign or not order_id:
+        return HttpResponse("NO", status=400)
+
+    # Вариант подписи 1 (часто встречается): md5(f"{merchant_id}:{amount}:{secret2}:{order_id}")
+    calc1 = ''
+    if merchant_id and amount and secret2:
+        calc1 = hashlib.md5(f"{merchant_id}:{amount}:{secret2}:{order_id}".encode('utf-8')).hexdigest().lower()
+
+    # Вариант подписи 2 (использовался в вашем черновике): md5(f"{order_id}:{secret2}")
+    calc2 = hashlib.md5(f"{order_id}:{secret2}".encode('utf-8')).hexdigest().lower() if secret2 else ''
+
+    if sent_sign in (calc1, calc2):
+        donation = Donation.objects.filter(id=order_id).first()
+        if donation:
+            donation.status = 'success'
+            donation.fk_payment_id = data.get('intid') or data.get('payment_id')
+            donation.save()
+            return HttpResponse("YES")
+    return HttpResponse("NO")
